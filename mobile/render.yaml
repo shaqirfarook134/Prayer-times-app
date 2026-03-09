@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: prayer-times-api
+    runtime: node
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: echo "No build required - using native Node.js modules"
+    startCommand: node server-final.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
+    autoDeploy: true
