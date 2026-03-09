@@ -378,9 +378,9 @@ const server = http.createServer((req, res) => {
   }
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ Prayer Times API Server (Awqat Scraper) running on http://localhost:${PORT}`);
+  console.log(`\n✅ Prayer Times API Server (Awqat Scraper) running on port ${PORT}`);
   console.log(`\n📡 Features:`);
   console.log(`  - Live scraping from Awqat data files`);
   console.log(`  - Auto-refresh every 60 minutes`);
