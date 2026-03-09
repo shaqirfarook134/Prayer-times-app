@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prayer Times Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            background: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background: #f0f0f0;
+        }
+
+        .panel {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .masjid-list {
+            margin-top: 30px;
+        }
+
+        .masjid-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .masjid-info h3 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .masjid-info p {
+            color: #666;
+            font-size: 14px;
+            margin: 4px 0;
+        }
+
+        .masjid-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .alert {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .config-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .api-endpoint {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .spinner {
+            display: none;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        .spinner.show {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .prayer-times-display {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .prayer-times-display h3 {
+            margin-bottom: 15px;
+        }
+
+        .prayer-time-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .prayer-time-row:last-child {
+            border-bottom: none;
+        }
+
+        .prayer-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .prayer-time {
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🕌 Prayer Times Admin Dashboard</h1>
+            <p class="subtitle">Manage masjids and prayer times</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('masjids')">Manage Masjids</button>
+            <button class="tab" onclick="showTab('prayer-times')">Prayer Times</button>
+            <button class="tab" onclick="showTab('settings')">Settings</button>
+        </div>
+
+        <!-- Masjids Panel -->
+        <div id="masjids-panel" class="panel active">
+            <div id="alert" class="alert"></div>
+
+            <h2 style="margin-bottom: 20px;">Add New Masjid</h2>
+
+            <form id="add-masjid-form" onsubmit="addMasjid(event)">
+                <div class="form-group">
+                    <label for="name">Masjid Name *</label>
+                    <input type="text" id="name" name="name" required placeholder="e.g., Al Taqwa Masjid">
+                </div>
+
+                <div class="form-group">
+                    <label for="url">Awqat URL *</label>
+                    <input type="url" id="url" name="url" required placeholder="https://awqat.com.au/yourmasjid/">
+                    <small style="color: #666; font-size: 12px;">Must be an Awqat website URL</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="city">City *</label>
+                        <input type="text" id="city" name="city" required placeholder="Melbourne">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="state">State *</label>
+                        <select id="state" name="state" required>
+                            <option value="">Select State</option>
+                            <option value="VIC">Victoria</option>
+                            <option value="NSW">New South Wales</option>
+                            <option value="QLD">Queensland</option>
+                            <option value="WA">Western Australia</option>
+                            <option value="SA">South Australia</option>
+                            <option value="TAS">Tasmania</option>
+                            <option value="ACT">Australian Capital Territory</option>
+                            <option value="NT">Northern Territory</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="timezone">Timezone *</label>
+                    <select id="timezone" name="timezone" required>
+                        <option value="Australia/Melbourne">Australia/Melbourne (VIC, TAS)</option>
+                        <option value="Australia/Sydney">Australia/Sydney (NSW, ACT)</option>
+                        <option value="Australia/Brisbane">Australia/Brisbane (QLD)</option>
+                        <option value="Australia/Adelaide">Australia/Adelaide (SA)</option>
+                        <option value="Australia/Perth">Australia/Perth (WA)</option>
+                        <option value="Australia/Darwin">Australia/Darwin (NT)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn">Add Masjid</button>
+            </form>
+
+            <div class="spinner" id="loading"></div>
+
+            <div class="masjid-list" id="masjid-list">
+                <h2 style="margin-bottom: 20px;">All Masjids</h2>
+                <!-- Masjids will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Prayer Times Panel -->
+        <div id="prayer-times-panel" class="panel">
+            <h2 style="margin-bottom: 20px;">View Prayer Times</h2>
+
+            <div class="form-group">
+                <label for="masjid-select">Select Masjid</label>
+                <select id="masjid-select" onchange="fetchPrayerTimes()">
+                    <option value="">Choose a masjid...</option>
+                </select>
+            </div>
+
+            <div class="spinner" id="prayer-loading"></div>
+            <div id="prayer-times-display"></div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settings-panel" class="panel">
+            <h2 style="margin-bottom: 20px;">API Configuration</h2>
+
+            <div class="config-section">
+                <h3>Current API Endpoint</h3>
+                <div class="form-group">
+                    <label for="api-url">API Base URL</label>
+                    <input type="text" id="api-url" value="http://localhost:3001/api/v1" onchange="updateApiUrl()">
+                    <small style="color: #666; font-size: 12px;">
+                        Default: http://localhost:3001/api/v1 (Mock Server)<br>
+                        Production: http://localhost:8080/api/v1 (Real Backend)
+                    </small>
+                </div>
+                <button class="btn btn-small" onclick="testConnection()">Test Connection</button>
+            </div>
+
+            <div class="config-section">
+                <h3>Available Endpoints</h3>
+                <div class="api-endpoint">GET /masjids - List all masjids</div>
+                <div class="api-endpoint">POST /admin/masjids - Add new masjid</div>
+                <div class="api-endpoint">DELETE /admin/masjids/:id - Delete masjid</div>
+                <div class="api-endpoint">GET /prayer-times/:masjidId - Get prayer times</div>
+            </div>
+
+            <div class="config-section">
+                <h3>Quick Actions</h3>
+                <button class="btn btn-small" onclick="refreshMasjids()">Refresh Masjid List</button>
+                <button class="btn btn-small" onclick="clearCache()">Clear Cache</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let API_BASE_URL = localStorage.getItem('API_BASE_URL') || 'http://localhost:3001/api/v1';
+        document.getElementById('api-url').value = API_BASE_URL;
+
+        function showTab(tabName) {
+            // Hide all panels
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+            // Show selected panel
+            document.getElementById(tabName + '-panel').classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'masjids') {
+                loadMasjids();
+            } else if (tabName === 'prayer-times') {
+                loadMasjidsForDropdown();
+            }
+        }
+
+        function updateApiUrl() {
+            API_BASE_URL = document.getElementById('api-url').value;
+            localStorage.setItem('API_BASE_URL', API_BASE_URL);
+            showAlert('API URL updated', 'success');
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.className = `alert alert-${type} show`;
+            alert.textContent = message;
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+
+        async function addMasjid(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData);
+
+            document.getElementById('loading').classList.add('show');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/masjids`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('✅ Masjid added successfully!', 'success');
+                    event.target.reset();
+                    loadMasjids();
+                } else {
+                    const error = await response.json();
+                    showAlert('❌ Error: ' + (error.message || 'Failed to add masjid'), 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Connection error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        async function loadMasjids() {
+            const list = document.getElementById('masjid-list');
+            list.innerHTML = '<h2 style="margin-bottom: 20px;">All Masjids</h2><div class="spinner show"></div>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/masjids`);
+                const masjids = await response.json();
+
+                if (masjids.length === 0) {
+                    list.innerHTML += '<p style="color: #666;">No masjids added yet.</p>';
+                    return;
+                }
+
+                list.innerHTML = '<h2 style="margin-bottom: 20px;">All Masjids</h2>';
+
+                masjids.forEach(masjid => {
+                    const card = document.createElement('div');
+                    card.className = 'masjid-card';
+                    card.innerHTML = `
+                        <div class="masjid-info">
+                            <h3>${masjid.name}</h3>
+                            <p>📍 ${masjid.city}, ${masjid.state}</p>
+                            <p>🌐 ${masjid.url}</p>
+                            <p>🕐 ${masjid.timezone}</p>
+                        </div>
+                        <div class="masjid-actions">
+                            <button class="btn btn-small" onclick="viewPrayerTimes(${masjid.id})">View Times</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteMasjid(${masjid.id}, '${masjid.name}')">Delete</button>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (error) {
+                list.innerHTML += `<p style="color: #e74c3c;">Error loading masjids: ${error.message}</p>`;
+            }
+        }
+
+        async function deleteMasjid(id, name) {
+            if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/masjids/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert('✅ Masjid deleted successfully', 'success');
+                    loadMasjids();
+                } else {
+                    showAlert('❌ Failed to delete masjid', 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadMasjidsForDropdown() {
+            const select = document.getElementById('masjid-select');
+            select.innerHTML = '<option value="">Choose a masjid...</option>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/masjids`);
+                const masjids = await response.json();
+
+                masjids.forEach(masjid => {
+                    const option = document.createElement('option');
+                    option.value = masjid.id;
+                    option.textContent = `${masjid.name} (${masjid.city})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading masjids:', error);
+            }
+        }
+
+        async function fetchPrayerTimes() {
+            const masjidId = document.getElementById('masjid-select').value;
+            const display = document.getElementById('prayer-times-display');
+            const loading = document.getElementById('prayer-loading');
+
+            if (!masjidId) {
+                display.innerHTML = '';
+                return;
+            }
+
+            loading.classList.add('show');
+            display.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/prayer-times/${masjidId}`);
+                const times = await response.json();
+
+                display.innerHTML = `
+                    <h3>Prayer Times for ${times.date}</h3>
+                    <div class="prayer-time-row">
+                        <span class="prayer-name">Fajr</span>
+                        <div style="display: flex; gap: 20px;">
+                            <span><strong>Adhan:</strong> ${times.fajr.adhan12}</span>
+                            <span><strong>Iqama:</strong> ${times.fajr.iqama12}</span>
+                        </div>
+                    </div>
+                    <div class="prayer-time-row">
+                        <span class="prayer-name">Dhuhr</span>
+                        <div style="display: flex; gap: 20px;">
+                            <span><strong>Adhan:</strong> ${times.dhuhr.adhan12}</span>
+                            <span><strong>Iqama:</strong> ${times.dhuhr.iqama12}</span>
+                        </div>
+                    </div>
+                    <div class="prayer-time-row">
+                        <span class="prayer-name">Asr</span>
+                        <div style="display: flex; gap: 20px;">
+                            <span><strong>Adhan:</strong> ${times.asr.adhan12}</span>
+                            <span><strong>Iqama:</strong> ${times.asr.iqama12}</span>
+                        </div>
+                    </div>
+                    <div class="prayer-time-row">
+                        <span class="prayer-name">Maghrib</span>
+                        <div style="display: flex; gap: 20px;">
+                            <span><strong>Adhan:</strong> ${times.maghrib.adhan12}</span>
+                            <span><strong>Iqama:</strong> ${times.maghrib.iqama12}</span>
+                        </div>
+                    </div>
+                    <div class="prayer-time-row">
+                        <span class="prayer-name">Isha</span>
+                        <div style="display: flex; gap: 20px;">
+                            <span><strong>Adhan:</strong> ${times.isha.adhan12}</span>
+                            <span><strong>Iqama:</strong> ${times.isha.iqama12}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                display.innerHTML = `<p style="color: #e74c3c;">Error loading prayer times: ${error.message}</p>`;
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        function viewPrayerTimes(masjidId) {
+            showTab('prayer-times');
+            document.getElementById('masjid-select').value = masjidId;
+            fetchPrayerTimes();
+        }
+
+        async function testConnection() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/../health`);
+                if (response.ok) {
+                    showAlert('✅ Connection successful!', 'success');
+                } else {
+                    showAlert('❌ Connection failed', 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Cannot connect to API: ' + error.message, 'error');
+            }
+        }
+
+        function refreshMasjids() {
+            loadMasjids();
+            showAlert('Refreshing...', 'success');
+        }
+
+        function clearCache() {
+            localStorage.clear();
+            showAlert('Cache cleared', 'success');
+        }
+
+        // Load masjids on page load
+        window.onload = () => loadMasjids();
+    </script>
+</body>
+</html>
