@@ -1,8 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { Masjid, PrayerTimes, RegisterDeviceRequest, UpdateDeviceRequest } from '../types';
 
-// Production API URL
-const API_BASE_URL = 'https://prayer-times-api-0pas.onrender.com/api/v1';
+// Production API URL (with PostgreSQL database)
+const API_BASE_URL = 'https://prayer-times-api-uddr.onrender.com/api/v1';
 
 class ApiService {
   private client: AxiosInstance;
