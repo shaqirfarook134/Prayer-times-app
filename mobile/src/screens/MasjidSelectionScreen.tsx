@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList, Masjid } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
@@ -33,6 +34,13 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
     loadMasjids();
     checkExistingSelection();
   }, []);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadMasjids();
+    }, [])
+  );
 
   const checkExistingSelection = async () => {
     const selectedId = await storageService.getSelectedMasjidId();

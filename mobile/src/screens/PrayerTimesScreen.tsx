@@ -10,7 +10,7 @@ import {
   Switch,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
@@ -53,6 +53,13 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       }
     }
   }, [prayerTimes, notificationsEnabled]);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [masjidId])
+  );
 
   const loadNotificationSettings = async () => {
     const enabled = await storageService.getNotificationsEnabled();
