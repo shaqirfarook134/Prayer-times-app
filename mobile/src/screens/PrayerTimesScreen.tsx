@@ -42,17 +42,30 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     loadData();
     loadNotificationSettings();
-    const interval = setInterval(updateNextPrayer, 60000); // Update every minute
+
+    // Update countdown every minute
+    const countdownInterval = setInterval(updateNextPrayer, 60000);
+
+    // Auto-refresh data every 5 minutes
+    const refreshInterval = setInterval(() => {
+      console.log('Auto-refreshing prayer times...');
+      loadData();
+    }, 5 * 60 * 1000);
 
     // Auto-refresh when app comes from background
+    let previousAppState = AppState.currentState;
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
+      console.log('AppState changed:', previousAppState, '->', nextAppState);
+      if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('App returned to foreground - refreshing data');
         loadData();
       }
+      previousAppState = nextAppState;
     });
 
     return () => {
-      clearInterval(interval);
+      clearInterval(countdownInterval);
+      clearInterval(refreshInterval);
       subscription.remove();
     };
   }, [masjidId]);
