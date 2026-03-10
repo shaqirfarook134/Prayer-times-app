@@ -14,6 +14,7 @@ import { RootStackParamList, Masjid } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
+import websocketService from '../services/websocket';
 
 type MasjidSelectionScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -33,6 +34,25 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     loadMasjids();
     checkExistingSelection();
+
+    // Connect to WebSocket for real-time updates
+    websocketService.connect();
+
+    // Listen for masjid added
+    websocketService.onMasjidAdded(() => {
+      console.log('🔥 Received real-time masjid added!');
+      loadMasjids();
+    });
+
+    // Listen for masjid deleted
+    websocketService.onMasjidDeleted(() => {
+      console.log('🔥 Received real-time masjid deleted!');
+      loadMasjids();
+    });
+
+    return () => {
+      websocketService.removeAllListeners();
+    };
   }, []);
 
   // Auto-refresh when screen comes into focus

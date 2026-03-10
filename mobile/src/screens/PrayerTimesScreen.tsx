@@ -16,6 +16,7 @@ import { RootStackParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
+import websocketService from '../services/websocket';
 
 type PrayerTimesScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -43,10 +44,21 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     loadData();
     loadNotificationSettings();
 
+    // Connect to WebSocket for real-time updates
+    websocketService.connect();
+
+    // Listen for prayer times updates
+    websocketService.onPrayerTimesUpdated((data) => {
+      if (data.masjidId === masjidId) {
+        console.log('🔥 Received real-time prayer times update!');
+        loadData();
+      }
+    });
+
     // Update countdown every minute
     const countdownInterval = setInterval(updateNextPrayer, 60000);
 
-    // Auto-refresh data every 5 minutes
+    // Auto-refresh data every 5 minutes (backup to WebSocket)
     const refreshInterval = setInterval(() => {
       console.log('Auto-refreshing prayer times...');
       loadData();
@@ -67,6 +79,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       clearInterval(countdownInterval);
       clearInterval(refreshInterval);
       subscription.remove();
+      websocketService.removeAllListeners();
     };
   }, [masjidId]);
 

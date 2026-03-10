@@ -2,6 +2,7 @@
 const http = require('http');
 const https = require('https');
 const { Pool } = require('pg');
+const { Server } = require('socket.io');
 
 // ========== CONSTANTS ==========
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
@@ -487,6 +488,10 @@ async function getPrayerTimes(masjidId) {
 
     console.log(`✅ Prayer times cached for ${masjid.name}`);
 
+    // Emit WebSocket event for real-time update
+    io.emit('prayer_times_updated', { masjidId, prayerTimes });
+    console.log(`📡 Broadcasted prayer_times_updated event for masjid ${masjidId}`);
+
     return prayerTimes;
   } catch (error) {
     console.error(`❌ Error fetching prayer times for masjid ${masjidId}:`, error.message);
@@ -610,6 +615,10 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(201);
       res.end(JSON.stringify(newMasjid));
 
+      // Emit WebSocket event for real-time update
+      io.emit('masjid_added', newMasjid);
+      console.log('📡 Broadcasted masjid_added event');
+
       // Fetch prayer times for new masjid
       getPrayerTimes(newMasjid.id).catch(err => {
         console.error(`Failed to fetch times for new masjid:`, err.message);
@@ -623,6 +632,11 @@ const server = http.createServer(async (req, res) => {
       if (deleted) {
         delete prayerTimesCache[`masjid_${id}`];
         console.log('Masjid deleted:', deleted.name);
+
+        // Emit WebSocket event for real-time update
+        io.emit('masjid_deleted', { id });
+        console.log('📡 Broadcasted masjid_deleted event');
+
         res.writeHead(200);
         res.end(JSON.stringify({ message: 'Masjid deleted successfully' }));
       } else {
@@ -696,6 +710,23 @@ const server = http.createServer(async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// ========== WEBSOCKET SETUP ==========
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('📱 Client connected:', socket.id);
+
+  socket.on('disconnect', () => {
+    console.log('📱 Client disconnected:', socket.id);
+  });
+});
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ Prayer Times API Server (Production + PostgreSQL) running on port ${PORT}`);
   console.log(`\n🔒 Security Features:`);
@@ -711,6 +742,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  - 1-hour cache with cleanup`);
   console.log(`  - Race condition protection`);
   console.log(`  - PostgreSQL persistent storage`);
+  console.log(`  - WebSocket real-time updates`);
   console.log(`\n📍 Endpoints:`);
   console.log(`  GET  /api/v1/masjids - List all masjids`);
   console.log(`  GET  /api/v1/masjids/:id - Get single masjid`);
