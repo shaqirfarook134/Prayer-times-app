@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  AppState,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -42,7 +43,18 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     loadData();
     loadNotificationSettings();
     const interval = setInterval(updateNextPrayer, 60000); // Update every minute
-    return () => clearInterval(interval);
+
+    // Auto-refresh when app comes from background
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        loadData();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
   }, [masjidId]);
 
   useEffect(() => {
