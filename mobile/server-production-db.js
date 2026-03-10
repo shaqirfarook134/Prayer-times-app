@@ -609,6 +609,32 @@ const server = http.createServer(async (req, res) => {
       // Sanitize input
       const sanitized = sanitizeMasjid(data);
 
+      // Auto-detect cityCode from website
+      try {
+        const detectedCityCode = await new Promise((resolve, reject) => {
+          https.get(sanitized.url, (siteRes) => {
+            let html = '';
+            siteRes.on('data', (chunk) => html += chunk);
+            siteRes.on('end', () => {
+              const match = html.match(/var\s+JS_CITY_CODE\s*=\s*["']([^"']+)["']/);
+              if (match) {
+                console.log(`✅ Auto-detected cityCode: ${match[1]} for ${sanitized.name}`);
+                resolve(match[1]);
+              } else {
+                console.log(`⚠️  Could not auto-detect cityCode for ${sanitized.name}, using provided value`);
+                resolve(sanitized.cityCode);
+              }
+            });
+          }).on('error', (err) => {
+            console.log(`⚠️  Error fetching website for cityCode detection:`, err.message);
+            resolve(sanitized.cityCode);
+          });
+        });
+        sanitized.cityCode = detectedCityCode;
+      } catch (err) {
+        console.log(`⚠️  Using provided cityCode due to error:`, err.message);
+      }
+
       const newMasjid = await createMasjid(sanitized);
 
       console.log('Masjid added:', newMasjid.name);
