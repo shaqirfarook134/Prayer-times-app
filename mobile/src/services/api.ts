@@ -1,8 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { Masjid, PrayerTimes, RegisterDeviceRequest, UpdateDeviceRequest } from '../types';
 
-// Use environment variable or default to localhost
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001/api/v1';
+// Production API URL
+const API_BASE_URL = 'https://prayer-times-api-0pas.onrender.com/api/v1';
 
 class ApiService {
   private client: AxiosInstance;
