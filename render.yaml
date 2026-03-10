@@ -1,0 +1,25 @@
+databases:
+  - name: prayer-times-db
+    databaseName: prayer_times
+    user: prayer_times_user
+    plan: free
+
+services:
+  - type: web
+    name: prayer-times-api
+    runtime: node
+    env: node
+    region: oregon
+    plan: free
+    rootDir: mobile
+    buildCommand: npm install
+    startCommand: node server-production-db.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: prayer-times-db
+          property: connectionString
+    healthCheckPath: /health
+    autoDeploy: true
