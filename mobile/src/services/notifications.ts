@@ -128,6 +128,7 @@ class NotificationService {
               },
             },
             trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: notificationDate,
             },
           });
