@@ -17,15 +17,125 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
+// Test database connection and initialize schema
+pool.query('SELECT NOW()', async (err, res) => {
   if (err) {
     console.error('❌ Database connection failed:', err);
     process.exit(1);
   } else {
     console.log('✅ Database connected successfully at', res.rows[0].now);
+    await initializeDatabase();
   }
 });
+
+// ========== DATABASE INITIALIZATION ==========
+async function initializeDatabase() {
+  try {
+    console.log('🔧 Initializing database schema...');
+
+    // Create tables
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS masjids (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        url VARCHAR(500) NOT NULL,
+        city VARCHAR(100) NOT NULL,
+        state VARCHAR(100) NOT NULL,
+        timezone VARCHAR(100) NOT NULL DEFAULT 'Australia/Melbourne',
+        city_code VARCHAR(50),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS iqama_config (
+        id SERIAL PRIMARY KEY,
+        masjid_id INTEGER NOT NULL REFERENCES masjids(id) ON DELETE CASCADE,
+        prayer_name VARCHAR(50) NOT NULL CHECK (prayer_name IN ('fajr', 'dhuhr', 'asr', 'maghrib', 'isha')),
+        iqama_offset INTEGER NOT NULL DEFAULT 20,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(masjid_id, prayer_name)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS devices (
+        id SERIAL PRIMARY KEY,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        platform VARCHAR(20) NOT NULL CHECK (platform IN ('ios', 'android')),
+        masjid_id INTEGER REFERENCES masjids(id) ON DELETE SET NULL,
+        notifications_enabled BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create indexes
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_masjids_city_code ON masjids(city_code)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_iqama_config_masjid_id ON iqama_config(masjid_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_devices_token ON devices(token)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_devices_masjid_id ON devices(masjid_id)');
+
+    // Create update trigger function
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Create triggers
+    await pool.query(`
+      DROP TRIGGER IF EXISTS update_masjids_updated_at ON masjids;
+      CREATE TRIGGER update_masjids_updated_at BEFORE UPDATE ON masjids
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    await pool.query(`
+      DROP TRIGGER IF EXISTS update_iqama_config_updated_at ON iqama_config;
+      CREATE TRIGGER update_iqama_config_updated_at BEFORE UPDATE ON iqama_config
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    await pool.query(`
+      DROP TRIGGER IF EXISTS update_devices_updated_at ON devices;
+      CREATE TRIGGER update_devices_updated_at BEFORE UPDATE ON devices
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    // Insert default masjids (only if table is empty)
+    const { rows } = await pool.query('SELECT COUNT(*) FROM masjids');
+    if (parseInt(rows[0].count) === 0) {
+      console.log('📝 Inserting default masjids...');
+      await pool.query(`
+        INSERT INTO masjids (name, url, city, state, timezone, city_code) VALUES
+          ('Al Taqwa Masjid', 'https://awqat.com.au/altaqwamasjid/', 'Melbourne', 'VIC', 'Australia/Melbourne', 'altaqwamasjid'),
+          ('Preston Mosque', 'https://awqat.com.au/preston/', 'Melbourne', 'VIC', 'Australia/Melbourne', 'preston'),
+          ('Westall Road Mosque', 'https://awqat.com.au/westall/', 'Melbourne', 'VIC', 'Australia/Melbourne', 'westall')
+      `);
+
+      // Insert default iqama configurations
+      await pool.query(`
+        INSERT INTO iqama_config (masjid_id, prayer_name, iqama_offset)
+        SELECT m.id, prayer.name, 20
+        FROM masjids m
+        CROSS JOIN (VALUES ('fajr'), ('dhuhr'), ('asr'), ('maghrib'), ('isha')) AS prayer(name)
+      `);
+
+      console.log('✅ Default masjids inserted');
+    }
+
+    console.log('✅ Database schema initialized');
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    // Don't exit - let the app try to continue
+  }
+}
 
 // ========== STATE ==========
 const prayerTimesCache = {};
