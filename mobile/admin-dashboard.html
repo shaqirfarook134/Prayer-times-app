@@ -422,6 +422,21 @@
             const formData = new FormData(event.target);
             const data = Object.fromEntries(formData);
 
+            // Extract cityCode from URL (e.g., https://awqat.com.au/mgm/ -> mgm)
+            try {
+                const url = new URL(data.url);
+                const pathParts = url.pathname.split('/').filter(p => p);
+                if (pathParts.length > 0) {
+                    data.cityCode = pathParts[0];
+                } else {
+                    showAlert('❌ Invalid URL format. URL should be like: https://awqat.com.au/masjidname/', 'error');
+                    return;
+                }
+            } catch (e) {
+                showAlert('❌ Invalid URL format', 'error');
+                return;
+            }
+
             document.getElementById('loading').classList.add('show');
 
             try {

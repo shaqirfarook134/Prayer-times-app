@@ -367,46 +367,49 @@ function scrapePrayerTimesFromAwqat(masjid) {
 
           console.log(`✅ Scraped Adhan times for ${masjid.name} (${dateKey}):`, adhanTimes);
 
-          // Fetch fixed iqama times
+          // Fetch iqama times from website
           const iqamaUrl = `${masjid.url}iqamafixed.js`;
           https.get(iqamaUrl, (iqamaRes) => {
             let iqamaData = '';
             iqamaRes.on('data', (chunk) => iqamaData += chunk);
             iqamaRes.on('end', () => {
-              getIqamaConfig(masjid.id).then(dbConfig => {
-                try {
-                  // Extract FIXED_IQAMA_TIMES array
-                  const iqamaMatch = iqamaData.match(/var FIXED_IQAMA_TIMES = \[([^\]]+)\]/);
-                  if (iqamaMatch) {
-                    const iqamaArray = iqamaMatch[1].split(',').map(s => s.trim().replace(/'/g, ''));
+              try {
+                const iqamaConfig = { fajr: 20, dhuhr: 20, asr: 20, maghrib: 20, isha: 20 }; // defaults
 
-                    // Clone config to avoid mutation
-                    const customConfig = { ...dbConfig };
-
-                    // Update fixed iqama times if found
-                    if (iqamaArray[2] && iqamaArray[2] !== '') {
-                      customConfig.dhuhr = iqamaArray[2];
-                    }
-                    if (iqamaArray[5] && iqamaArray[5] !== '') {
-                      customConfig.isha = iqamaArray[5];
-                    }
-
-                    console.log(`✅ Updated fixed Iqama times for ${masjid.name}:`, customConfig);
-                    resolve(createPrayerTimesObject(adhanTimes, masjid.id, customConfig));
-                  } else {
-                    resolve(createPrayerTimesObject(adhanTimes, masjid.id, dbConfig));
-                  }
-                } catch (err) {
-                  console.log(`⚠️  Could not parse iqamafixed.js for ${masjid.name}, using defaults`);
-                  resolve(createPrayerTimesObject(adhanTimes, masjid.id, dbConfig));
+                // Extract JS_IQAMA_TIME array (minute offsets)
+                const offsetMatch = iqamaData.match(/var JS_IQAMA_TIME = \[([^\]]+)\]/);
+                if (offsetMatch) {
+                  const offsetArray = offsetMatch[1].split(',').map(s => {
+                    const val = s.trim();
+                    return val === '' ? null : parseInt(val);
+                  });
+                  // Array format: [0, fajr, dhuhr, asr, maghrib, isha]
+                  if (offsetArray[1] !== null) iqamaConfig.fajr = offsetArray[1];
+                  if (offsetArray[2] !== null) iqamaConfig.dhuhr = offsetArray[2];
+                  if (offsetArray[3] !== null) iqamaConfig.asr = offsetArray[3];
+                  if (offsetArray[4] !== null) iqamaConfig.maghrib = offsetArray[4];
+                  if (offsetArray[5] !== null) iqamaConfig.isha = offsetArray[5];
                 }
-              });
+
+                // Extract FIXED_IQAMA_TIMES array (overrides offsets)
+                const fixedMatch = iqamaData.match(/var FIXED_IQAMA_TIMES = \[([^\]]+)\]/);
+                if (fixedMatch) {
+                  const fixedArray = fixedMatch[1].split(',').map(s => s.trim().replace(/['"`]/g, ''));
+                  // Array format: ['', '', dhuhr, '', '', isha]
+                  if (fixedArray[2] && fixedArray[2] !== '') iqamaConfig.dhuhr = fixedArray[2];
+                  if (fixedArray[5] && fixedArray[5] !== '') iqamaConfig.isha = fixedArray[5];
+                }
+
+                console.log(`✅ Scraped Iqama config for ${masjid.name}:`, iqamaConfig);
+                resolve(createPrayerTimesObject(adhanTimes, masjid.id, iqamaConfig));
+              } catch (err) {
+                console.log(`⚠️  Could not parse iqamafixed.js for ${masjid.name}:`, err.message);
+                resolve(createPrayerTimesObject(adhanTimes, masjid.id, { fajr: 20, dhuhr: 20, asr: 20, maghrib: 20, isha: 20 }));
+              }
             });
           }).on('error', (err) => {
-            console.log(`⚠️  Could not fetch iqamafixed.js, using defaults:`, err.message);
-            getIqamaConfig(masjid.id).then(dbConfig => {
-              resolve(createPrayerTimesObject(adhanTimes, masjid.id, dbConfig));
-            });
+            console.log(`⚠️  Could not fetch iqamafixed.js for ${masjid.name}:`, err.message);
+            resolve(createPrayerTimesObject(adhanTimes, masjid.id, { fajr: 20, dhuhr: 20, asr: 20, maghrib: 20, isha: 20 }));
           });
 
         } catch (error) {
