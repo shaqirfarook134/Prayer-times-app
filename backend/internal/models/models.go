@@ -10,6 +10,8 @@ type Masjid struct {
 	City      string    `json:"city"`
 	State     string    `json:"state"`
 	Timezone  string    `json:"timezone"`
+	Latitude  *float64  `json:"latitude,omitempty"`
+	Longitude *float64  `json:"longitude,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

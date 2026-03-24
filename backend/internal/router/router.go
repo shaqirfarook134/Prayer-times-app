@@ -63,6 +63,7 @@ func (r *Router) Setup() *gin.Engine {
 	// admin.Use(middleware.BasicAuth("admin", "changeme"))
 	{
 		admin.POST("/masjids", r.masjidHandler.Create)
+		admin.PUT("/masjids/:id", r.masjidHandler.Update)
 		admin.DELETE("/masjids/:id", r.masjidHandler.Delete)
 	}
 

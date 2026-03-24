@@ -18,7 +18,7 @@ func NewMasjidRepository(db *database.DB) *MasjidRepository {
 // GetAll retrieves all masjids
 func (r *MasjidRepository) GetAll(ctx context.Context) ([]models.Masjid, error) {
 	query := `
-		SELECT id, name, url, city, state, timezone, created_at, updated_at
+		SELECT id, name, url, city, state, timezone, latitude, longitude, created_at, updated_at
 		FROM masjids
 		ORDER BY name ASC
 	`
@@ -34,7 +34,7 @@ func (r *MasjidRepository) GetAll(ctx context.Context) ([]models.Masjid, error) 
 		var m models.Masjid
 		err := rows.Scan(
 			&m.ID, &m.Name, &m.URL, &m.City, &m.State,
-			&m.Timezone, &m.CreatedAt, &m.UpdatedAt,
+			&m.Timezone, &m.Latitude, &m.Longitude, &m.CreatedAt, &m.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan masjid: %w", err)
@@ -52,7 +52,7 @@ func (r *MasjidRepository) GetAll(ctx context.Context) ([]models.Masjid, error) 
 // GetByID retrieves a masjid by ID
 func (r *MasjidRepository) GetByID(ctx context.Context, id int) (*models.Masjid, error) {
 	query := `
-		SELECT id, name, url, city, state, timezone, created_at, updated_at
+		SELECT id, name, url, city, state, timezone, latitude, longitude, created_at, updated_at
 		FROM masjids
 		WHERE id = $1
 	`
@@ -60,7 +60,7 @@ func (r *MasjidRepository) GetByID(ctx context.Context, id int) (*models.Masjid,
 	var m models.Masjid
 	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
 		&m.ID, &m.Name, &m.URL, &m.City, &m.State,
-		&m.Timezone, &m.CreatedAt, &m.UpdatedAt,
+		&m.Timezone, &m.Latitude, &m.Longitude, &m.CreatedAt, &m.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get masjid: %w", err)
@@ -72,18 +72,40 @@ func (r *MasjidRepository) GetByID(ctx context.Context, id int) (*models.Masjid,
 // Create adds a new masjid
 func (r *MasjidRepository) Create(ctx context.Context, m *models.Masjid) error {
 	query := `
-		INSERT INTO masjids (name, url, city, state, timezone)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO masjids (name, url, city, state, timezone, latitude, longitude)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`
 
 	err := r.db.Pool.QueryRow(
 		ctx, query,
-		m.Name, m.URL, m.City, m.State, m.Timezone,
+		m.Name, m.URL, m.City, m.State, m.Timezone, m.Latitude, m.Longitude,
 	).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt)
 
 	if err != nil {
 		return fmt.Errorf("failed to create masjid: %w", err)
+	}
+
+	return nil
+}
+
+// Update updates an existing masjid
+func (r *MasjidRepository) Update(ctx context.Context, m *models.Masjid) error {
+	query := `
+		UPDATE masjids
+		SET name = $1, url = $2, city = $3, state = $4, timezone = $5,
+		    latitude = $6, longitude = $7, updated_at = NOW()
+		WHERE id = $8
+		RETURNING updated_at
+	`
+
+	err := r.db.Pool.QueryRow(
+		ctx, query,
+		m.Name, m.URL, m.City, m.State, m.Timezone, m.Latitude, m.Longitude, m.ID,
+	).Scan(&m.UpdatedAt)
+
+	if err != nil {
+		return fmt.Errorf("failed to update masjid: %w", err)
 	}
 
 	return nil

@@ -94,6 +94,56 @@ func (h *MasjidHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, masjid)
 }
 
+// Update updates an existing masjid (admin only)
+// PUT /admin/masjids/:id
+func (h *MasjidHandler) Update(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Error:   "invalid_id",
+			Message: "Masjid ID must be a number",
+		})
+		return
+	}
+
+	var masjid models.Masjid
+	if err := c.ShouldBindJSON(&masjid); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Error:   "invalid_request",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Validate required fields
+	if masjid.Name == "" || masjid.URL == "" || masjid.City == "" {
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Error:   "validation_error",
+			Message: "Name, URL, and City are required",
+		})
+		return
+	}
+
+	// Set the ID from the URL parameter
+	masjid.ID = id
+
+	// Set default timezone if not provided
+	if masjid.Timezone == "" {
+		masjid.Timezone = "Australia/Melbourne"
+	}
+
+	err = h.masjidRepo.Update(c.Request.Context(), &masjid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIError{
+			Error:   "database_error",
+			Message: "Failed to update masjid",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, masjid)
+}
+
 // Delete removes a masjid (admin only)
 // DELETE /admin/masjids/:id
 func (h *MasjidHandler) Delete(c *gin.Context) {
