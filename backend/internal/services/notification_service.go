@@ -38,7 +38,11 @@ func NewNotificationService(
 
 	// Initialize FCM client
 	if cfg.FCM.ServerKey != "" {
-		ns.fcmClient = fcm.NewClient(cfg.FCM.ServerKey)
+		client, err := fcm.NewClient(cfg.FCM.ServerKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create FCM client: %w", err)
+		}
+		ns.fcmClient = client
 	}
 
 	// Initialize APNs client
@@ -173,6 +177,12 @@ func (s *NotificationService) sendFCMNotification(token string, notification *mo
 		return fmt.Errorf("FCM client not initialized")
 	}
 
+	// Convert map[string]string to map[string]interface{}
+	data := make(map[string]interface{})
+	for k, v := range notification.Data {
+		data[k] = v
+	}
+
 	msg := &fcm.Message{
 		To: token,
 		Notification: &fcm.Notification{
@@ -180,7 +190,7 @@ func (s *NotificationService) sendFCMNotification(token string, notification *mo
 			Body:  notification.Body,
 			Sound: notification.Sound,
 		},
-		Data: notification.Data,
+		Data: data,
 		Priority: "high",
 	}
 
