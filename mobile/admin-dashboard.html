@@ -258,6 +258,87 @@
             color: #667eea;
             font-weight: 600;
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow: auto;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 20px;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -325,6 +406,20 @@
                     </select>
                 </div>
 
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="latitude">Latitude (optional)</label>
+                        <input type="number" id="latitude" name="latitude" step="0.0000001" placeholder="-37.7522">
+                        <small style="color: #666; font-size: 12px;">e.g., -37.7522 (decimal degrees)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="longitude">Longitude (optional)</label>
+                        <input type="number" id="longitude" name="longitude" step="0.0000001" placeholder="144.9542">
+                        <small style="color: #666; font-size: 12px;">e.g., 144.9542 (decimal degrees)</small>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn">Add Masjid</button>
             </form>
 
@@ -372,6 +467,7 @@
                 <h3>Available Endpoints</h3>
                 <div class="api-endpoint">GET /masjids - List all masjids</div>
                 <div class="api-endpoint">POST /admin/masjids - Add new masjid</div>
+                <div class="api-endpoint">PUT /admin/masjids/:id - Update masjid</div>
                 <div class="api-endpoint">DELETE /admin/masjids/:id - Delete masjid</div>
                 <div class="api-endpoint">GET /prayer-times/:masjidId - Get prayer times</div>
             </div>
@@ -381,6 +477,80 @@
                 <button class="btn btn-small" onclick="refreshMasjids()">Refresh Masjid List</button>
                 <button class="btn btn-small" onclick="clearCache()">Clear Cache</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Edit Masjid Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Masjid</h2>
+                <button class="close-btn" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="edit-masjid-form" onsubmit="saveMasjid(event)">
+                <input type="hidden" id="edit-masjid-id">
+
+                <div class="form-group">
+                    <label for="edit-name">Masjid Name *</label>
+                    <input type="text" id="edit-name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-url">Awqat URL *</label>
+                    <input type="url" id="edit-url" required>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="edit-city">City *</label>
+                        <input type="text" id="edit-city" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-state">State *</label>
+                        <select id="edit-state" required>
+                            <option value="">Select State</option>
+                            <option value="VIC">Victoria</option>
+                            <option value="NSW">New South Wales</option>
+                            <option value="QLD">Queensland</option>
+                            <option value="WA">Western Australia</option>
+                            <option value="SA">South Australia</option>
+                            <option value="TAS">Tasmania</option>
+                            <option value="ACT">Australian Capital Territory</option>
+                            <option value="NT">Northern Territory</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-timezone">Timezone *</label>
+                    <select id="edit-timezone" required>
+                        <option value="Australia/Melbourne">Australia/Melbourne (VIC, TAS)</option>
+                        <option value="Australia/Sydney">Australia/Sydney (NSW, ACT)</option>
+                        <option value="Australia/Brisbane">Australia/Brisbane (QLD)</option>
+                        <option value="Australia/Adelaide">Australia/Adelaide (SA)</option>
+                        <option value="Australia/Perth">Australia/Perth (WA)</option>
+                        <option value="Australia/Darwin">Australia/Darwin (NT)</option>
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="edit-latitude">Latitude (optional)</label>
+                        <input type="number" id="edit-latitude" step="0.0000001" placeholder="-37.7522">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-longitude">Longitude (optional)</label>
+                        <input type="number" id="edit-longitude" step="0.0000001" placeholder="144.9542">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-success">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -422,6 +592,10 @@
             const formData = new FormData(event.target);
             const data = Object.fromEntries(formData);
 
+            // Convert latitude/longitude to numbers or null (same as saveMasjid)
+            data.latitude = data.latitude ? parseFloat(data.latitude) : null;
+            data.longitude = data.longitude ? parseFloat(data.longitude) : null;
+
             // Extract cityCode from URL (e.g., https://awqat.com.au/mgm/ -> mgm)
             try {
                 const url = new URL(data.url);
@@ -440,6 +614,7 @@
             document.getElementById('loading').classList.add('show');
 
             try {
+                console.log('Adding masjid with data:', data);
                 const response = await fetch(`${API_BASE_URL}/admin/masjids`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -447,14 +622,18 @@
                 });
 
                 if (response.ok) {
+                    const result = await response.json();
+                    console.log('Masjid added successfully:', result);
                     showAlert('✅ Masjid added successfully!', 'success');
                     event.target.reset();
                     loadMasjids();
                 } else {
                     const error = await response.json();
+                    console.error('API error:', error);
                     showAlert('❌ Error: ' + (error.message || 'Failed to add masjid'), 'error');
                 }
             } catch (error) {
+                console.error('Connection error:', error);
                 showAlert('❌ Connection error: ' + error.message, 'error');
             } finally {
                 document.getElementById('loading').classList.remove('show');
@@ -466,35 +645,50 @@
             list.innerHTML = '<h2 style="margin-bottom: 20px;">All Masjids</h2><div class="spinner show"></div>';
 
             try {
+                console.log('Loading masjids from:', `${API_BASE_URL}/masjids`);
                 const response = await fetch(`${API_BASE_URL}/masjids`);
-                const masjids = await response.json();
 
-                if (masjids.length === 0) {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const masjids = await response.json();
+                console.log('Loaded masjids:', masjids);
+
+                list.innerHTML = '<h2 style="margin-bottom: 20px;">All Masjids</h2>';
+
+                if (!masjids || masjids.length === 0) {
                     list.innerHTML += '<p style="color: #666;">No masjids added yet.</p>';
                     return;
                 }
 
-                list.innerHTML = '<h2 style="margin-bottom: 20px;">All Masjids</h2>';
-
                 masjids.forEach(masjid => {
                     const card = document.createElement('div');
                     card.className = 'masjid-card';
+                    const coordsHtml = masjid.latitude && masjid.longitude
+                        ? `<p>📍 Coordinates: ${masjid.latitude}, ${masjid.longitude}</p>`
+                        : '<p style="color: #999;">⚠️ No coordinates set</p>';
                     card.innerHTML = `
                         <div class="masjid-info">
                             <h3>${masjid.name}</h3>
                             <p>📍 ${masjid.city}, ${masjid.state}</p>
                             <p>🌐 ${masjid.url}</p>
                             <p>🕐 ${masjid.timezone}</p>
+                            ${coordsHtml}
                         </div>
                         <div class="masjid-actions">
                             <button class="btn btn-small" onclick="viewPrayerTimes(${masjid.id})">View Times</button>
+                            <button class="btn btn-small btn-success" onclick='editMasjid(${JSON.stringify(masjid)})'>Edit</button>
                             <button class="btn btn-small btn-danger" onclick="deleteMasjid(${masjid.id}, '${masjid.name}')">Delete</button>
                         </div>
                     `;
                     list.appendChild(card);
                 });
             } catch (error) {
-                list.innerHTML += `<p style="color: #e74c3c;">Error loading masjids: ${error.message}</p>`;
+                console.error('Error loading masjids:', error);
+                list.innerHTML = '<h2 style="margin-bottom: 20px;">All Masjids</h2>' +
+                    `<p style="color: #e74c3c;">Error loading masjids: ${error.message}</p>` +
+                    `<button class="btn btn-small" onclick="loadMasjids()">Retry</button>`;
             }
         }
 
@@ -514,6 +708,72 @@
                 }
             } catch (error) {
                 showAlert('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        function editMasjid(masjid) {
+            // Populate form fields
+            document.getElementById('edit-masjid-id').value = masjid.id;
+            document.getElementById('edit-name').value = masjid.name;
+            document.getElementById('edit-url').value = masjid.url;
+            document.getElementById('edit-city').value = masjid.city;
+            document.getElementById('edit-state').value = masjid.state;
+            document.getElementById('edit-timezone').value = masjid.timezone;
+            document.getElementById('edit-latitude').value = masjid.latitude || '';
+            document.getElementById('edit-longitude').value = masjid.longitude || '';
+
+            // Show modal
+            document.getElementById('edit-modal').classList.add('show');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('show');
+            document.getElementById('edit-masjid-form').reset();
+        }
+
+        async function saveMasjid(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('edit-masjid-id').value;
+            const data = {
+                name: document.getElementById('edit-name').value,
+                url: document.getElementById('edit-url').value,
+                city: document.getElementById('edit-city').value,
+                state: document.getElementById('edit-state').value,
+                timezone: document.getElementById('edit-timezone').value,
+                latitude: document.getElementById('edit-latitude').value ? parseFloat(document.getElementById('edit-latitude').value) : null,
+                longitude: document.getElementById('edit-longitude').value ? parseFloat(document.getElementById('edit-longitude').value) : null,
+            };
+
+            // Extract cityCode from URL
+            try {
+                const url = new URL(data.url);
+                const pathParts = url.pathname.split('/').filter(p => p);
+                if (pathParts.length > 0) {
+                    data.cityCode = pathParts[0];
+                }
+            } catch (e) {
+                showAlert('❌ Invalid URL format', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/masjids/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('✅ Masjid updated successfully!', 'success');
+                    closeEditModal();
+                    loadMasjids();
+                } else {
+                    const error = await response.json();
+                    showAlert('❌ Error: ' + (error.message || 'Failed to update masjid'), 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Connection error: ' + error.message, 'error');
             }
         }
 
@@ -625,6 +885,14 @@
         function clearCache() {
             localStorage.clear();
             showAlert('Cache cleared', 'success');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('edit-modal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
         }
 
         // Load masjids on page load
