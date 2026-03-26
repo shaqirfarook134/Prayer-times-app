@@ -68,11 +68,6 @@ func (h *MasjidHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Log coordinates for debugging (will be removed after verification)
-	if masjid.Latitude != nil && masjid.Longitude != nil {
-		println("DEBUG: Received coordinates:", *masjid.Latitude, *masjid.Longitude)
-	}
-
 	// Validate required fields
 	if masjid.Name == "" || masjid.URL == "" || masjid.City == "" {
 		c.JSON(http.StatusBadRequest, models.APIError{
