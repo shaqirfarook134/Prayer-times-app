@@ -1,9 +1,3 @@
-databases:
-  - name: prayer-times-db
-    databaseName: prayer_times
-    user: prayer_times_user
-    plan: free
-
 services:
   - type: web
     name: prayer-times-api
