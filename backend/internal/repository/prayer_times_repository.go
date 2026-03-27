@@ -19,7 +19,9 @@ func NewPrayerTimesRepository(db *database.DB) *PrayerTimesRepository {
 // GetByMasjidAndDate retrieves prayer times for a specific masjid and date
 func (r *PrayerTimesRepository) GetByMasjidAndDate(ctx context.Context, masjidID int, date time.Time) (*models.PrayerTimes, error) {
 	query := `
-		SELECT id, masjid_id, date, fajr, dhuhr, asr, maghrib, isha, last_updated, created_at
+		SELECT id, masjid_id, date, fajr, dhuhr, asr, maghrib, isha,
+		       fajr_iqama, dhuhr_iqama, asr_iqama, maghrib_iqama, isha_iqama,
+		       last_updated, created_at
 		FROM prayer_times
 		WHERE masjid_id = $1 AND date = $2
 	`
@@ -27,7 +29,9 @@ func (r *PrayerTimesRepository) GetByMasjidAndDate(ctx context.Context, masjidID
 	var pt models.PrayerTimes
 	err := r.db.Pool.QueryRow(ctx, query, masjidID, date).Scan(
 		&pt.ID, &pt.MasjidID, &pt.Date, &pt.Fajr, &pt.Dhuhr,
-		&pt.Asr, &pt.Maghrib, &pt.Isha, &pt.LastUpdated, &pt.CreatedAt,
+		&pt.Asr, &pt.Maghrib, &pt.Isha,
+		&pt.FajrIqama, &pt.DhuhrIqama, &pt.AsrIqama, &pt.MaghribIqama, &pt.IshaIqama,
+		&pt.LastUpdated, &pt.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get prayer times: %w", err)
@@ -51,8 +55,10 @@ func (r *PrayerTimesRepository) GetTodayByMasjid(ctx context.Context, masjidID i
 // Upsert inserts or updates prayer times
 func (r *PrayerTimesRepository) Upsert(ctx context.Context, pt *models.PrayerTimes) error {
 	query := `
-		INSERT INTO prayer_times (masjid_id, date, fajr, dhuhr, asr, maghrib, isha, last_updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+		INSERT INTO prayer_times (masjid_id, date, fajr, dhuhr, asr, maghrib, isha,
+		                          fajr_iqama, dhuhr_iqama, asr_iqama, maghrib_iqama, isha_iqama,
+		                          last_updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
 		ON CONFLICT (masjid_id, date)
 		DO UPDATE SET
 			fajr = EXCLUDED.fajr,
@@ -60,6 +66,11 @@ func (r *PrayerTimesRepository) Upsert(ctx context.Context, pt *models.PrayerTim
 			asr = EXCLUDED.asr,
 			maghrib = EXCLUDED.maghrib,
 			isha = EXCLUDED.isha,
+			fajr_iqama = EXCLUDED.fajr_iqama,
+			dhuhr_iqama = EXCLUDED.dhuhr_iqama,
+			asr_iqama = EXCLUDED.asr_iqama,
+			maghrib_iqama = EXCLUDED.maghrib_iqama,
+			isha_iqama = EXCLUDED.isha_iqama,
 			last_updated = CURRENT_TIMESTAMP
 		RETURNING id, last_updated, created_at
 	`
@@ -67,6 +78,7 @@ func (r *PrayerTimesRepository) Upsert(ctx context.Context, pt *models.PrayerTim
 	err := r.db.Pool.QueryRow(
 		ctx, query,
 		pt.MasjidID, pt.Date, pt.Fajr, pt.Dhuhr, pt.Asr, pt.Maghrib, pt.Isha,
+		pt.FajrIqama, pt.DhuhrIqama, pt.AsrIqama, pt.MaghribIqama, pt.IshaIqama,
 	).Scan(&pt.ID, &pt.LastUpdated, &pt.CreatedAt)
 
 	if err != nil {
@@ -97,7 +109,9 @@ func (r *PrayerTimesRepository) CheckIfChanged(ctx context.Context, masjidID int
 // GetUpcoming retrieves upcoming prayer times for a masjid (for notification scheduling)
 func (r *PrayerTimesRepository) GetUpcoming(ctx context.Context, masjidID int, fromDate time.Time, days int) ([]models.PrayerTimes, error) {
 	query := `
-		SELECT id, masjid_id, date, fajr, dhuhr, asr, maghrib, isha, last_updated, created_at
+		SELECT id, masjid_id, date, fajr, dhuhr, asr, maghrib, isha,
+		       fajr_iqama, dhuhr_iqama, asr_iqama, maghrib_iqama, isha_iqama,
+		       last_updated, created_at
 		FROM prayer_times
 		WHERE masjid_id = $1 AND date >= $2 AND date < $3
 		ORDER BY date ASC
@@ -116,7 +130,9 @@ func (r *PrayerTimesRepository) GetUpcoming(ctx context.Context, masjidID int, f
 		var pt models.PrayerTimes
 		err := rows.Scan(
 			&pt.ID, &pt.MasjidID, &pt.Date, &pt.Fajr, &pt.Dhuhr,
-			&pt.Asr, &pt.Maghrib, &pt.Isha, &pt.LastUpdated, &pt.CreatedAt,
+			&pt.Asr, &pt.Maghrib, &pt.Isha,
+			&pt.FajrIqama, &pt.DhuhrIqama, &pt.AsrIqama, &pt.MaghribIqama, &pt.IshaIqama,
+			&pt.LastUpdated, &pt.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan prayer times: %w", err)

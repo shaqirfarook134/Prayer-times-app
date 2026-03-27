@@ -18,16 +18,21 @@ type Masjid struct {
 
 // PrayerTimes represents daily prayer times for a masjid
 type PrayerTimes struct {
-	ID          int       `json:"id"`
-	MasjidID    int       `json:"masjid_id"`
-	Date        time.Time `json:"date"`
-	Fajr        string    `json:"fajr"`
-	Dhuhr       string    `json:"dhuhr"`
-	Asr         string    `json:"asr"`
-	Maghrib     string    `json:"maghrib"`
-	Isha        string    `json:"isha"`
-	LastUpdated time.Time `json:"last_updated"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID           int       `json:"id"`
+	MasjidID     int       `json:"masjid_id"`
+	Date         time.Time `json:"date"`
+	Fajr         string    `json:"fajr"`
+	Dhuhr        string    `json:"dhuhr"`
+	Asr          string    `json:"asr"`
+	Maghrib      string    `json:"maghrib"`
+	Isha         string    `json:"isha"`
+	FajrIqama    string    `json:"fajr_iqama"`
+	DhuhrIqama   string    `json:"dhuhr_iqama"`
+	AsrIqama     string    `json:"asr_iqama"`
+	MaghribIqama string    `json:"maghrib_iqama"`
+	IshaIqama    string    `json:"isha_iqama"`
+	LastUpdated  time.Time `json:"last_updated"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // PrayerTime represents a single prayer time with adhan and iqama
@@ -98,12 +103,17 @@ type UpdateDeviceRequest struct {
 
 // ScrapedPrayerTimes represents prayer times extracted from a website
 type ScrapedPrayerTimes struct {
-	Date    time.Time
-	Fajr    string
-	Dhuhr   string
-	Asr     string
-	Maghrib string
-	Isha    string
+	Date        time.Time
+	Fajr        string
+	Dhuhr       string
+	Asr         string
+	Maghrib     string
+	Isha        string
+	FajrIqama   string
+	DhuhrIqama  string
+	AsrIqama    string
+	MaghribIqama string
+	IshaIqama   string
 }
 
 // NotificationPayload represents the data for a push notification

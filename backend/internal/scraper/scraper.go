@@ -8,6 +8,7 @@ import (
 	"prayer-times-api/internal/config"
 	"prayer-times-api/internal/models"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -185,6 +186,16 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		return nil, err
 	}
 
+	// Extract and calculate iqama times
+	if err := s.extractAndCalculateIqamaTimes(ctx, baseURL, prayerTimes); err != nil {
+		// If iqama extraction fails, use default +20 minutes
+		prayerTimes.FajrIqama = s.addMinutes(prayerTimes.Fajr, 20)
+		prayerTimes.DhuhrIqama = s.addMinutes(prayerTimes.Dhuhr, 20)
+		prayerTimes.AsrIqama = s.addMinutes(prayerTimes.Asr, 20)
+		prayerTimes.MaghribIqama = s.addMinutes(prayerTimes.Maghrib, 20)
+		prayerTimes.IshaIqama = s.addMinutes(prayerTimes.Isha, 20)
+	}
+
 	return prayerTimes, nil
 }
 
@@ -331,6 +342,132 @@ func (s *Scraper) validatePrayerTimes(pt *models.ScrapedPrayerTimes) error {
 	}
 
 	return nil
+}
+
+// extractAndCalculateIqamaTimes extracts iqama configuration and calculates iqama times
+func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL string, pt *models.ScrapedPrayerTimes) error {
+	// Build iqamafixed.js URL
+	baseURLParts := strings.Split(strings.TrimSuffix(baseURL, "/"), "/")
+	baseURLWithoutPath := strings.Join(baseURLParts[:len(baseURLParts)], "/")
+	iqamaURL := fmt.Sprintf("%s/iqamafixed.js", baseURLWithoutPath)
+
+	// Fetch iqamafixed.js
+	req, err := http.NewRequestWithContext(ctx, "GET", iqamaURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create iqama request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", s.config.UserAgent)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to fetch iqama config: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("iqama config request failed with status: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read iqama config: %w", err)
+	}
+
+	content := string(body)
+
+	// Extract FIXED_IQAMA_TIMES array: ['','','14:15','','','']
+	fixedTimesRe := regexp.MustCompile(`FIXED_IQAMA_TIMES\s*=\s*\[([^\]]+)\]`)
+	fixedMatches := fixedTimesRe.FindStringSubmatch(content)
+
+	var fixedTimes []string
+	if len(fixedMatches) > 1 {
+		// Parse the array
+		fixedStr := strings.ReplaceAll(fixedMatches[1], "'", "")
+		fixedStr = strings.ReplaceAll(fixedStr, "\"", "")
+		fixedStr = strings.ReplaceAll(fixedStr, " ", "")
+		fixedTimes = strings.Split(fixedStr, ",")
+	}
+
+	// Extract JS_IQAMA_TIME array: [0,30,10,10,7,10]
+	offsetTimesRe := regexp.MustCompile(`JS_IQAMA_TIME\s*=\s*\[([^\]]+)\]`)
+	offsetMatches := offsetTimesRe.FindStringSubmatch(content)
+
+	var offsetTimes []int
+	if len(offsetMatches) > 1 {
+		// Parse the array
+		offsetStr := strings.ReplaceAll(offsetMatches[1], " ", "")
+		offsetParts := strings.Split(offsetStr, ",")
+		for _, part := range offsetParts {
+			if part == "" {
+				offsetTimes = append(offsetTimes, 0)
+			} else {
+				offset, _ := strconv.Atoi(part)
+				offsetTimes = append(offsetTimes, offset)
+			}
+		}
+	}
+
+	// Calculate iqama times for each prayer
+	// Array indices: [0]=Fajr, [1]=Sunrise, [2]=Dhuhr, [3]=Asr, [4]=Maghrib, [5]=Isha
+
+	// Fajr (index 0)
+	pt.FajrIqama = s.calculateIqama(pt.Fajr, fixedTimes, offsetTimes, 0)
+
+	// Dhuhr (index 2)
+	pt.DhuhrIqama = s.calculateIqama(pt.Dhuhr, fixedTimes, offsetTimes, 2)
+
+	// Asr (index 3)
+	pt.AsrIqama = s.calculateIqama(pt.Asr, fixedTimes, offsetTimes, 3)
+
+	// Maghrib (index 4)
+	pt.MaghribIqama = s.calculateIqama(pt.Maghrib, fixedTimes, offsetTimes, 4)
+
+	// Isha (index 5)
+	pt.IshaIqama = s.calculateIqama(pt.Isha, fixedTimes, offsetTimes, 5)
+
+	return nil
+}
+
+// calculateIqama calculates iqama time based on fixed time or offset
+func (s *Scraper) calculateIqama(adhanTime string, fixedTimes []string, offsetTimes []int, index int) string {
+	// Check for fixed time first
+	if len(fixedTimes) > index && fixedTimes[index] != "" {
+		return fixedTimes[index]
+	}
+
+	// Use offset time
+	offset := 20 // default
+	if len(offsetTimes) > index && offsetTimes[index] > 0 {
+		offset = offsetTimes[index]
+	}
+
+	return s.addMinutes(adhanTime, offset)
+}
+
+// addMinutes adds minutes to a time string in HH:MM format
+func (s *Scraper) addMinutes(timeStr string, minutes int) string {
+	parts := strings.Split(timeStr, ":")
+	if len(parts) != 2 {
+		return timeStr
+	}
+
+	hours, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return timeStr
+	}
+
+	mins, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return timeStr
+	}
+
+	// Add minutes
+	totalMins := hours*60 + mins + minutes
+	newHours := (totalMins / 60) % 24
+	newMins := totalMins % 60
+
+	return fmt.Sprintf("%02d:%02d", newHours, newMins)
 }
 
 // timeToMinutes converts HH:MM to total minutes

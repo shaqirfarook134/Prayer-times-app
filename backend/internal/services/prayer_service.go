@@ -100,13 +100,18 @@ func (s *PrayerService) FetchAndUpdateMasjid(ctx context.Context, masjid *models
 
 	// Update database
 	prayerTimes := &models.PrayerTimes{
-		MasjidID: masjid.ID,
-		Date:     scrapedTimes.Date,
-		Fajr:     scrapedTimes.Fajr,
-		Dhuhr:    scrapedTimes.Dhuhr,
-		Asr:      scrapedTimes.Asr,
-		Maghrib:  scrapedTimes.Maghrib,
-		Isha:     scrapedTimes.Isha,
+		MasjidID:     masjid.ID,
+		Date:         scrapedTimes.Date,
+		Fajr:         scrapedTimes.Fajr,
+		Dhuhr:        scrapedTimes.Dhuhr,
+		Asr:          scrapedTimes.Asr,
+		Maghrib:      scrapedTimes.Maghrib,
+		Isha:         scrapedTimes.Isha,
+		FajrIqama:    scrapedTimes.FajrIqama,
+		DhuhrIqama:   scrapedTimes.DhuhrIqama,
+		AsrIqama:     scrapedTimes.AsrIqama,
+		MaghribIqama: scrapedTimes.MaghribIqama,
+		IshaIqama:    scrapedTimes.IshaIqama,
 	}
 
 	if err := s.prayerTimesRepo.Upsert(ctx, prayerTimes); err != nil {
