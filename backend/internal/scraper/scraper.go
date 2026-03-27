@@ -409,10 +409,10 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL str
 	}
 
 	// Calculate iqama times for each prayer
-	// Array indices: [0]=Fajr, [1]=Sunrise, [2]=Dhuhr, [3]=Asr, [4]=Maghrib, [5]=Isha
+	// Array indices: [0]=Sunrise, [1]=Fajr, [2]=Dhuhr, [3]=Asr, [4]=Maghrib, [5]=Isha
 
-	// Fajr (index 0)
-	pt.FajrIqama = s.calculateIqama(pt.Fajr, fixedTimes, offsetTimes, 0)
+	// Fajr (index 1)
+	pt.FajrIqama = s.calculateIqama(pt.Fajr, fixedTimes, offsetTimes, 1)
 
 	// Dhuhr (index 2)
 	pt.DhuhrIqama = s.calculateIqama(pt.Dhuhr, fixedTimes, offsetTimes, 2)
