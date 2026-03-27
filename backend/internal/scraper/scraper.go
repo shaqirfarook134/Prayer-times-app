@@ -78,16 +78,111 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 
 	html := string(body)
 
-	// Method 1: Try to extract structured JSON/JavaScript data
-	prayerTimes, err := s.extractFromJavaScript(html, timezone)
+	// Method 1: Try to extract from .ini data files (for awqat.com.au sites)
+	prayerTimes, err := s.extractFromIniDataFile(ctx, html, url, timezone)
 	if err == nil {
 		return prayerTimes, nil
 	}
 
-	// Method 2: Fallback to HTML parsing
+	// Method 2: Try to extract structured JSON/JavaScript data
+	prayerTimes, err = s.extractFromJavaScript(html, timezone)
+	if err == nil {
+		return prayerTimes, nil
+	}
+
+	// Method 3: Fallback to HTML parsing
 	prayerTimes, err = s.extractFromHTML(html, timezone)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract prayer times: %w", err)
+	}
+
+	return prayerTimes, nil
+}
+
+// extractFromIniDataFile attempts to extract prayer times from .ini data files (awqat.com.au)
+func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, timezone string) (*models.ScrapedPrayerTimes, error) {
+	// Check if this is an awqat.com.au site
+	if !strings.Contains(baseURL, "awqat.com.au") {
+		return nil, fmt.Errorf("not an awqat.com.au site")
+	}
+
+	// Extract city code from JavaScript (e.g., "AU.MELBOURNE")
+	cityCodeRe := regexp.MustCompile(`var\s+JS_CITY_CODE\s*=\s*["']([^"']+)["']`)
+	matches := cityCodeRe.FindStringSubmatch(html)
+	if len(matches) < 2 {
+		return nil, fmt.Errorf("city code not found")
+	}
+	cityCode := matches[1]
+
+	// Build data file URL
+	// Example: https://awqat.com.au/altaqwamasjid/data/wtimes-AU.MELBOURNE.ini
+	baseURLParts := strings.Split(strings.TrimSuffix(baseURL, "/"), "/")
+	baseURLWithoutPath := strings.Join(baseURLParts[:len(baseURLParts)], "/")
+	dataFileURL := fmt.Sprintf("%s/data/wtimes-%s.ini", baseURLWithoutPath, cityCode)
+
+	// Fetch the data file
+	req, err := http.NewRequestWithContext(ctx, "GET", dataFileURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create data file request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", s.config.UserAgent)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch data file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("data file request failed with status: %d", resp.StatusCode)
+	}
+
+	dataBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read data file: %w", err)
+	}
+
+	// Parse the data file
+	// Format: "MM-DD~~~~~HH:MM|HH:MM|HH:MM|HH:MM|HH:MM|HH:MM"
+	// Times are: [Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha]
+	dataContent := string(dataBody)
+
+	// Load timezone
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+
+	today := time.Now().In(loc)
+	todayStr := today.Format("01-02") // MM-DD format
+
+	// Find today's data line
+	lineRe := regexp.MustCompile(`"` + todayStr + `~~~~~([^"]+)"`)
+	lineMatches := lineRe.FindStringSubmatch(dataContent)
+	if len(lineMatches) < 2 {
+		return nil, fmt.Errorf("prayer times for today (%s) not found in data file", todayStr)
+	}
+
+	// Split times by pipe
+	timesStr := lineMatches[1]
+	times := strings.Split(timesStr, "|")
+	if len(times) < 6 {
+		return nil, fmt.Errorf("insufficient times in data line: %v", times)
+	}
+
+	prayerTimes := &models.ScrapedPrayerTimes{
+		Date:    today.Truncate(24 * time.Hour),
+		Fajr:    strings.TrimSpace(times[0]),    // Index 0: Fajr
+		Dhuhr:   strings.TrimSpace(times[2]),    // Index 2: Dhuhr (skip Sunrise at index 1)
+		Asr:     strings.TrimSpace(times[3]),    // Index 3: Asr
+		Maghrib: strings.TrimSpace(times[4]),    // Index 4: Maghrib
+		Isha:    strings.TrimSpace(times[5]),    // Index 5: Isha
+	}
+
+	// Validate times
+	if err := s.validatePrayerTimes(prayerTimes); err != nil {
+		return nil, err
 	}
 
 	return prayerTimes, nil
