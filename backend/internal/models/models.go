@@ -30,15 +30,33 @@ type PrayerTimes struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// PrayerTime represents a single prayer time with adhan and iqama
+type PrayerTime struct {
+	Adhan   string `json:"adhan"`   // 24-hour format: "05:30"
+	Iqama   string `json:"iqama"`   // 24-hour format: "05:50"
+	Adhan12 string `json:"adhan12"` // 12-hour format: "5:30 AM"
+	Iqama12 string `json:"iqama12"` // 12-hour format: "5:50 AM"
+}
+
 // PrayerTimesResponse is the API response format
 type PrayerTimesResponse struct {
-	MasjidID int    `json:"masjid_id"`
-	Date     string `json:"date"`
-	Fajr     string `json:"fajr"`
-	Dhuhr    string `json:"dhuhr"`
-	Asr      string `json:"asr"`
-	Maghrib  string `json:"maghrib"`
-	Isha     string `json:"isha"`
+	MasjidID int        `json:"masjid_id"`
+	Date     string     `json:"date"`
+	Fajr     PrayerTime `json:"fajr"`
+	Dhuhr    PrayerTime `json:"dhuhr"`
+	Asr      PrayerTime `json:"asr"`
+	Maghrib  PrayerTime `json:"maghrib"`
+	Isha     PrayerTime `json:"isha"`
+}
+
+// IqamaConfig represents iqama offset configuration for a prayer
+type IqamaConfig struct {
+	ID          int       `json:"id"`
+	MasjidID    int       `json:"masjid_id"`
+	PrayerName  string    `json:"prayer_name"`
+	IqamaOffset int       `json:"iqama_offset"` // Minutes to add to adhan time
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Log represents a system log entry

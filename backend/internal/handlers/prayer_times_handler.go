@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"prayer-times-api/internal/models"
 	"prayer-times-api/internal/repository"
+	"prayer-times-api/internal/utils"
 	"strconv"
 	"time"
 
@@ -13,12 +14,42 @@ import (
 type PrayerTimesHandler struct {
 	prayerTimesRepo *repository.PrayerTimesRepository
 	masjidRepo      *repository.MasjidRepository
+	iqamaRepo       *repository.IqamaRepository
 }
 
-func NewPrayerTimesHandler(prayerTimesRepo *repository.PrayerTimesRepository, masjidRepo *repository.MasjidRepository) *PrayerTimesHandler {
+func NewPrayerTimesHandler(prayerTimesRepo *repository.PrayerTimesRepository, masjidRepo *repository.MasjidRepository, iqamaRepo *repository.IqamaRepository) *PrayerTimesHandler {
 	return &PrayerTimesHandler{
 		prayerTimesRepo: prayerTimesRepo,
 		masjidRepo:      masjidRepo,
+		iqamaRepo:       iqamaRepo,
+	}
+}
+
+// buildPrayerTime creates a PrayerTime object with adhan and iqama times
+func (h *PrayerTimesHandler) buildPrayerTime(adhanTime string, offsetMinutes int) models.PrayerTime {
+	// Calculate iqama time
+	iqamaTime, err := utils.AddMinutesToTime(adhanTime, offsetMinutes)
+	if err != nil {
+		// Fallback to same time if error
+		iqamaTime = adhanTime
+	}
+
+	// Convert to 12-hour format
+	adhan12, err := utils.ConvertTo12Hour(adhanTime)
+	if err != nil {
+		adhan12 = adhanTime
+	}
+
+	iqama12, err := utils.ConvertTo12Hour(iqamaTime)
+	if err != nil {
+		iqama12 = iqamaTime
+	}
+
+	return models.PrayerTime{
+		Adhan:   adhanTime,
+		Iqama:   iqamaTime,
+		Adhan12: adhan12,
+		Iqama12: iqama12,
 	}
 }
 
@@ -54,15 +85,25 @@ func (h *PrayerTimesHandler) GetByMasjid(c *gin.Context) {
 		return
 	}
 
-	// Format response
+	// Get iqama configuration
+	iqamaOffsets, err := h.iqamaRepo.GetByMasjid(c.Request.Context(), masjidID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIError{
+			Error:   "server_error",
+			Message: "Failed to fetch iqama configuration",
+		})
+		return
+	}
+
+	// Build response with calculated iqama times
 	response := models.PrayerTimesResponse{
 		MasjidID: prayerTimes.MasjidID,
 		Date:     prayerTimes.Date.Format("2006-01-02"),
-		Fajr:     prayerTimes.Fajr,
-		Dhuhr:    prayerTimes.Dhuhr,
-		Asr:      prayerTimes.Asr,
-		Maghrib:  prayerTimes.Maghrib,
-		Isha:     prayerTimes.Isha,
+		Fajr:     h.buildPrayerTime(prayerTimes.Fajr, iqamaOffsets["fajr"]),
+		Dhuhr:    h.buildPrayerTime(prayerTimes.Dhuhr, iqamaOffsets["dhuhr"]),
+		Asr:      h.buildPrayerTime(prayerTimes.Asr, iqamaOffsets["asr"]),
+		Maghrib:  h.buildPrayerTime(prayerTimes.Maghrib, iqamaOffsets["maghrib"]),
+		Isha:     h.buildPrayerTime(prayerTimes.Isha, iqamaOffsets["isha"]),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -99,14 +140,25 @@ func (h *PrayerTimesHandler) GetByMasjidAndDate(c *gin.Context) {
 		return
 	}
 
+	// Get iqama configuration
+	iqamaOffsets, err := h.iqamaRepo.GetByMasjid(c.Request.Context(), masjidID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIError{
+			Error:   "server_error",
+			Message: "Failed to fetch iqama configuration",
+		})
+		return
+	}
+
+	// Build response with calculated iqama times
 	response := models.PrayerTimesResponse{
 		MasjidID: prayerTimes.MasjidID,
 		Date:     prayerTimes.Date.Format("2006-01-02"),
-		Fajr:     prayerTimes.Fajr,
-		Dhuhr:    prayerTimes.Dhuhr,
-		Asr:      prayerTimes.Asr,
-		Maghrib:  prayerTimes.Maghrib,
-		Isha:     prayerTimes.Isha,
+		Fajr:     h.buildPrayerTime(prayerTimes.Fajr, iqamaOffsets["fajr"]),
+		Dhuhr:    h.buildPrayerTime(prayerTimes.Dhuhr, iqamaOffsets["dhuhr"]),
+		Asr:      h.buildPrayerTime(prayerTimes.Asr, iqamaOffsets["asr"]),
+		Maghrib:  h.buildPrayerTime(prayerTimes.Maghrib, iqamaOffsets["maghrib"]),
+		Isha:     h.buildPrayerTime(prayerTimes.Isha, iqamaOffsets["isha"]),
 	}
 
 	c.JSON(http.StatusOK, response)

@@ -48,6 +48,7 @@ func main() {
 	prayerTimesRepo := repository.NewPrayerTimesRepository(db)
 	deviceTokenRepo := repository.NewDeviceTokenRepository(db)
 	logRepo := repository.NewLogRepository(db)
+	iqamaRepo := repository.NewIqamaRepository(db)
 
 	// Initialize services
 	scraperSvc := scraper.NewScraper(&cfg.Scraper)
@@ -60,7 +61,7 @@ func main() {
 
 	// Initialize handlers
 	masjidHandler := handlers.NewMasjidHandler(masjidRepo, prayerSvc)
-	prayerTimesHandler := handlers.NewPrayerTimesHandler(prayerTimesRepo, masjidRepo)
+	prayerTimesHandler := handlers.NewPrayerTimesHandler(prayerTimesRepo, masjidRepo, iqamaRepo)
 	deviceHandler := handlers.NewDeviceHandler(deviceTokenRepo)
 	scrapeHandler := handlers.NewScrapeHandler(prayerSvc, masjidRepo)
 
