@@ -51,6 +51,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [currentAdhanPrayer, setCurrentAdhanPrayer] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const hasAttemptedRefresh = React.useRef(false);
+  const isLoadingRef = React.useRef(false); // Prevent concurrent loadData() calls
+  const dataFromCache = React.useRef(false); // Track if current data is from cache fallback
 
   useEffect(() => {
     loadData();
@@ -152,8 +154,9 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // FIX #2: Auto-refresh if data is stale (from previous day)
   // Only attempt refresh once to prevent infinite loop when API returns 404
+  // Skip stale detection if data came from cache fallback (to prevent infinite loop)
   useEffect(() => {
-    if (prayerTimes && !hasAttemptedRefresh.current) {
+    if (prayerTimes && !hasAttemptedRefresh.current && !dataFromCache.current) {
       const today = new Date().toDateString();
       const dataDate = new Date(prayerTimes.date).toDateString();
 
@@ -167,12 +170,9 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [prayerTimes]);
 
-  // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadData();
-    }, [masjidId])
-  );
+  // Auto-refresh when screen comes into focus (but only if data is stale)
+  // Removed unconditional loadData() to prevent infinite loop
+  // The stale detection useEffect above will handle refreshing when needed
 
   const loadNotificationSettings = async () => {
     const enabled = await storageService.getNotificationsEnabled();
@@ -198,8 +198,17 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const loadData = async () => {
+    // GUARD: Prevent concurrent loadData() calls to avoid race conditions
+    if (isLoadingRef.current) {
+      console.log('⏭️ Skipping loadData() - already loading');
+      return;
+    }
+
+    isLoadingRef.current = true;
+
     try {
       setError(null);
+      dataFromCache.current = false; // Reset cache flag - we're fetching fresh data
 
       // Fetch fresh data from API (instant with Starter plan - <100ms)
       const [prayerData, masjidData] = await Promise.all([
@@ -234,8 +243,10 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       // Fallback to cached data only if API fails (offline mode)
       const cached = await storageService.getCachedPrayerTimes(masjidId);
       if (cached) {
+        dataFromCache.current = true; // Mark that this data is from cache (prevents stale detection loop)
         setPrayerTimes(cached);
         setError(errorMessage);
+        console.log('📦 Using cached prayer times from', new Date(cached.date).toLocaleDateString());
       } else {
         // No cached data available
         if (statusCode === 404) {
@@ -247,6 +258,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      isLoadingRef.current = false; // Reset loading guard
     }
   };
 
