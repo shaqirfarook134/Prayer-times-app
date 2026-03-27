@@ -11,17 +11,20 @@ type Router struct {
 	masjidHandler      *handlers.MasjidHandler
 	prayerTimesHandler *handlers.PrayerTimesHandler
 	deviceHandler      *handlers.DeviceHandler
+	scrapeHandler      *handlers.ScrapeHandler
 }
 
 func NewRouter(
 	masjidHandler *handlers.MasjidHandler,
 	prayerTimesHandler *handlers.PrayerTimesHandler,
 	deviceHandler *handlers.DeviceHandler,
+	scrapeHandler *handlers.ScrapeHandler,
 ) *Router {
 	return &Router{
 		masjidHandler:      masjidHandler,
 		prayerTimesHandler: prayerTimesHandler,
 		deviceHandler:      deviceHandler,
+		scrapeHandler:      scrapeHandler,
 	}
 }
 
@@ -62,9 +65,13 @@ func (r *Router) Setup() *gin.Engine {
 	// TODO: Add authentication middleware
 	// admin.Use(middleware.BasicAuth("admin", "changeme"))
 	{
+		// Masjid management
 		admin.POST("/masjids", r.masjidHandler.Create)
 		admin.PUT("/masjids/:id", r.masjidHandler.Update)
 		admin.DELETE("/masjids/:id", r.masjidHandler.Delete)
+
+		// Scraping endpoints
+		admin.POST("/scrape", r.scrapeHandler.TriggerScrape)
 	}
 
 	return router

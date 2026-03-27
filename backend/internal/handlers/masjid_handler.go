@@ -1,20 +1,28 @@
 package handlers
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"prayer-times-api/internal/models"
 	"prayer-times-api/internal/repository"
+	"prayer-times-api/internal/services"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 type MasjidHandler struct {
-	masjidRepo *repository.MasjidRepository
+	masjidRepo    *repository.MasjidRepository
+	prayerService *services.PrayerService
 }
 
-func NewMasjidHandler(masjidRepo *repository.MasjidRepository) *MasjidHandler {
-	return &MasjidHandler{masjidRepo: masjidRepo}
+func NewMasjidHandler(masjidRepo *repository.MasjidRepository, prayerService *services.PrayerService) *MasjidHandler {
+	return &MasjidHandler{
+		masjidRepo:    masjidRepo,
+		prayerService: prayerService,
+	}
 }
 
 // GetAll returns all masjids
@@ -90,6 +98,20 @@ func (h *MasjidHandler) Create(c *gin.Context) {
 		})
 		return
 	}
+
+	// Trigger automatic scraping of prayer times for this new masjid
+	// Run in background goroutine to avoid blocking the response
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		log.Printf("🔄 Auto-scraping prayer times for new masjid: %s (ID: %d)", masjid.Name, masjid.ID)
+		if err := h.prayerService.FetchAndUpdateMasjid(ctx, &masjid); err != nil {
+			log.Printf("❌ Auto-scrape failed for masjid %d: %v", masjid.ID, err)
+		} else {
+			log.Printf("✅ Auto-scrape successful for masjid %d: %s", masjid.ID, masjid.Name)
+		}
+	}()
 
 	c.JSON(http.StatusCreated, masjid)
 }

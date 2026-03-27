@@ -59,12 +59,13 @@ func main() {
 	prayerSvc := services.NewPrayerService(scraperSvc, masjidRepo, prayerTimesRepo, logRepo, notificationSvc)
 
 	// Initialize handlers
-	masjidHandler := handlers.NewMasjidHandler(masjidRepo)
+	masjidHandler := handlers.NewMasjidHandler(masjidRepo, prayerSvc)
 	prayerTimesHandler := handlers.NewPrayerTimesHandler(prayerTimesRepo, masjidRepo)
 	deviceHandler := handlers.NewDeviceHandler(deviceTokenRepo)
+	scrapeHandler := handlers.NewScrapeHandler(prayerSvc, masjidRepo)
 
 	// Setup routes
-	appRouter := router.NewRouter(masjidHandler, prayerTimesHandler, deviceHandler)
+	appRouter := router.NewRouter(masjidHandler, prayerTimesHandler, deviceHandler, scrapeHandler)
 	engine := appRouter.Setup()
 
 	// Initialize background worker
@@ -73,6 +74,51 @@ func main() {
 		log.Fatalf("Failed to start background worker: %v", err)
 	}
 	defer bgWorker.Stop()
+
+	// Startup check: ensure prayer times exist for today
+	// Run asynchronously to not block server startup
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
+
+		log.Println("🔍 Checking if prayer times exist for today...")
+
+		// Get all masjids
+		masjids, err := masjidRepo.GetAll(ctx)
+		if err != nil {
+			log.Printf("❌ Startup check failed to get masjids: %v", err)
+			return
+		}
+
+		if len(masjids) == 0 {
+			log.Println("ℹ️  No masjids in database, skipping startup scrape")
+			return
+		}
+
+		// Check if any masjid has today's prayer times
+		hasData := false
+		today := time.Now()
+		for _, masjid := range masjids {
+			_, err := prayerTimesRepo.GetByMasjidAndDate(ctx, masjid.ID, today)
+			if err == nil {
+				hasData = true
+				break
+			}
+		}
+
+		if hasData {
+			log.Println("✅ Prayer times already exist for today")
+			return
+		}
+
+		// No data for today - trigger scrape
+		log.Printf("🔄 No prayer times for today, triggering startup scrape for %d masjids...", len(masjids))
+		if err := prayerSvc.FetchAndUpdateAllMasjids(ctx); err != nil {
+			log.Printf("❌ Startup scrape failed: %v", err)
+		} else {
+			log.Println("✅ Startup scrape completed successfully")
+		}
+	}()
 
 	// Create HTTP server
 	server := &http.Server{
