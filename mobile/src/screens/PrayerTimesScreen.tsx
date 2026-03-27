@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   Switch,
   AppState,
+  Animated,
 } from 'react-native';
+import Constants from 'expo-constants';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
@@ -17,6 +19,9 @@ import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
 import websocketService from '../services/websocket';
+import networkService, { ConnectionStatus } from '../services/network';
+import { useResponsive } from '../hooks/useResponsive';
+// import adhanSoundService from '../services/adhanSound'; // Temporarily disabled - expo-av version incompatibility
 
 type PrayerTimesScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -32,6 +37,7 @@ interface Props {
 
 const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const { masjidId } = route.params;
+  const { isTablet, isIPad } = useResponsive();
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [masjid, setMasjid] = useState<Masjid | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,15 +45,37 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [error, setError] = useState<string | null>(null);
   const [nextPrayer, setNextPrayer] = useState<Prayer | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(networkService.getStatus());
+  const [websocketConnected, setWebsocketConnected] = useState(websocketService.isConnected());
+  const [currentAdhanPrayer, setCurrentAdhanPrayer] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const hasAttemptedRefresh = React.useRef(false);
 
   useEffect(() => {
     loadData();
     loadNotificationSettings();
 
-    // Connect to WebSocket for real-time updates
-    websocketService.connect();
+    // Initialize adhan sound service
+    // adhanSoundService.initialize(); // Temporarily disabled - expo-av version incompatibility
 
-    // Listen for prayer times updates
+    // Listen for network status changes
+    const handleNetworkChange = (status: ConnectionStatus) => {
+      console.log('📶 Network status changed in screen:', status);
+      setConnectionStatus(status);
+      if (status === 'online') {
+        loadData(); // Refresh data when network restored
+      }
+    };
+    networkService.addListener(handleNetworkChange);
+
+    // Listen for WebSocket connection state changes
+    const handleWebSocketChange = (connected: boolean) => {
+      console.log('🔌 WebSocket status changed in screen:', connected);
+      setWebsocketConnected(connected);
+    };
+    websocketService.onConnectionStateChange(handleWebSocketChange);
+
+    // Listen for prayer times updates (WebSocket connected globally in App.tsx)
     websocketService.onPrayerTimesUpdated((data) => {
       if (data.masjidId === masjidId) {
         console.log('🔥 Received real-time prayer times update!');
@@ -57,6 +85,12 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
     // Update countdown every minute
     const countdownInterval = setInterval(updateNextPrayer, 60000);
+
+    // Check for current adhan prayer every second (for blinking animation)
+    // Temporarily disabled - expo-av version incompatibility
+    // const adhanCheckInterval = setInterval(() => {
+    //   setCurrentAdhanPrayer(adhanSoundService.getCurrentAdhanPrayer());
+    // }, 1000);
 
     // Auto-refresh data every 5 minutes (backup to WebSocket)
     const refreshInterval = setInterval(() => {
@@ -77,20 +111,46 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
     return () => {
       clearInterval(countdownInterval);
+      // clearInterval(adhanCheckInterval); // Temporarily disabled - expo-av version incompatibility
       clearInterval(refreshInterval);
       subscription.remove();
+      networkService.removeListener(handleNetworkChange);
+      websocketService.removeConnectionStateListener(handleWebSocketChange);
       websocketService.removeAllListeners();
+      // adhanSoundService.cleanup(); // Temporarily disabled - expo-av version incompatibility
     };
   }, [masjidId]);
 
+  // FIX #3: Fallback notification scheduling (safety net if background task fails)
   useEffect(() => {
     if (prayerTimes) {
       updateNextPrayer();
       if (masjid && notificationsEnabled) {
+        console.log('🔔 Scheduling prayer notifications (fallback safety net)');
+        console.log('   This runs whenever app opens or prayer times update');
         notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
       }
+      // Schedule adhan sound checks
+      // adhanSoundService.scheduleAdhanChecks(prayerTimes); // Temporarily disabled - expo-av version incompatibility
     }
   }, [prayerTimes, notificationsEnabled]);
+
+  // FIX #2: Auto-refresh if data is stale (from previous day)
+  // Only attempt refresh once to prevent infinite loop when API returns 404
+  useEffect(() => {
+    if (prayerTimes && !hasAttemptedRefresh.current) {
+      const today = new Date().toDateString();
+      const dataDate = new Date(prayerTimes.date).toDateString();
+
+      if (today !== dataDate) {
+        console.log('⚠️ Stale data detected! Data is from', dataDate, 'but today is', today);
+        console.log('🔄 Auto-refreshing to get fresh prayer times...');
+        hasAttemptedRefresh.current = true; // Mark that we've attempted refresh
+        // Automatically fetch fresh data
+        loadData();
+      }
+    }
+  }, [prayerTimes]);
 
   // Auto-refresh when screen comes into focus
   useFocusEffect(
@@ -108,13 +168,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       setError(null);
 
-      // Try to load from cache first (offline support)
-      const cached = await storageService.getCachedPrayerTimes(masjidId);
-      if (cached && !refreshing) {
-        setPrayerTimes(cached);
-      }
-
-      // Fetch fresh data
+      // Fetch fresh data from API (instant with Starter plan - <100ms)
       const [prayerData, masjidData] = await Promise.all([
         apiService.getPrayerTimes(masjidId),
         apiService.getMasjidById(masjidId),
@@ -122,18 +176,40 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
       setPrayerTimes(prayerData);
       setMasjid(masjidData);
+      setLastUpdated(new Date()); // Track when data was fetched
+      hasAttemptedRefresh.current = false; // Reset refresh flag on success
 
-      // Cache the data
+      // Cache the fresh data for offline support
       await storageService.setCachedPrayerTimes(masjidId, prayerData);
-    } catch (err) {
+
+      console.log('✅ Prayer times loaded successfully at', new Date().toLocaleString());
+    } catch (err: any) {
       console.error('Error loading data:', err);
-      // If we have cached data, use it
+
+      // Determine error type for better user messaging
+      const statusCode = err.response?.status;
+      let errorMessage = '';
+
+      if (statusCode === 404) {
+        errorMessage = "Prayer times are being prepared. Please check back in a few minutes.";
+      } else if (err.message?.includes('Network Error') || !err.response) {
+        errorMessage = 'No internet connection. Showing cached data.';
+      } else {
+        errorMessage = 'Unable to load prayer times. Showing cached data.';
+      }
+
+      // Fallback to cached data only if API fails (offline mode)
       const cached = await storageService.getCachedPrayerTimes(masjidId);
       if (cached) {
         setPrayerTimes(cached);
-        setError('Using cached data (offline mode)');
+        setError(errorMessage);
       } else {
-        setError('Failed to load prayer times');
+        // No cached data available
+        if (statusCode === 404) {
+          setError('Prayer times are being prepared. Please check back in a few minutes.');
+        } else {
+          setError('Failed to load prayer times. Please check your internet connection.');
+        }
       }
     } finally {
       setLoading(false);
@@ -217,6 +293,42 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   }
 
+  // Create dynamic styles based on device type
+  const dynamicStyles = StyleSheet.create({
+    contentContainer: {
+      width: '100%',
+    },
+    header: {
+      ...styles.header,
+      padding: isTablet ? 32 : 24,
+      paddingTop: isTablet ? 80 : 60,
+    },
+    masjidName: {
+      ...styles.masjidName,
+      fontSize: isTablet ? 32 : 24,
+    },
+    date: {
+      ...styles.date,
+      fontSize: isTablet ? 20 : 16,
+    },
+    prayerTimesContainer: {
+      ...styles.prayerTimesContainer,
+      margin: isTablet ? 24 : 16,
+      borderRadius: isTablet ? 16 : 12,
+    },
+    settingsCard: {
+      ...styles.settingsCard,
+      margin: isTablet ? 24 : 16,
+      padding: isTablet ? 28 : 20,
+      borderRadius: isTablet ? 16 : 12,
+    },
+    changeMasjidButton: {
+      ...styles.changeMasjidButton,
+      margin: isTablet ? 24 : 16,
+      padding: isTablet ? 20 : 16,
+    },
+  });
+
   return (
     <ScrollView
       style={styles.container}
@@ -227,18 +339,40 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         }} />
       }
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.masjidName}>{masjid?.name || 'Prayer Times'}</Text>
-        <Text style={styles.date}>
-          {prayerTimes?.date ? new Date(prayerTimes.date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          }) : ''}
-        </Text>
-      </View>
+      <View style={dynamicStyles.contentContainer}>
+        {/* Header */}
+        <View style={dynamicStyles.header}>
+          <Text style={dynamicStyles.masjidName}>{masjid?.name || 'Prayer Times'}</Text>
+          <Text style={dynamicStyles.date}>
+            Prayer Times for {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </Text>
+          {lastUpdated && (
+            <Text style={styles.lastUpdated}>
+              Last updated: {lastUpdated.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })} at {lastUpdated.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              })}
+            </Text>
+          )}
+        </View>
+
+      {/* Connection Status Indicator */}
+      {connectionStatus !== 'online' && (
+        <View style={styles.connectionBanner}>
+          <Text style={styles.connectionText}>
+            {connectionStatus === 'offline' ? '⚠️ Offline (using cached data)' : '🔄 Connecting...'}
+          </Text>
+        </View>
+      )}
 
       {error && (
         <View style={styles.errorBanner}>
@@ -246,46 +380,49 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* Next Prayer Countdown */}
-      {nextPrayer && (
-        <View style={styles.nextPrayerCard}>
-          <Text style={styles.nextPrayerLabel}>Next Prayer</Text>
-          <Text style={styles.nextPrayerName}>{nextPrayer.name}</Text>
-          <Text style={styles.nextPrayerTime}>{nextPrayer.time.adhan12}</Text>
-          <Text style={styles.countdown}>{getTimeUntilPrayer()}</Text>
-        </View>
-      )}
+        {/* Prayer Times List */}
+        {prayerTimes && (
+          <View style={dynamicStyles.prayerTimesContainer}>
+            {/* Header Row */}
+            <View style={styles.headerRow}>
+              <Text style={[styles.headerPrayerName, isTablet && { fontSize: 16 }]}>Prayer</Text>
+              <View style={styles.timesContainer}>
+                <Text style={[styles.headerTimeLabel, isTablet && { fontSize: 16, width: 90 }]}>Adhan</Text>
+                <Text style={[styles.headerTimeLabel, isTablet && { fontSize: 16, width: 90 }]}>Iqama</Text>
+              </View>
+            </View>
 
-      {/* Prayer Times List */}
-      {prayerTimes && (
-        <View style={styles.prayerTimesContainer}>
-          <PrayerTimeRow name="Fajr" time={prayerTimes.fajr} isNext={nextPrayer?.name === 'Fajr'} />
-          <PrayerTimeRow name="Dhuhr" time={prayerTimes.dhuhr} isNext={nextPrayer?.name === 'Dhuhr'} />
-          <PrayerTimeRow name="Asr" time={prayerTimes.asr} isNext={nextPrayer?.name === 'Asr'} />
-          <PrayerTimeRow name="Maghrib" time={prayerTimes.maghrib} isNext={nextPrayer?.name === 'Maghrib'} />
-          <PrayerTimeRow name="Isha" time={prayerTimes.isha} isNext={nextPrayer?.name === 'Isha'} />
-        </View>
-      )}
+            <PrayerTimeRow name="Fajr" time={prayerTimes.fajr} isNext={nextPrayer?.name === 'Fajr'} isAdhan={currentAdhanPrayer === 'Fajr'} isTablet={isTablet} />
+            <PrayerTimeRow name="Dhuhr" time={prayerTimes.dhuhr} isNext={nextPrayer?.name === 'Dhuhr'} isAdhan={currentAdhanPrayer === 'Dhuhr'} isTablet={isTablet} />
+            <PrayerTimeRow name="Asr" time={prayerTimes.asr} isNext={nextPrayer?.name === 'Asr'} isAdhan={currentAdhanPrayer === 'Asr'} isTablet={isTablet} />
+            <PrayerTimeRow name="Maghrib" time={prayerTimes.maghrib} isNext={nextPrayer?.name === 'Maghrib'} isAdhan={currentAdhanPrayer === 'Maghrib'} isTablet={isTablet} />
+            <PrayerTimeRow name="Isha" time={prayerTimes.isha} isNext={nextPrayer?.name === 'Isha'} isAdhan={currentAdhanPrayer === 'Isha'} isTablet={isTablet} />
+          </View>
+        )}
 
-      {/* Notification Settings */}
-      <View style={styles.settingsCard}>
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Prayer Notifications</Text>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={toggleNotifications}
-            trackColor={{ false: '#D0D0D0', true: '#34C759' }}
-          />
+        {/* Notification Settings */}
+        <View style={dynamicStyles.settingsCard}>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingLabel, isTablet && { fontSize: 20 }]}>Prayer Notifications</Text>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={toggleNotifications}
+              trackColor={{ false: '#D0D0D0', true: '#34C759' }}
+            />
+          </View>
+          <Text style={[styles.settingDescription, isTablet && { fontSize: 16 }]}>
+            Receive notifications 10 minutes before each prayer
+          </Text>
         </View>
-        <Text style={styles.settingDescription}>
-          Receive notifications 10 minutes before each prayer
-        </Text>
+
+        {/* Change Masjid Button */}
+        <TouchableOpacity style={dynamicStyles.changeMasjidButton} onPress={changeMasjid}>
+          <Text style={[styles.changeMasjidText, isTablet && { fontSize: 18 }]}>Change Masjid</Text>
+        </TouchableOpacity>
+
+        {/* Version Number */}
+        <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
       </View>
-
-      {/* Change Masjid Button */}
-      <TouchableOpacity style={styles.changeMasjidButton} onPress={changeMasjid}>
-        <Text style={styles.changeMasjidText}>Change Masjid</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -294,23 +431,80 @@ interface PrayerTimeRowProps {
   name: string;
   time: PrayerTime;
   isNext: boolean;
+  isAdhan: boolean;
+  isTablet: boolean;
 }
 
-const PrayerTimeRow: React.FC<PrayerTimeRowProps> = ({ name, time, isNext }) => (
-  <View style={[styles.prayerRow, isNext && styles.prayerRowHighlight]}>
-    <Text style={[styles.prayerName, isNext && styles.prayerNameHighlight]}>{name}</Text>
-    <View style={styles.timesContainer}>
-      <View style={styles.timeColumn}>
-        <Text style={styles.timeLabel}>Adhan</Text>
-        <Text style={[styles.prayerTime, isNext && styles.prayerTimeHighlight]}>{time.adhan12}</Text>
+const PrayerTimeRow: React.FC<PrayerTimeRowProps> = ({ name, time, isNext, isAdhan, isTablet }) => {
+  const blinkAnim = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    if (isAdhan) {
+      // Start blinking animation
+      const blink = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blinkAnim, {
+            toValue: 0.3,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blinkAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      blink.start();
+
+      return () => {
+        blink.stop();
+        blinkAnim.setValue(1);
+      };
+    } else {
+      blinkAnim.setValue(1);
+    }
+  }, [isAdhan]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.prayerRow,
+        isTablet && { padding: 28 },
+        isNext && !isAdhan && styles.prayerRowHighlight,
+        isAdhan && styles.prayerRowAdhan,
+        { opacity: blinkAnim }
+      ]}
+    >
+      <Text style={[
+        styles.prayerName,
+        isTablet && { fontSize: 22 },
+        isNext && !isAdhan && styles.prayerNameHighlight,
+        isAdhan && styles.prayerNameAdhan
+      ]}>
+        {name}
+      </Text>
+      <View style={[styles.timesContainer, isTablet && { width: 200, gap: 32 }]}>
+        <Text style={[
+          styles.prayerTime,
+          isTablet && { fontSize: 20, width: 90 },
+          isNext && !isAdhan && styles.prayerTimeHighlight,
+          isAdhan && styles.prayerTimeAdhan
+        ]}>
+          {time.adhan12}
+        </Text>
+        <Text style={[
+          styles.prayerTime,
+          isTablet && { fontSize: 20, width: 90 },
+          isNext && !isAdhan && styles.prayerTimeHighlight,
+          isAdhan && styles.prayerTimeAdhan
+        ]}>
+          {time.iqama12}
+        </Text>
       </View>
-      <View style={styles.timeColumn}>
-        <Text style={styles.timeLabel}>Iqama</Text>
-        <Text style={[styles.prayerTime, isNext && styles.prayerTimeHighlight]}>{time.iqama12}</Text>
-      </View>
-    </View>
-  </View>
-);
+    </Animated.View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -337,6 +531,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     opacity: 0.9,
+  },
+  lastUpdated: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    opacity: 0.75,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  connectionBanner: {
+    backgroundColor: '#FFF3CD',
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+  },
+  connectionText: {
+    color: '#856404',
+    fontSize: 14,
+    fontWeight: '500',
   },
   errorBanner: {
     backgroundColor: '#FFF3CD',
@@ -384,9 +596,34 @@ const styles = StyleSheet.create({
   prayerTimesContainer: {
     backgroundColor: '#FFFFFF',
     margin: 16,
-    marginTop: 0,
+    marginTop: 16,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 12,
+    backgroundColor: '#F8F9FA',
+    borderBottomWidth: 2,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerPrayerName: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+    flex: 1,
+    textTransform: 'uppercase',
+  },
+  headerTimeLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+    textAlign: 'center',
+    width: 70,
+    textTransform: 'uppercase',
   },
   prayerRow: {
     flexDirection: 'row',
@@ -399,6 +636,9 @@ const styles = StyleSheet.create({
   prayerRowHighlight: {
     backgroundColor: '#E3F2FD',
   },
+  prayerRowAdhan: {
+    backgroundColor: '#FFE0B2',
+  },
   prayerName: {
     fontSize: 18,
     color: '#333',
@@ -409,9 +649,15 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
   },
+  prayerNameAdhan: {
+    color: '#FF6F00',
+    fontWeight: '700',
+  },
   timesContainer: {
     flexDirection: 'row',
     gap: 24,
+    justifyContent: 'space-between',
+    width: 164,
   },
   timeColumn: {
     alignItems: 'center',
@@ -428,6 +674,10 @@ const styles = StyleSheet.create({
   },
   prayerTimeHighlight: {
     color: '#007AFF',
+  },
+  prayerTimeAdhan: {
+    color: '#FF6F00',
+    fontWeight: '700',
   },
   settingsCard: {
     backgroundColor: '#FFFFFF',
@@ -463,6 +713,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#007AFF',
     fontWeight: '600',
+  },
+  versionText: {
+    fontSize: 11,
+    color: '#999999',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 20,
   },
 });
 
