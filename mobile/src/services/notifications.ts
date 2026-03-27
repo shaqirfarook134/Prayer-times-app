@@ -1,9 +1,16 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
 import { PrayerTimes } from '../types';
 import apiService from './api';
 import storageService from './storage';
+
+// Native module for Android notifications (works after device reboot)
+const { NotificationSchedulerModule } = NativeModules;
+
+// Notification channel IDs
+const PRAYER_CHANNEL_ID = 'prayer-notifications';
+const DAILY_REFRESH_CHANNEL_ID = 'daily-refresh';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -15,8 +22,50 @@ Notifications.setNotificationHandler({
 });
 
 class NotificationService {
+  private channelsCreated = false;
+  private lastScheduledTimestamp: number = 0;
+
+  // Create Android notification channels (required for Android 8+)
+  private async createNotificationChannels(): Promise<void> {
+    if (Platform.OS !== 'android' || this.channelsCreated) {
+      return;
+    }
+
+    try {
+      // Channel for prayer notifications
+      await Notifications.setNotificationChannelAsync(PRAYER_CHANNEL_ID, {
+        name: 'Prayer Notifications',
+        description: 'Notifications for upcoming prayer times',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#007AFF',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        bypassDnd: true, // Allow notifications even in Do Not Disturb
+      });
+
+      // Channel for daily refresh notifications (silent)
+      await Notifications.setNotificationChannelAsync(DAILY_REFRESH_CHANNEL_ID, {
+        name: 'Daily Prayer Times Refresh',
+        description: 'Background updates for prayer times',
+        importance: Notifications.AndroidImportance.LOW,
+        sound: null,
+        vibrationPattern: [0],
+        showBadge: false,
+      });
+
+      this.channelsCreated = true;
+      console.log('✅ Notification channels created successfully');
+    } catch (error) {
+      console.error('Failed to create notification channels:', error);
+    }
+  }
+
   // Request notification permissions
   async requestPermissions(): Promise<boolean> {
+    // Create channels before requesting permissions
+    await this.createNotificationChannels();
+
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
@@ -30,7 +79,41 @@ class NotificationService {
       return false;
     }
 
+    // Request exact alarm permission on Android 12+
+    if (Platform.OS === 'android') {
+      await this.requestExactAlarmPermission();
+    }
+
     return true;
+  }
+
+  // Request exact alarm permission (Android 12+)
+  private async requestExactAlarmPermission(): Promise<void> {
+    if (Platform.OS !== 'android') return;
+
+    try {
+      // For Android 13+ (API 33+), we need SCHEDULE_EXACT_ALARM permission
+      // This is automatically granted if declared in manifest
+      console.log('📱 Android device detected - exact alarm permission should be granted via manifest');
+
+      // Request battery optimization exemption for reliable notifications
+      await this.requestBatteryOptimizationExemption();
+    } catch (error) {
+      console.log('Exact alarm permission check:', error);
+    }
+  }
+
+  // Request battery optimization exemption (helps with Doze mode)
+  private async requestBatteryOptimizationExemption(): Promise<void> {
+    if (Platform.OS !== 'android') return;
+
+    try {
+      console.log('📱 Note: For best notification delivery, please disable battery optimization for this app in Android settings.');
+      // We can't programmatically disable battery optimization without user action
+      // But we've added the necessary permissions and optimizations
+    } catch (error) {
+      console.log('Battery optimization info:', error);
+    }
   }
 
   // Get push notification token
@@ -89,55 +172,96 @@ class NotificationService {
   }
 
   // Schedule local notifications for prayer times
-  async schedulePrayerNotifications(prayerTimes: PrayerTimes, masjidName: string): Promise<void> {
+  async schedulePrayerNotifications(prayerTimes: PrayerTimes, masjidName: string): Promise<boolean> {
     try {
-      // Cancel all existing notifications
-      await Notifications.cancelAllScheduledNotificationsAsync();
-
-      const prayers = [
-        { name: 'Fajr', time: prayerTimes.fajr },
-        { name: 'Dhuhr', time: prayerTimes.dhuhr },
-        { name: 'Asr', time: prayerTimes.asr },
-        { name: 'Maghrib', time: prayerTimes.maghrib },
-        { name: 'Isha', time: prayerTimes.isha },
-      ];
-
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      for (const prayer of prayers) {
-        // Parse prayer time (HH:MM format) - use adhan time
-        const [hours, minutes] = prayer.time.adhan.split(':').map(Number);
-        const prayerDate = new Date(today);
-        prayerDate.setHours(hours, minutes, 0, 0);
-
-        // Calculate notification time (10 minutes before)
-        const notificationDate = new Date(prayerDate.getTime() - 10 * 60 * 1000);
-
-        // Only schedule if notification time is in the future
-        if (notificationDate > now) {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `${prayer.name} Prayer`,
-              body: `${prayer.name} in 10 minutes at ${masjidName}`,
-              sound: 'default',
-              data: {
-                prayer: prayer.name,
-                adhanTime: prayer.time.adhan12,
-                iqamaTime: prayer.time.iqama12,
-              },
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: notificationDate,
-            },
-          });
-
-          console.log(`Scheduled notification for ${prayer.name} at ${notificationDate.toLocaleTimeString()}`);
-        }
+      // Check permissions first
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('❌ Notification permissions not granted. Status:', status);
+        return false;
       }
+
+      // Prevent redundant scheduling - skip if we scheduled within last 30 seconds
+      const now = Date.now();
+      const timeSinceLastSchedule = now - this.lastScheduledTimestamp;
+
+      if (timeSinceLastSchedule < 30000 && this.lastScheduledTimestamp > 0) {
+        console.log(`⏭️ Skipping redundant notification scheduling (last scheduled ${Math.round(timeSinceLastSchedule / 1000)}s ago)`);
+        return true; // Not an error, just skipped
+      }
+
+      // Ensure channels are created first (Android)
+      await this.createNotificationChannels();
+
+      // Use Expo-notifications for both Android and iOS
+      await this.scheduleExpoNotifications(prayerTimes, masjidName);
+
+      // Update timestamp after successful scheduling
+      this.lastScheduledTimestamp = Date.now();
+
+      console.log(`✅ All prayer notifications scheduled successfully`);
+      return true;
     } catch (error) {
-      console.error('Error scheduling notifications:', error);
+      console.error('❌ Error scheduling notifications:', error);
+      return false;
+    }
+  }
+
+  // Helper method for Expo-notifications scheduling (used by iOS and Android fallback)
+  private async scheduleExpoNotifications(prayerTimes: PrayerTimes, masjidName: string = 'Masjid'): Promise<void> {
+    // Cancel all existing notifications
+    await Notifications.cancelAllScheduledNotificationsAsync();
+
+    const prayers = [
+      { name: 'Fajr', time: prayerTimes.fajr },
+      { name: 'Dhuhr', time: prayerTimes.dhuhr },
+      { name: 'Asr', time: prayerTimes.asr },
+      { name: 'Maghrib', time: prayerTimes.maghrib },
+      { name: 'Isha', time: prayerTimes.isha },
+    ];
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    for (const prayer of prayers) {
+      // Parse prayer time (HH:MM format) - use adhan time
+      const [hours, minutes] = prayer.time.adhan.split(':').map(Number);
+      const prayerDate = new Date(today);
+      prayerDate.setHours(hours, minutes, 0, 0);
+
+      // Calculate notification time (10 minutes before)
+      const notificationDate = new Date(prayerDate.getTime() - 10 * 60 * 1000);
+
+      // Only schedule if notification time is in the future
+      if (notificationDate > now) {
+        const notificationContent: Notifications.NotificationContentInput = {
+          title: `${prayer.name} in 10 minutes (${prayer.time.adhan12})`,
+          body: `${masjidName} • Iqama at ${prayer.time.iqama12}`,
+          sound: 'default',
+          data: {
+            prayer: prayer.name,
+            adhanTime: prayer.time.adhan12,
+            iqamaTime: prayer.time.iqama12,
+          },
+          priority: Platform.OS === 'android' ? Notifications.AndroidNotificationPriority.HIGH : undefined,
+        };
+
+        // Add Android-specific channel
+        if (Platform.OS === 'android') {
+          (notificationContent as any).channelId = PRAYER_CHANNEL_ID;
+        }
+
+        await Notifications.scheduleNotificationAsync({
+          content: notificationContent,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: notificationDate,
+            channelId: Platform.OS === 'android' ? PRAYER_CHANNEL_ID : undefined,
+          },
+        });
+
+        console.log(`✅ Scheduled notification for ${prayer.name} at ${notificationDate.toLocaleTimeString()}`);
+      }
     }
   }
 

@@ -45,6 +45,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [error, setError] = useState<string | null>(null);
   const [nextPrayer, setNextPrayer] = useState<Prayer | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationPermissionDenied, setNotificationPermissionDenied] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(networkService.getStatus());
   const [websocketConnected, setWebsocketConnected] = useState(websocketService.isConnected());
   const [currentAdhanPrayer, setCurrentAdhanPrayer] = useState<string | null>(null);
@@ -54,6 +55,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     loadData();
     loadNotificationSettings();
+    requestNotificationPermissions();
 
     // Initialize adhan sound service
     // adhanSoundService.initialize(); // Temporarily disabled - expo-av version incompatibility
@@ -123,15 +125,28 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // FIX #3: Fallback notification scheduling (safety net if background task fails)
   useEffect(() => {
-    if (prayerTimes) {
-      updateNextPrayer();
-      if (masjid && notificationsEnabled) {
+    const scheduleNotifications = async () => {
+      if (prayerTimes && masjid && notificationsEnabled) {
         console.log('🔔 Scheduling prayer notifications (fallback safety net)');
         console.log('   This runs whenever app opens or prayer times update');
-        notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
+
+        const success = await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
+
+        if (!success) {
+          console.error('❌ Failed to schedule notifications');
+          setNotificationPermissionDenied(true);
+        } else {
+          console.log('✅ Notifications scheduled successfully');
+          setNotificationPermissionDenied(false);
+        }
       }
       // Schedule adhan sound checks
       // adhanSoundService.scheduleAdhanChecks(prayerTimes); // Temporarily disabled - expo-av version incompatibility
+    };
+
+    if (prayerTimes) {
+      updateNextPrayer();
+      scheduleNotifications();
     }
   }, [prayerTimes, notificationsEnabled]);
 
@@ -162,6 +177,24 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const loadNotificationSettings = async () => {
     const enabled = await storageService.getNotificationsEnabled();
     setNotificationsEnabled(enabled);
+  };
+
+  const requestNotificationPermissions = async () => {
+    try {
+      console.log('🔔 Requesting notification permissions...');
+      const hasPermission = await notificationService.requestPermissions();
+
+      if (!hasPermission) {
+        console.log('❌ Notification permissions denied');
+        setNotificationPermissionDenied(true);
+      } else {
+        console.log('✅ Notification permissions granted');
+        setNotificationPermissionDenied(false);
+      }
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
+      setNotificationPermissionDenied(true);
+    }
   };
 
   const loadData = async () => {
@@ -269,12 +302,27 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const toggleNotifications = async (value: boolean) => {
+    if (value) {
+      // Request permissions when enabling notifications
+      const hasPermission = await notificationService.requestPermissions();
+      if (!hasPermission) {
+        console.log('❌ Cannot enable notifications - permission denied');
+        setNotificationPermissionDenied(true);
+        return; // Don't toggle if permission denied
+      }
+      setNotificationPermissionDenied(false);
+    }
+
     setNotificationsEnabled(value);
     await storageService.setNotificationsEnabled(value);
     await notificationService.updatePreferences(masjidId, value);
 
     if (value && prayerTimes && masjid) {
-      await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
+      const success = await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
+      if (!success) {
+        console.error('❌ Failed to schedule notifications');
+        setNotificationPermissionDenied(true);
+      }
     } else {
       await notificationService.cancelAll();
     }
@@ -377,6 +425,20 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
+      {notificationPermissionDenied && (
+        <View style={styles.notificationBanner}>
+          <Text style={styles.notificationText}>
+            ⚠️ Notification permissions denied. Enable notifications in Settings to receive prayer alerts.
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={requestNotificationPermissions}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -559,6 +621,32 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#856404',
     fontSize: 14,
+  },
+  notificationBanner: {
+    backgroundColor: '#FFE5E5',
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF5252',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notificationText: {
+    color: '#C62828',
+    fontSize: 14,
+    flex: 1,
+    marginRight: 12,
+  },
+  retryButton: {
+    backgroundColor: '#FF5252',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   nextPrayerCard: {
     backgroundColor: '#FFFFFF',
