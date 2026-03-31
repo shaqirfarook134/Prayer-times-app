@@ -41,7 +41,9 @@ export default {
         'RECEIVE_BOOT_COMPLETED',
         'POST_NOTIFICATIONS',
         'ACCESS_COARSE_LOCATION',
-        'ACCESS_FINE_LOCATION'
+        'ACCESS_FINE_LOCATION',
+        'USE_EXACT_ALARM',
+        'SCHEDULE_EXACT_ALARM',
       ]
     },
     web: {

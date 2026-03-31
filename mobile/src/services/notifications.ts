@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { Platform, NativeModules, Linking, Alert } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
 import { PrayerTimes } from '../types';
 import apiService from './api';
@@ -88,30 +88,11 @@ class NotificationService {
     return true;
   }
 
-  // Request exact alarm permission (Android 12+)
-  // Without this, scheduled notifications may fire late or not at all
+  // Exact alarm permission is declared in app.config.js:
+  // USE_EXACT_ALARM (Android 13+) — auto-granted, no user action needed
+  // SCHEDULE_EXACT_ALARM (Android 12) — fallback
   private async requestExactAlarmPermission(): Promise<void> {
-    if (Platform.OS !== 'android') return;
-
-    try {
-      const { canScheduleExactNotifications } = await Notifications.getPermissionsAsync();
-
-      if (!canScheduleExactNotifications) {
-        Alert.alert(
-          'Enable Exact Alarms',
-          'To receive prayer notifications on time, please allow "Alarms & Reminders" for this app.',
-          [
-            { text: 'Not Now', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => Linking.sendIntent('android.settings.REQUEST_SCHEDULE_EXACT_ALARM'),
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.log('Exact alarm permission check:', error);
-    }
+    // No runtime prompt needed — handled via manifest permissions
   }
 
   // Get push notification token
