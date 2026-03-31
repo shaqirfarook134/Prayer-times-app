@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { PrayerTimes } from '../types';
 import apiService from './api';
 import storageService from './storage';
+import backgroundTaskService from './backgroundTasks';
 
 // Native module for Android notifications (works after device reboot)
 const { NotificationSchedulerModule } = NativeModules;
@@ -209,8 +210,13 @@ class NotificationService {
 
   // Helper method for Expo-notifications scheduling (used by iOS and Android fallback)
   private async scheduleExpoNotifications(prayerTimes: PrayerTimes, masjidName: string = 'Masjid'): Promise<void> {
-    // Cancel all existing notifications
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    // Cancel only prayer notifications — preserve the daily_refresh trigger
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notification of scheduled) {
+      if (notification.content.data?.type !== 'daily_refresh') {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
 
     const prayers = [
       { name: 'Fajr', time: prayerTimes.fajr },
@@ -262,6 +268,15 @@ class NotificationService {
 
         console.log(`✅ Scheduled notification for ${prayer.name} at ${notificationDate.toLocaleTimeString()}`);
       }
+    }
+
+    // Always ensure the 12:30 AM daily trigger exists — it may have been wiped by a previous
+    // cancelAllScheduledNotificationsAsync call or never re-scheduled after first install.
+    const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const hasDailyTrigger = allScheduled.some(n => n.content.data?.type === 'daily_refresh');
+    if (!hasDailyTrigger) {
+      await backgroundTaskService.scheduleDailyTriggerNotification();
+      console.log('✅ Re-scheduled missing 12:30 AM daily trigger notification');
     }
   }
 
