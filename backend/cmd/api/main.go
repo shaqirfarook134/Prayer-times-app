@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -56,7 +57,8 @@ func main() {
 		log.Fatalf("Failed to initialize notification service: %v", err)
 	}
 
-	prayerSvc := services.NewPrayerService(scraperSvc, masjidRepo, prayerTimesRepo, logRepo, notificationSvc)
+	alertSvc := services.NewAlertService(&cfg.Alert)
+	prayerSvc := services.NewPrayerService(scraperSvc, masjidRepo, prayerTimesRepo, logRepo, notificationSvc, alertSvc)
 
 	// Initialize handlers
 	masjidHandler := handlers.NewMasjidHandler(masjidRepo, prayerSvc)
@@ -69,7 +71,7 @@ func main() {
 	engine := appRouter.Setup()
 
 	// Initialize background worker
-	bgWorker := worker.NewWorker(prayerSvc, "Australia/Melbourne")
+	bgWorker := worker.NewWorker(prayerSvc, prayerTimesRepo, masjidRepo, alertSvc, "Australia/Melbourne")
 	if err := bgWorker.Start(); err != nil {
 		log.Fatalf("Failed to start background worker: %v", err)
 	}
@@ -95,11 +97,16 @@ func main() {
 			return
 		}
 
-		// Check if any masjid has today's prayer times
+		// Check if any masjid has today's prayer times (use masjid timezone)
 		hasData := false
-		today := time.Now()
 		for _, masjid := range masjids {
-			_, err := prayerTimesRepo.GetByMasjidAndDate(ctx, masjid.ID, today)
+			loc, err := time.LoadLocation(masjid.Timezone)
+			if err != nil {
+				loc, _ = time.LoadLocation("Australia/Melbourne")
+			}
+			now := time.Now().In(loc)
+			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+			_, err = prayerTimesRepo.GetByMasjidAndDate(ctx, masjid.ID, today)
 			if err == nil {
 				hasData = true
 				break
@@ -115,6 +122,10 @@ func main() {
 		log.Printf("🔄 No prayer times for today, triggering startup scrape for %d masjids...", len(masjids))
 		if err := prayerSvc.FetchAndUpdateAllMasjids(ctx); err != nil {
 			log.Printf("❌ Startup scrape failed: %v", err)
+			alertSvc.SendAlert(
+				"🚨 Startup scrape failed — users seeing cached data",
+				fmt.Sprintf("Server restarted but prayer times scrape failed.\n\nError: %v\n\nUsers will see the cached data banner until this is resolved.\n\nTrigger manual scrape: POST https://prayer-times-api-uddr.onrender.com/api/v1/admin/scrape", err),
+			)
 		} else {
 			log.Println("✅ Startup scrape completed successfully")
 		}

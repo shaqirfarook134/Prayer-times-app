@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"prayer-times-api/internal/repository"
 	"prayer-times-api/internal/services"
 	"time"
 
@@ -11,12 +12,15 @@ import (
 )
 
 type Worker struct {
-	cron         *cron.Cron
-	prayerSvc    *services.PrayerService
-	timezone     string
+	cron            *cron.Cron
+	prayerSvc       *services.PrayerService
+	prayerTimesRepo *repository.PrayerTimesRepository
+	masjidRepo      *repository.MasjidRepository
+	alertSvc        *services.AlertService
+	timezone        string
 }
 
-func NewWorker(prayerSvc *services.PrayerService, timezone string) *Worker {
+func NewWorker(prayerSvc *services.PrayerService, prayerTimesRepo *repository.PrayerTimesRepository, masjidRepo *repository.MasjidRepository, alertSvc *services.AlertService, timezone string) *Worker {
 	// Create cron with timezone support
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -24,9 +28,12 @@ func NewWorker(prayerSvc *services.PrayerService, timezone string) *Worker {
 	}
 
 	return &Worker{
-		cron:      cron.New(cron.WithLocation(loc)),
-		prayerSvc: prayerSvc,
-		timezone:  timezone,
+		cron:            cron.New(cron.WithLocation(loc)),
+		prayerSvc:       prayerSvc,
+		prayerTimesRepo: prayerTimesRepo,
+		masjidRepo:      masjidRepo,
+		alertSvc:        alertSvc,
+		timezone:        timezone,
 	}
 }
 
@@ -66,12 +73,59 @@ func (w *Worker) Start() error {
 		return fmt.Errorf("failed to schedule daily job: %w", err)
 	}
 
+	// 6 AM health-check: verify all masjids have today's data, alert if missing
+	_, err = w.cron.AddFunc("0 6 * * *", func() {
+		log.Println("Starting 6 AM health check...")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		loc, _ := time.LoadLocation(w.timezone)
+		now := time.Now().In(loc)
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+		masjids, err := w.masjidRepo.GetAll(ctx)
+		if err != nil {
+			log.Printf("Health check: failed to get masjids: %v", err)
+			return
+		}
+
+		allHealthy := true
+		for _, masjid := range masjids {
+			_, err := w.prayerTimesRepo.GetByMasjidAndDate(ctx, masjid.ID, today)
+			if err != nil {
+				allHealthy = false
+				log.Printf("⚠️  Health check: missing prayer times for %s (ID: %d)", masjid.Name, masjid.ID)
+				// Try to fix it
+				if scrapeErr := w.prayerSvc.FetchAndUpdateAllMasjids(ctx); scrapeErr != nil {
+					if w.alertSvc != nil {
+						w.alertSvc.SendAlert(
+							fmt.Sprintf("🚨 Missing prayer times: %s", masjid.Name),
+							fmt.Sprintf("6 AM health check found missing prayer times for %s (ID: %d, %s %s) and auto-scrape also failed.\n\nScrape error: %v\n\nUsers are seeing the cached data banner.\n\nManual fix: POST https://prayer-times-api-uddr.onrender.com/api/v1/admin/scrape",
+								masjid.Name, masjid.ID, masjid.City, masjid.State, scrapeErr),
+						)
+					}
+				} else {
+					log.Printf("✅ Health check: auto-fixed missing prayer times for %s", masjid.Name)
+				}
+				break
+			}
+		}
+
+		if allHealthy {
+			log.Println("✅ Health check passed — all masjids have today's prayer times")
+		}
+	})
+	if err != nil {
+		return fmt.Errorf("failed to schedule health check job: %w", err)
+	}
+
 	// Start the cron scheduler
 	w.cron.Start()
 	log.Printf("Worker started with timezone: %s", w.timezone)
 	log.Println("Scheduled jobs:")
 	log.Println("  - Hourly update: 0 * * * *")
 	log.Println("  - Daily refresh: 5 0 * * *")
+	log.Println("  - 6 AM health check: 0 6 * * *")
 
 	return nil
 }

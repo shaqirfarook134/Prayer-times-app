@@ -14,6 +14,15 @@ type Config struct {
 	FCM      FCMConfig
 	APNS     APNSConfig
 	Scraper  ScraperConfig
+	Alert    AlertConfig
+}
+
+type AlertConfig struct {
+	EmailFrom     string
+	EmailTo       string
+	EmailPassword string
+	SMTPHost      string
+	SMTPPort      string
 }
 
 type DatabaseConfig struct {
@@ -102,6 +111,13 @@ func Load() (*Config, error) {
 			UserAgent:  getEnv("SCRAPER_USER_AGENT", "Mozilla/5.0 (compatible; PrayerTimesBot/1.0)"),
 			Timeout:    scraperTimeout,
 			MaxRetries: scraperRetries,
+		},
+		Alert: AlertConfig{
+			EmailFrom:     getEnv("ALERT_EMAIL_FROM", ""),
+			EmailTo:       getEnv("ALERT_EMAIL_TO", ""),
+			EmailPassword: getEnv("ALERT_EMAIL_PASSWORD", ""),
+			SMTPHost:      getEnv("ALERT_SMTP_HOST", "smtp.gmail.com"),
+			SMTPPort:      getEnv("ALERT_SMTP_PORT", "587"),
 		},
 	}
 

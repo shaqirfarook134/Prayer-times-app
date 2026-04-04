@@ -48,7 +48,8 @@ func (r *PrayerTimesRepository) GetTodayByMasjid(ctx context.Context, masjidID i
 		return nil, fmt.Errorf("invalid timezone: %w", err)
 	}
 
-	today := time.Now().In(loc).Truncate(24 * time.Hour)
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	return r.GetByMasjidAndDate(ctx, masjidID, today)
 }
 

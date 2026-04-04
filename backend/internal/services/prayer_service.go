@@ -15,6 +15,7 @@ type PrayerService struct {
 	prayerTimesRepo *repository.PrayerTimesRepository
 	logRepo         *repository.LogRepository
 	notificationSvc *NotificationService
+	alertSvc        *AlertService
 }
 
 func NewPrayerService(
@@ -23,6 +24,7 @@ func NewPrayerService(
 	prayerTimesRepo *repository.PrayerTimesRepository,
 	logRepo *repository.LogRepository,
 	notificationSvc *NotificationService,
+	alertSvc *AlertService,
 ) *PrayerService {
 	return &PrayerService{
 		scraperSvc:      scraperSvc,
@@ -30,6 +32,7 @@ func NewPrayerService(
 		prayerTimesRepo: prayerTimesRepo,
 		logRepo:         logRepo,
 		notificationSvc: notificationSvc,
+		alertSvc:        alertSvc,
 	}
 }
 
@@ -45,6 +48,13 @@ func (s *PrayerService) FetchAndUpdateAllMasjids(ctx context.Context) error {
 			// Log error but continue with other masjids
 			_ = s.logRepo.LogWithMetadata(ctx, &masjid.ID, "error",
 				fmt.Sprintf("Failed to update prayer times: %v", err), nil)
+			if s.alertSvc != nil {
+				s.alertSvc.SendAlert(
+					fmt.Sprintf("⚠️ Scrape failed: %s", masjid.Name),
+					fmt.Sprintf("Failed to scrape prayer times for %s (ID: %d, %s %s).\n\nError: %v\n\nTrigger manual scrape: POST https://prayer-times-api-uddr.onrender.com/api/v1/admin/scrape",
+						masjid.Name, masjid.ID, masjid.City, masjid.State, err),
+				)
+			}
 		}
 	}
 

@@ -155,8 +155,9 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		return nil, fmt.Errorf("invalid timezone: %w", err)
 	}
 
-	today := time.Now().In(loc)
-	todayStr := today.Format("01-02") // MM-DD format
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	todayStr := now.Format("01-02") // MM-DD format
 
 	// Find today's data line
 	lineRe := regexp.MustCompile(`"` + todayStr + `~~~~~([^"]+)"`)
@@ -232,7 +233,8 @@ func (s *Scraper) extractFromJavaScript(html, timezone string) (*models.ScrapedP
 		return nil, fmt.Errorf("invalid timezone: %w", err)
 	}
 
-	today := time.Now().In(loc).Truncate(24 * time.Hour)
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 
 	prayerTimes := &models.ScrapedPrayerTimes{
 		Date:    today,
@@ -264,7 +266,8 @@ func (s *Scraper) extractFromHTML(html, timezone string) (*models.ScrapedPrayerT
 		return nil, fmt.Errorf("invalid timezone: %w", err)
 	}
 
-	today := time.Now().In(loc).Truncate(24 * time.Hour)
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 
 	prayerTimes := &models.ScrapedPrayerTimes{
 		Date: today,
