@@ -182,29 +182,6 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		Isha:    strings.TrimSpace(times[5]),    // Index 5: Isha
 	}
 
-	// Apply JS_ATHAN_MINUTES_OF_* adjustments from the page HTML
-	adjRe := regexp.MustCompile(`JS_ATHAN_MINUTES_OF_(\w+)\s*=\s*(-?\d+)`)
-	adjustments := map[string]int{"FAJR": 0, "DOHR": 0, "ASR": 0, "MAGHRIB": 0, "ISHA": 0}
-	for _, m := range adjRe.FindAllStringSubmatch(html, -1) {
-		if len(m) == 3 {
-			val, _ := strconv.Atoi(m[2])
-			adjustments[m[1]] = val
-		}
-	}
-
-	// Apply JS_SUMMER_ADD1HOUR DST offset (first occurrence is server-set default)
-	dstOffset := 0
-	dstRe := regexp.MustCompile(`JS_SUMMER_ADD1HOUR\s*=\s*(true|false)`)
-	if dstMatches := dstRe.FindStringSubmatch(html); len(dstMatches) == 2 && dstMatches[1] == "true" {
-		dstOffset = 60
-	}
-
-	prayerTimes.Fajr = s.addMinutes(prayerTimes.Fajr, adjustments["FAJR"]+dstOffset)
-	prayerTimes.Dhuhr = s.addMinutes(prayerTimes.Dhuhr, adjustments["DOHR"]+dstOffset)
-	prayerTimes.Asr = s.addMinutes(prayerTimes.Asr, adjustments["ASR"]+dstOffset)
-	prayerTimes.Maghrib = s.addMinutes(prayerTimes.Maghrib, adjustments["MAGHRIB"]+dstOffset)
-	prayerTimes.Isha = s.addMinutes(prayerTimes.Isha, adjustments["ISHA"]+dstOffset)
-
 	// Validate times
 	if err := s.validatePrayerTimes(prayerTimes); err != nil {
 		return nil, err
