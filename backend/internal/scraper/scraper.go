@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"prayer-times-api/internal/config"
 	"prayer-times-api/internal/models"
@@ -100,118 +101,153 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 	return prayerTimes, nil
 }
 
-// extractFromIniDataFile attempts to extract prayer times from .ini data files (awqat.com.au)
+// extractFromIniDataFile attempts to extract prayer times from awqat.com.au sites.
+// It detects the site mode from the server-rendered HTML:
+//   - JS_APP_TIMES_BY_FILES = 1 → file mode: read times from .ini file (exact match)
+//   - JS_APP_TIMES_BY_FILES = 0 → GPS mode: calculate times using PrayTimes.js MWL algorithm
 func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, timezone string) (*models.ScrapedPrayerTimes, error) {
-	// Check if this is an awqat.com.au site
 	if !strings.Contains(baseURL, "awqat.com.au") {
 		return nil, fmt.Errorf("not an awqat.com.au site")
 	}
-
-	// Extract city code from JavaScript (e.g., "AU.MELBOURNE")
-	cityCodeRe := regexp.MustCompile(`var\s+JS_CITY_CODE\s*=\s*["']([^"']+)["']`)
-	matches := cityCodeRe.FindStringSubmatch(html)
-	if len(matches) < 2 {
-		return nil, fmt.Errorf("city code not found")
-	}
-	cityCode := matches[1]
-
-	// Build data file URL
-	// Example: https://awqat.com.au/altaqwamasjid/data/wtimes-AU.MELBOURNE.ini
-	baseURLParts := strings.Split(strings.TrimSuffix(baseURL, "/"), "/")
-	baseURLWithoutPath := strings.Join(baseURLParts[:len(baseURLParts)], "/")
-	dataFileURL := fmt.Sprintf("%s/data/wtimes-%s.ini", baseURLWithoutPath, cityCode)
-
-	// Fetch the data file
-	req, err := http.NewRequestWithContext(ctx, "GET", dataFileURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create data file request: %w", err)
-	}
-
-	req.Header.Set("User-Agent", s.config.UserAgent)
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data file: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("data file request failed with status: %d", resp.StatusCode)
-	}
-
-	dataBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read data file: %w", err)
-	}
-
-	// Parse the data file
-	// Format: "MM-DD~~~~~HH:MM|HH:MM|HH:MM|HH:MM|HH:MM|HH:MM"
-	// Times are: [Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha]
-	dataContent := string(dataBody)
 
 	// Load timezone
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		return nil, fmt.Errorf("invalid timezone: %w", err)
 	}
-
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	todayStr := now.Format("01-02") // MM-DD format
 
-	// Find today's data line
-	lineRe := regexp.MustCompile(`"` + todayStr + `~~~~~([^"]+)"`)
-	lineMatches := lineRe.FindStringSubmatch(dataContent)
-	if len(lineMatches) < 2 {
-		return nil, fmt.Errorf("prayer times for today (%s) not found in data file", todayStr)
-	}
+	// Detect mode: JS_APP_TIMES_BY_FILES = 1 means file mode, 0 means GPS mode.
+	// This value is set server-side in the HTML and is reliable.
+	filesModeRe := regexp.MustCompile(`var\s+JS_APP_TIMES_BY_FILES\s*=\s*(\d)`)
+	modeMatches := filesModeRe.FindStringSubmatch(html)
+	useFileMode := len(modeMatches) >= 2 && modeMatches[1] == "1"
 
-	// Split times by pipe
-	timesStr := lineMatches[1]
-	times := strings.Split(timesStr, "|")
-	if len(times) < 6 {
-		return nil, fmt.Errorf("insufficient times in data line: %v", times)
-	}
+	var prayerTimes *models.ScrapedPrayerTimes
 
-	prayerTimes := &models.ScrapedPrayerTimes{
-		Date:    today,
-		Fajr:    strings.TrimSpace(times[0]),    // Index 0: Fajr
-		Dhuhr:   strings.TrimSpace(times[2]),    // Index 2: Dhuhr (skip Sunrise at index 1)
-		Asr:     strings.TrimSpace(times[3]),    // Index 3: Asr
-		Maghrib: strings.TrimSpace(times[4]),    // Index 4: Maghrib
-		Isha:    strings.TrimSpace(times[5]),    // Index 5: Isha
-	}
-
-	// Apply JS_ATHAN_MINUTES_OF_* per-prayer offsets from server-rendered HTML.
-	// These are set server-side and reliably scraped.
-	// JS_SUMMER_ADD1HOUR is intentionally NOT applied — it is localStorage-only
-	// and always initialises as false in the HTML; our headless scraper never sees the real value.
-	// Only take the FIRST occurrence of each variable — the declaration at the top of the HTML.
-	// Later occurrences are boundary-clamp lines (= -60, = 60) used by the UI adjustment widget.
-	adjRe := regexp.MustCompile(`JS_ATHAN_MINUTES_OF_(\w+)\s*=\s*(-?\d+)`)
-	adjustments := map[string]int{}
-	seen := map[string]bool{}
-	for _, m := range adjRe.FindAllStringSubmatch(html, -1) {
-		if len(m) == 3 && !seen[m[1]] {
-			val, _ := strconv.Atoi(m[2])
-			adjustments[m[1]] = val
-			seen[m[1]] = true
+	if useFileMode {
+		// FILE MODE: read times directly from the .ini data file — exact match to website
+		cityCodeRe := regexp.MustCompile(`var\s+JS_CITY_CODE\s*=\s*["']([^"']+)["']`)
+		matches := cityCodeRe.FindStringSubmatch(html)
+		if len(matches) < 2 {
+			return nil, fmt.Errorf("city code not found")
 		}
-	}
-	prayerTimes.Fajr = s.addMinutes(prayerTimes.Fajr, adjustments["FAJR"])
-	prayerTimes.Dhuhr = s.addMinutes(prayerTimes.Dhuhr, adjustments["DOHR"])
-	prayerTimes.Asr = s.addMinutes(prayerTimes.Asr, adjustments["ASR"])
-	prayerTimes.Maghrib = s.addMinutes(prayerTimes.Maghrib, adjustments["MAGHRIB"])
-	prayerTimes.Isha = s.addMinutes(prayerTimes.Isha, adjustments["ISHA"])
+		cityCode := matches[1]
 
-	// Validate times
+		baseURLParts := strings.Split(strings.TrimSuffix(baseURL, "/"), "/")
+		baseURLWithoutPath := strings.Join(baseURLParts[:len(baseURLParts)], "/")
+		dataFileURL := fmt.Sprintf("%s/data/wtimes-%s.ini", baseURLWithoutPath, cityCode)
+
+		req, err := http.NewRequestWithContext(ctx, "GET", dataFileURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create data file request: %w", err)
+		}
+		req.Header.Set("User-Agent", s.config.UserAgent)
+
+		resp, err := s.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch data file: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("data file request failed with status: %d", resp.StatusCode)
+		}
+
+		dataBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read data file: %w", err)
+		}
+
+		dataContent := string(dataBody)
+		todayStr := now.Format("01-02")
+		lineRe := regexp.MustCompile(`"` + todayStr + `~~~~~([^"]+)"`)
+		lineMatches := lineRe.FindStringSubmatch(dataContent)
+		if len(lineMatches) < 2 {
+			return nil, fmt.Errorf("prayer times for today (%s) not found in data file", todayStr)
+		}
+
+		times := strings.Split(lineMatches[1], "|")
+		if len(times) < 6 {
+			return nil, fmt.Errorf("insufficient times in data line: %v", times)
+		}
+
+		prayerTimes = &models.ScrapedPrayerTimes{
+			Date:    today,
+			Fajr:    strings.TrimSpace(times[0]),
+			Dhuhr:   strings.TrimSpace(times[2]),
+			Asr:     strings.TrimSpace(times[3]),
+			Maghrib: strings.TrimSpace(times[4]),
+			Isha:    strings.TrimSpace(times[5]),
+		}
+	} else {
+		// GPS MODE: calculate times using PrayTimes.js MWL algorithm.
+		// The website uses JS to calculate times client-side — we replicate that here.
+		gpsRe := regexp.MustCompile(`var\s+JS_GPS_FULL_CODE\s*=\s*"([^"]+)"`)
+		gpsMatches := gpsRe.FindAllStringSubmatch(html, -1)
+		// Take the last non-empty declaration (the real one, not the blank initializer)
+		gpsCode := ""
+		for _, m := range gpsMatches {
+			if len(m) >= 2 && m[1] != "" {
+				gpsCode = m[1]
+			}
+		}
+		if gpsCode == "" {
+			return nil, fmt.Errorf("GPS code not found in HTML")
+		}
+
+		// Format: "AU|CityName|lat|lng|fajrAngle|ishaAngle"
+		parts := strings.Split(gpsCode, "|")
+		if len(parts) < 4 {
+			return nil, fmt.Errorf("invalid GPS code format: %s", gpsCode)
+		}
+
+		lat, err := strconv.ParseFloat(parts[2], 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid latitude: %s", parts[2])
+		}
+		lng, err := strconv.ParseFloat(parts[3], 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid longitude: %s", parts[3])
+		}
+
+		// UTC offset from the timezone (handles DST automatically)
+		_, tzOffset := now.Zone()
+		tzHours := float64(tzOffset) / 3600.0
+
+		prayerTimes = &models.ScrapedPrayerTimes{
+			Date: today,
+		}
+
+		if err := s.calcMWLTimes(now, lat, lng, tzHours, prayerTimes); err != nil {
+			return nil, fmt.Errorf("GPS calculation failed: %w", err)
+		}
+
+		// Apply JS_ATHAN_MINUTES_OF_* per-prayer offsets (server-side declared, first occurrence only).
+		// Later occurrences in the HTML are boundary-clamp lines (= -60, = 60) — skip them.
+		adjRe := regexp.MustCompile(`JS_ATHAN_MINUTES_OF_(\w+)\s*=\s*(-?\d+)`)
+		adjustments := map[string]int{}
+		seen := map[string]bool{}
+		for _, m := range adjRe.FindAllStringSubmatch(html, -1) {
+			if len(m) == 3 && !seen[m[1]] {
+				val, _ := strconv.Atoi(m[2])
+				adjustments[m[1]] = val
+				seen[m[1]] = true
+			}
+		}
+		prayerTimes.Fajr = s.addMinutes(prayerTimes.Fajr, adjustments["FAJR"])
+		prayerTimes.Dhuhr = s.addMinutes(prayerTimes.Dhuhr, adjustments["DOHR"])
+		prayerTimes.Asr = s.addMinutes(prayerTimes.Asr, adjustments["ASR"])
+		prayerTimes.Maghrib = s.addMinutes(prayerTimes.Maghrib, adjustments["MAGHRIB"])
+		prayerTimes.Isha = s.addMinutes(prayerTimes.Isha, adjustments["ISHA"])
+	}
+
 	if err := s.validatePrayerTimes(prayerTimes); err != nil {
 		return nil, err
 	}
 
-	// Extract and calculate iqama times
 	if err := s.extractAndCalculateIqamaTimes(ctx, baseURL, prayerTimes); err != nil {
-		// If iqama extraction fails, use default +20 minutes
 		prayerTimes.FajrIqama = s.addMinutes(prayerTimes.Fajr, 20)
 		prayerTimes.DhuhrIqama = s.addMinutes(prayerTimes.Dhuhr, 20)
 		prayerTimes.AsrIqama = s.addMinutes(prayerTimes.Asr, 20)
@@ -220,6 +256,95 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 	}
 
 	return prayerTimes, nil
+}
+
+// calcMWLTimes calculates prayer times using the PrayTimes.js MWL algorithm.
+// MWL: Fajr 18°, Isha 17°, Asr Standard (Shafi), Maghrib at sunset.
+// This replicates the exact calculation the awqat.com.au browser does in GPS mode.
+func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *models.ScrapedPrayerTimes) error {
+	toRad := func(d float64) float64 { return d * math.Pi / 180 }
+	toDeg := func(r float64) float64 { return r * 180 / math.Pi }
+	fixHour := func(h float64) float64 { return h - 24*math.Floor(h/24) }
+
+	// Julian date
+	year, month, day := t.Date()
+	y, m := float64(year), float64(month)
+	d := float64(day)
+	if m <= 2 {
+		y--
+		m += 12
+	}
+	A := math.Floor(y / 100)
+	B := 2 - A + math.Floor(A/4)
+	jd := math.Floor(365.25*(y+4716)) + math.Floor(30.6001*(m+1)) + d + B - 1524.5
+
+	// Sun position
+	D := jd - 2451545.0
+	g := toRad(357.529 + 0.98560028*D)
+	q := 280.459 + 0.98564736*D
+	L := toRad(q + 1.915*math.Sin(g) + 0.020*math.Sin(2*g))
+	e := toRad(23.439 - 0.00000036*D)
+	RA := toDeg(math.Atan2(math.Cos(e)*math.Sin(L), math.Cos(L))) / 15
+	dec := math.Asin(math.Sin(e) * math.Sin(L)) // radians
+	EqT := q/15 - RA
+
+	// Solar noon in local time
+	noon := 12 + tzHours - lng/15 - EqT
+
+	// Hour angle helper: angle is degrees below horizon (positive = depression)
+	hourAngle := func(angle float64) (float64, error) {
+		cosT := (-math.Sin(toRad(angle)) - math.Sin(toRad(lat))*math.Sin(dec)) /
+			(math.Cos(toRad(lat)) * math.Cos(dec))
+		if math.Abs(cosT) > 1 {
+			return 0, fmt.Errorf("sun never reaches angle %.1f at this location/date", angle)
+		}
+		return toDeg(math.Acos(cosT)) / 15, nil
+	}
+
+	// Fajr: 18° depression (MWL)
+	fajrT, err := hourAngle(18)
+	if err != nil {
+		return err
+	}
+
+	// Maghrib: sunset (0.833° for atmospheric refraction, same as PrayTimes.js default)
+	maghribT, err := hourAngle(0.833)
+	if err != nil {
+		return err
+	}
+
+	// Isha: 17° depression (MWL)
+	ishaT, err := hourAngle(17)
+	if err != nil {
+		return err
+	}
+
+	// Asr: Standard (Shafi) — shadow length = 1 + object height
+	cotAsr := 1 + math.Tan(math.Abs(toRad(lat)-dec))
+	asrAngle := toDeg(math.Atan(1 / cotAsr))
+	asrT, err := hourAngle(-asrAngle) // negative = above horizon
+	if err != nil {
+		return err
+	}
+
+	// Dhuhr: solar noon + 0 min offset (PrayTimes.js default)
+	dhuhr := noon
+
+	// PrayTimes.js adds 0.5/60 hours to round to nearest minute
+	round := func(h float64) string {
+		h = fixHour(h + 0.5/60)
+		hh := int(h)
+		mm := int((h - float64(hh)) * 60)
+		return fmt.Sprintf("%02d:%02d", hh, mm)
+	}
+
+	pt.Fajr = round(noon - fajrT)
+	pt.Dhuhr = round(dhuhr)
+	pt.Asr = round(noon + asrT)
+	pt.Maghrib = round(noon + maghribT)
+	pt.Isha = round(noon + ishaT)
+
+	return nil
 }
 
 // extractFromJavaScript attempts to extract prayer times from embedded JavaScript
