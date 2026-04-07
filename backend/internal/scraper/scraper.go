@@ -186,12 +186,16 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 	// These are set server-side and reliably scraped.
 	// JS_SUMMER_ADD1HOUR is intentionally NOT applied — it is localStorage-only
 	// and always initialises as false in the HTML; our headless scraper never sees the real value.
+	// Only take the FIRST occurrence of each variable — the declaration at the top of the HTML.
+	// Later occurrences are boundary-clamp lines (= -60, = 60) used by the UI adjustment widget.
 	adjRe := regexp.MustCompile(`JS_ATHAN_MINUTES_OF_(\w+)\s*=\s*(-?\d+)`)
-	adjustments := map[string]int{"FAJR": 0, "DOHR": 0, "ASR": 0, "MAGHRIB": 0, "ISHA": 0}
+	adjustments := map[string]int{}
+	seen := map[string]bool{}
 	for _, m := range adjRe.FindAllStringSubmatch(html, -1) {
-		if len(m) == 3 {
+		if len(m) == 3 && !seen[m[1]] {
 			val, _ := strconv.Atoi(m[2])
 			adjustments[m[1]] = val
+			seen[m[1]] = true
 		}
 	}
 	prayerTimes.Fajr = s.addMinutes(prayerTimes.Fajr, adjustments["FAJR"])
