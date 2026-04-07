@@ -333,8 +333,8 @@ func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *model
 	// PrayTimes.js adds 0.5/60 hours to round to nearest minute
 	round := func(h float64) string {
 		h = fixHour(h + 0.5/60)
-		hh := int(h)
-		mm := int((h - float64(hh)) * 60)
+		hh := int(math.Floor(h))
+		mm := int(math.Floor((h - math.Floor(h)) * 60))
 		return fmt.Sprintf("%02d:%02d", hh, mm)
 	}
 
