@@ -182,6 +182,24 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		Isha:    strings.TrimSpace(times[5]),    // Index 5: Isha
 	}
 
+	// Apply JS_ATHAN_MINUTES_OF_* per-prayer offsets from server-rendered HTML.
+	// These are set server-side and reliably scraped.
+	// JS_SUMMER_ADD1HOUR is intentionally NOT applied — it is localStorage-only
+	// and always initialises as false in the HTML; our headless scraper never sees the real value.
+	adjRe := regexp.MustCompile(`JS_ATHAN_MINUTES_OF_(\w+)\s*=\s*(-?\d+)`)
+	adjustments := map[string]int{"FAJR": 0, "DOHR": 0, "ASR": 0, "MAGHRIB": 0, "ISHA": 0}
+	for _, m := range adjRe.FindAllStringSubmatch(html, -1) {
+		if len(m) == 3 {
+			val, _ := strconv.Atoi(m[2])
+			adjustments[m[1]] = val
+		}
+	}
+	prayerTimes.Fajr = s.addMinutes(prayerTimes.Fajr, adjustments["FAJR"])
+	prayerTimes.Dhuhr = s.addMinutes(prayerTimes.Dhuhr, adjustments["DOHR"])
+	prayerTimes.Asr = s.addMinutes(prayerTimes.Asr, adjustments["ASR"])
+	prayerTimes.Maghrib = s.addMinutes(prayerTimes.Maghrib, adjustments["MAGHRIB"])
+	prayerTimes.Isha = s.addMinutes(prayerTimes.Isha, adjustments["ISHA"])
+
 	// Validate times
 	if err := s.validatePrayerTimes(prayerTimes); err != nil {
 		return nil, err
