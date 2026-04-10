@@ -260,13 +260,15 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 
 // calcMWLTimes calculates prayer times using the PrayTimes.js MWL algorithm.
 // MWL: Fajr 18°, Isha 17°, Asr Standard (Shafi), Maghrib at sunset.
-// This replicates the exact calculation the awqat.com.au browser does in GPS mode.
+// This is a faithful port of PrayTimes.js v2.3 (praytimes.org) as used by awqat.com.au.
+// Includes: iterative sun position computation, adjustHighLats (AngleBased).
 func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *models.ScrapedPrayerTimes) error {
 	toRad := func(d float64) float64 { return d * math.Pi / 180 }
 	toDeg := func(r float64) float64 { return r * 180 / math.Pi }
 	fixHour := func(h float64) float64 { return h - 24*math.Floor(h/24) }
+	fixAngle := func(a float64) float64 { return a - 360*math.Floor(a/360) }
 
-	// Julian date
+	// Julian date with longitude offset baked in (matches PrayTimes.js: jDate = julian(y,m,d) - lng/(15*24))
 	year, month, day := t.Date()
 	y, m := float64(year), float64(month)
 	d := float64(day)
@@ -276,61 +278,120 @@ func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *model
 	}
 	A := math.Floor(y / 100)
 	B := 2 - A + math.Floor(A/4)
-	jd := math.Floor(365.25*(y+4716)) + math.Floor(30.6001*(m+1)) + d + B - 1524.5
+	jDate := math.Floor(365.25*(y+4716)) + math.Floor(30.6001*(m+1)) + d + B - 1524.5 - lng/(15*24)
 
-	// Sun position
-	D := jd - 2451545.0
-	g := toRad(357.529 + 0.98560028*D)
-	q := 280.459 + 0.98564736*D
-	L := toRad(q + 1.915*math.Sin(g) + 0.020*math.Sin(2*g))
-	e := toRad(23.439 - 0.00000036*D)
-	RA := toDeg(math.Atan2(math.Cos(e)*math.Sin(L), math.Cos(L))) / 15
-	dec := math.Asin(math.Sin(e) * math.Sin(L)) // radians
-	EqT := q/15 - RA
+	// sunPos: returns declination (degrees) and equation of time (hours) at fractional Julian date jd
+	sunPos := func(jd float64) (decl, eqt float64) {
+		D := jd - 2451545.0
+		g := fixAngle(357.529 + 0.98560028*D)
+		q := fixAngle(280.459 + 0.98564736*D)
+		L := fixAngle(q + 1.915*math.Sin(toRad(g)) + 0.020*math.Sin(toRad(2*g)))
+		e := 23.439 - 0.00000036*D
+		RA := toDeg(math.Atan2(math.Cos(toRad(e))*math.Sin(toRad(L)), math.Cos(toRad(L)))) / 15
+		eqt = q/15 - fixHour(RA)
+		decl = toDeg(math.Asin(math.Sin(toRad(e)) * math.Sin(toRad(L))))
+		return
+	}
 
-	// Solar noon in local time
-	noon := 12 + tzHours - lng/15 - EqT
+	// midDay: solar noon at fractional day t (matches PrayTimes.js midDay)
+	midDay := func(tfrac float64) float64 {
+		_, eqt := sunPos(jDate + tfrac)
+		return fixHour(12 - eqt)
+	}
 
-	// Hour angle helper: angle is degrees below horizon (positive = depression)
-	hourAngle := func(angle float64) (float64, error) {
-		cosT := (-math.Sin(toRad(angle)) - math.Sin(toRad(lat))*math.Sin(dec)) /
-			(math.Cos(toRad(lat)) * math.Cos(dec))
+	// sunAngleTime: angle in degrees below horizon (positive=below, negative=above), t is fractional day
+	// ccw=true means "before noon" (Fajr, Sunrise), ccw=false means "after noon" (Sunset, Maghrib, Isha, Asr)
+	sunAngleTime := func(angle, tfrac float64, ccw bool) (float64, error) {
+		decl, _ := sunPos(jDate + tfrac)
+		noon := midDay(tfrac)
+		cosT := (-math.Sin(toRad(angle)) - math.Sin(toRad(decl))*math.Sin(toRad(lat))) /
+			(math.Cos(toRad(decl)) * math.Cos(toRad(lat)))
 		if math.Abs(cosT) > 1 {
-			return 0, fmt.Errorf("sun never reaches angle %.1f at this location/date", angle)
+			return math.NaN(), nil // sun never reaches this angle (polar scenario)
 		}
-		return toDeg(math.Acos(cosT)) / 15, nil
+		T := toDeg(math.Acos(cosT)) / 15
+		if ccw {
+			return noon - T, nil
+		}
+		return noon + T, nil
 	}
 
-	// Fajr: 18° depression (MWL)
-	fajrT, err := hourAngle(18)
+	// Rise/set angle: 0.833° (standard atmospheric refraction at elevation=0)
+	const riseSetAngle = 0.833
+
+	// Initial times in fractional days (PrayTimes.js: divides hours by 24 in dayPortion)
+	fajr := 5.0 / 24
+	sunrise := 6.0 / 24
+	dhuhr := 12.0 / 24
+	asr := 13.0 / 24
+	sunset := 18.0 / 24
+	maghrib := 18.0 / 24
+	isha := 18.0 / 24
+
+	// 1 iteration (numIterations = 1): each prayer uses sunPos at its own fractional time
+	var err error
+	fajr, err = sunAngleTime(18, fajr, true)
+	if err != nil {
+		return err
+	}
+	sunrise, err = sunAngleTime(riseSetAngle, sunrise, true)
+	if err != nil {
+		return err
+	}
+	dhuhr = midDay(dhuhr)
+
+	// Asr Standard (factor=1): angle = -arccot(1 + tan|lat - decl|)
+	// Negative angle = above horizon; sunAngleTime handles via -sin(angle) = sin(|angle|)
+	asrDecl, _ := sunPos(jDate + asr)
+	asrAngle := -toDeg(math.Atan(1.0 / (1 + math.Tan(math.Abs(toRad(lat-asrDecl))))))
+	asr, err = sunAngleTime(asrAngle, asr, false)
 	if err != nil {
 		return err
 	}
 
-	// Maghrib: sunset (0.833° for atmospheric refraction, same as PrayTimes.js default)
-	maghribT, err := hourAngle(0.833)
+	sunset, err = sunAngleTime(riseSetAngle, sunset, false)
 	if err != nil {
 		return err
 	}
 
-	// Isha: 17° depression (MWL)
-	ishaT, err := hourAngle(17)
+	// MWL maghrib = '0 min' → isMin=true → maghrib = sunset + 0 in adjustTimes
+	maghrib = sunset
+
+	isha, err = sunAngleTime(17, isha, false)
 	if err != nil {
 		return err
 	}
 
-	// Asr: Standard (Shafi) — shadow length = 1 + object height
-	cotAsr := 1 + math.Tan(math.Abs(toRad(lat)-dec))
-	asrAngle := toDeg(math.Atan(1 / cotAsr))
-	asrT, err := hourAngle(-asrAngle) // negative = above horizon
-	if err != nil {
-		return err
+	// adjustTimes: convert from UTC solar to local time (PrayTimes.js: times[i] += timeZone - lng/15)
+	localOffset := tzHours - lng/15
+	fajr = fixHour(fajr + localOffset)
+	sunrise = fixHour(sunrise + localOffset)
+	dhuhr = fixHour(dhuhr + localOffset) // dhuhr offset = '0 min' → +0/60
+	asr = fixHour(asr + localOffset)
+	sunset = fixHour(sunset + localOffset)
+	maghrib = fixHour(maghrib + localOffset) // = sunset in local time
+	isha = fixHour(isha + localOffset)
+
+	// adjustHighLats (AngleBased): clamp Fajr/Isha if too far from sunrise/sunset
+	// nightTime = fixHour(sunrise - sunset) = duration of night in hours
+	nightTime := fixHour(sunrise - sunset)
+
+	// Fajr (ccw): if (sunrise - fajr) > (18/60 * night), clamp fajr = sunrise - portion
+	fajrPortion := (18.0 / 60.0) * nightTime
+	if math.IsNaN(fajr) || fixHour(sunrise-fajr) > fajrPortion {
+		fajr = sunrise - fajrPortion
 	}
 
-	// Dhuhr: solar noon + 0 min offset (PrayTimes.js default)
-	dhuhr := noon
+	// Isha: if (isha - sunset) > (17/60 * night), clamp isha = sunset + portion
+	ishaPortion := (17.0 / 60.0) * nightTime
+	if math.IsNaN(isha) || fixHour(isha-sunset) > ishaPortion {
+		isha = sunset + ishaPortion
+	}
 
-	// PrayTimes.js adds 0.5/60 hours to round to nearest minute
+	// Maghrib: portion = (0/60) * night = 0, so effectively no clamping
+	// (maghrib = sunset already, and timeDiff(sunset, maghrib)=0 which is never > 0)
+
+	// Format: add 0.5/60 to round to nearest minute (matches PrayTimes.js getFormattedTime)
 	round := func(h float64) string {
 		h = fixHour(h + 0.5/60)
 		hh := int(math.Floor(h))
@@ -338,11 +399,11 @@ func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *model
 		return fmt.Sprintf("%02d:%02d", hh, mm)
 	}
 
-	pt.Fajr = round(noon - fajrT)
+	pt.Fajr = round(fajr)
 	pt.Dhuhr = round(dhuhr)
-	pt.Asr = round(noon + asrT)
-	pt.Maghrib = round(noon + maghribT)
-	pt.Isha = round(noon + ishaT)
+	pt.Asr = round(asr)
+	pt.Maghrib = round(maghrib)
+	pt.Isha = round(isha)
 
 	return nil
 }
