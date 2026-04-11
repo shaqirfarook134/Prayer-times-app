@@ -34,7 +34,7 @@ const withRemoveForegroundService = (config) => {
   });
 };
 
-export default {
+module.exports = {
   expo: {
     name: IS_DEV ? 'My Masjid Dev' : 'My Masjid App',
     slug: 'mymasjid',
