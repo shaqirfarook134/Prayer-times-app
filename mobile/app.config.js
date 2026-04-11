@@ -1,10 +1,44 @@
 const IS_DEV = process.env.APP_ENV === 'development';
 
+// Config plugin to explicitly remove foreground service permissions from the merged manifest.
+// The app uses expo-background-fetch (Android JobScheduler) — not a foreground service.
+// Without this removal, EAS builds on Expo SDK 55 may inherit FOREGROUND_SERVICE from
+// transitive dependencies, causing Google Play to require a foreground service declaration.
+const withRemoveForegroundService = (config) => {
+  const { withAndroidManifest } = require('@expo/config-plugins');
+  return withAndroidManifest(config, (config) => {
+    const manifest = config.modResults;
+    if (!manifest.manifest['uses-permission']) {
+      manifest.manifest['uses-permission'] = [];
+    }
+    const permsToRemove = [
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+      'android.permission.FOREGROUND_SERVICE_LOCATION',
+    ];
+    // Add tools:node="remove" entries to strip these from the merged manifest
+    permsToRemove.forEach((perm) => {
+      const already = manifest.manifest['uses-permission'].find(
+        (p) => p.$?.['android:name'] === perm
+      );
+      if (!already) {
+        manifest.manifest['uses-permission'].push({
+          $: {
+            'android:name': perm,
+            'tools:node': 'remove',
+          },
+        });
+      }
+    });
+    return config;
+  });
+};
+
 export default {
   expo: {
     name: IS_DEV ? 'My Masjid Dev' : 'My Masjid App',
     slug: 'mymasjid',
-    version: '1.3.5',
+    version: '1.4.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -27,6 +61,7 @@ export default {
       }
     },
     android: {
+      versionCode: 2,
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',
@@ -56,7 +91,8 @@ export default {
           icon: './assets/icon.png',
           color: '#ffffff'
         }
-      ]
+      ],
+      withRemoveForegroundService,
     ],
     extra: {
       isDev: IS_DEV,
