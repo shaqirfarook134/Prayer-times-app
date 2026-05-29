@@ -38,6 +38,9 @@ TaskManager.defineTask(DAILY_PRAYER_REFRESH_TASK, async () => {
     // Reschedule all notifications for today
     await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
 
+    // Clear the date guard so the app reschedules fresh on next open
+    await storageService.setLastNotificationScheduledDate('');
+
     console.log('✅ Background task completed: Prayer times updated and notifications rescheduled');
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
@@ -77,6 +80,14 @@ class BackgroundTaskService {
   // Schedule a daily notification at 12:30 AM to ensure task runs
   async scheduleDailyTriggerNotification(): Promise<void> {
     try {
+      // Guard: only schedule if no daily_refresh trigger already exists
+      const existing = await Notifications.getAllScheduledNotificationsAsync();
+      const alreadyScheduled = existing.some(n => n.content.data?.type === 'daily_refresh');
+      if (alreadyScheduled) {
+        console.log('⏭️ Daily trigger already scheduled, skipping');
+        return;
+      }
+
       // Calculate next 12:30 AM
       const now = new Date();
       const next1230AM = new Date(now);
