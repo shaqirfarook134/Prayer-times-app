@@ -6,6 +6,8 @@ export interface Masjid {
   city: string;
   state: string;
   timezone: string;
+  latitude?: number;
+  longitude?: number;
   created_at: string;
   updated_at: string;
 }
@@ -53,7 +55,15 @@ export interface AppStorage {
 }
 
 // Navigation Types
+import { NavigatorScreenParams } from '@react-navigation/native';
+
 export type RootStackParamList = {
   MasjidSelection: undefined;
+  MainTabs: NavigatorScreenParams<TabParamList> | undefined;
+};
+
+export type TabParamList = {
+  FindMasjid: undefined;
   PrayerTimes: { masjidId: number };
+  QiblaCompass: undefined;
 };

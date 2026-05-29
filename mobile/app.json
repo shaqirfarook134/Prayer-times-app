@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Prayer Times",
-    "slug": "prayer-times-app",
-    "version": "1.0.0",
+    "name": "My Masjid App",
+    "slug": "mymasjid",
+    "version": "1.4.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,10 +13,17 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.prayertimes.app",
+      "bundleIdentifier": "com.shaqirfarook.mymasjid",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
-      }
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "NSLocationWhenInUseUsageDescription": "We need your location to find nearby masjids and help you determine the Qibla direction for prayer."
+      },
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,10 +33,12 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.prayertimes.app",
+      "package": "com.shaqirfarook.mymasjid",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ]
     },
     "web": {

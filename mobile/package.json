@@ -14,6 +14,7 @@
     "ios:prod": "APP_ENV=production expo run:ios --configuration Release"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "11.5.2",
     "@react-navigation/bottom-tabs": "^7.15.7",
@@ -23,7 +24,9 @@
     "babel-preset-expo": "^55.0.11",
     "expo": "~55.0.5",
     "expo-background-fetch": "~55.0.10",
+    "expo-blur": "^55.0.10",
     "expo-constants": "~55.0.9",
+    "expo-glass-effect": "^55.0.8",
     "expo-haptics": "~55.0.9",
     "expo-linear-gradient": "~55.0.9",
     "expo-location": "~55.1.4",
@@ -31,6 +34,7 @@
     "expo-sensors": "~55.0.9",
     "expo-status-bar": "~55.0.4",
     "expo-task-manager": "~55.0.10",
+    "geomagnetism": "^0.2.0",
     "react": "19.2.0",
     "react-native": "0.83.2",
     "react-native-compass-heading": "^2.0.2",

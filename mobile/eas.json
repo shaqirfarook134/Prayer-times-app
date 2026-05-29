@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 16.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -21,11 +22,21 @@
         "simulator": false
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6760448920",
+        "ascApiKeyId": "94UR2TJA3Z",
+        "ascApiKeyIssuerId": "47b40ef2-94d5-4b1f-86e2-04a0555450a6",
+        "ascApiKeyPath": "/Users/shaqirfarook/Downloads/AuthKey_94UR2TJA3Z.p8"
+      },
+      "android": {
+        "track": "production"
+      }
+    }
   }
 }
