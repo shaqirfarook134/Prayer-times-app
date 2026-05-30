@@ -461,7 +461,25 @@ func (s *Scraper) extractFromJavaScript(html, timezone string) (*models.ScrapedP
 	return prayerTimes, nil
 }
 
-// extractFromHTML attempts to extract prayer times from HTML table
+// parseTime12or24 converts a time string in either 12-hour (e.g. "5:50 AM") or
+// 24-hour (e.g. "05:50") format into a normalised 24-hour "HH:MM" string.
+func parseTime12or24(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	for _, layout := range []string{"3:04 PM", "3:04 AM", "15:04"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.Format("15:04"), nil
+		}
+	}
+	matched, _ := regexp.MatchString(`^([0-1][0-9]|2[0-3]):[0-5][0-9]$`, s)
+	if matched {
+		return s, nil
+	}
+	return "", fmt.Errorf("unrecognised time format: %s", s)
+}
+
+// extractFromHTML attempts to extract prayer times from an HTML table.
+// Supports 2-column (Prayer | Adhan) and 3-column (Prayer | Adhan | Iqama) layouts.
+// Times may be in 12-hour AM/PM or 24-hour format.
 func (s *Scraper) extractFromHTML(html, timezone string) (*models.ScrapedPrayerTimes, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
@@ -481,36 +499,63 @@ func (s *Scraper) extractFromHTML(html, timezone string) (*models.ScrapedPrayerT
 		Date: today,
 	}
 
-	// Look for prayer times in common HTML structures
-	// This is a simplified version - needs customization per website
 	doc.Find("table tr").Each(func(i int, row *goquery.Selection) {
 		cells := row.Find("td")
-		if cells.Length() >= 2 {
-			prayer := strings.ToLower(strings.TrimSpace(cells.Eq(0).Text()))
-			time := strings.TrimSpace(cells.Eq(1).Text())
+		if cells.Length() < 2 {
+			return
+		}
 
-			switch {
-			case strings.Contains(prayer, "fajr"):
-				prayerTimes.Fajr = time
-			case strings.Contains(prayer, "dhuhr"):
-				prayerTimes.Dhuhr = time
-			case strings.Contains(prayer, "asr"):
-				prayerTimes.Asr = time
-			case strings.Contains(prayer, "maghrib"):
-				prayerTimes.Maghrib = time
-			case strings.Contains(prayer, "isha"):
-				prayerTimes.Isha = time
+		prayer := strings.ToLower(strings.TrimSpace(cells.Eq(0).Text()))
+		adhanRaw := strings.TrimSpace(cells.Eq(1).Text())
+		adhan, err := parseTime12or24(adhanRaw)
+		if err != nil {
+			return // skip rows with unrecognisable times (e.g. header rows)
+		}
+
+		// Iqama is optional — only present in 3+ column tables
+		var iqama string
+		if cells.Length() >= 3 {
+			iqamaRaw := strings.TrimSpace(cells.Eq(2).Text())
+			if parsed, parseErr := parseTime12or24(iqamaRaw); parseErr == nil {
+				iqama = parsed
+			}
+		}
+
+		switch {
+		case strings.Contains(prayer, "fajr"):
+			prayerTimes.Fajr = adhan
+			if iqama != "" {
+				prayerTimes.FajrIqama = iqama
+			}
+		case strings.Contains(prayer, "dhuhr") || strings.Contains(prayer, "zuhr"):
+			prayerTimes.Dhuhr = adhan
+			if iqama != "" {
+				prayerTimes.DhuhrIqama = iqama
+			}
+		case strings.Contains(prayer, "asr"):
+			prayerTimes.Asr = adhan
+			if iqama != "" {
+				prayerTimes.AsrIqama = iqama
+			}
+		case strings.Contains(prayer, "maghrib"):
+			prayerTimes.Maghrib = adhan
+			if iqama != "" {
+				prayerTimes.MaghribIqama = iqama
+			}
+		case strings.Contains(prayer, "isha"): // handles "Isha" and "Ishaa"
+			prayerTimes.Isha = adhan
+			if iqama != "" {
+				prayerTimes.IshaIqama = iqama
 			}
 		}
 	})
 
-	// Validate that we found all times
+	// Validate that we found all five adhan times
 	if prayerTimes.Fajr == "" || prayerTimes.Dhuhr == "" || prayerTimes.Asr == "" ||
 		prayerTimes.Maghrib == "" || prayerTimes.Isha == "" {
-		return nil, fmt.Errorf("incomplete prayer times extracted")
+		return nil, fmt.Errorf("incomplete prayer times extracted from HTML")
 	}
 
-	// Validate times
 	if err := s.validatePrayerTimes(prayerTimes); err != nil {
 		return nil, err
 	}
