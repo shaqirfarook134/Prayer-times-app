@@ -599,8 +599,28 @@ func (s *Scraper) extractFromCSSClasses(html, timezone string) (*models.ScrapedP
 	mappings := []classMapping{
 		{"salahfajr", false, func(v string) { pt.Fajr = v }},
 		{"iqamah_fajr", true, func(v string) { pt.FajrIqama = v }},
-		{"salah_dhuhr", false, func(v string) { pt.Dhuhr = v }},
-		{"iqamah_dhuhr", true, func(v string) { pt.DhuhrIqama = v }},
+		// Dhuhr appears as "salahzuhr" / "iqamah_zuhr" on some sites (e.g. pgcc.org.au)
+		// and "salah_dhuhr" / "iqamah_dhuhr" on others — check both
+		{"salahzuhr", false, func(v string) {
+			if pt.Dhuhr == "" {
+				pt.Dhuhr = v
+			}
+		}},
+		{"iqamah_zuhr", true, func(v string) {
+			if pt.DhuhrIqama == "" {
+				pt.DhuhrIqama = v
+			}
+		}},
+		{"salah_dhuhr", false, func(v string) {
+			if pt.Dhuhr == "" {
+				pt.Dhuhr = v
+			}
+		}},
+		{"iqamah_dhuhr", true, func(v string) {
+			if pt.DhuhrIqama == "" {
+				pt.DhuhrIqama = v
+			}
+		}},
 		{"salah_asr", false, func(v string) { pt.Asr = v }},
 		{"iqamah_asr", true, func(v string) { pt.AsrIqama = v }},
 		{"salah_maghrib", false, func(v string) { pt.Maghrib = v }},
