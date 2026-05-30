@@ -92,8 +92,14 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		return prayerTimes, nil
 	}
 
-	// Method 3: Fallback to HTML parsing
+	// Method 3: Fallback to HTML table parsing
 	prayerTimes, err = s.extractFromHTML(html, timezone)
+	if err == nil {
+		return prayerTimes, nil
+	}
+
+	// Method 4: CSS class-based extraction (Elementor/page-builder sites like pgcc.org.au)
+	prayerTimes, err = s.extractFromCSSClasses(html, timezone)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract prayer times: %w", err)
 	}
@@ -561,6 +567,72 @@ func (s *Scraper) extractFromHTML(html, timezone string) (*models.ScrapedPrayerT
 	}
 
 	return prayerTimes, nil
+}
+
+// extractFromCSSClasses extracts prayer times from page-builder sites (e.g. Elementor)
+// that embed times in elements with predictable CSS class names like
+// "salahfajr", "iqamah_fajr", "salah_dhuhr", "iqamah_dhuhr", etc.
+func (s *Scraper) extractFromCSSClasses(html, timezone string) (*models.ScrapedPrayerTimes, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	pt := &models.ScrapedPrayerTimes{Date: today}
+
+	// Maps CSS class substrings to prayer adhan/iqama fields.
+	// Each entry: {classFragment, isIqama} → field pointer.
+	type classMapping struct {
+		fragment string
+		iqama    bool
+		set      func(string)
+	}
+
+	mappings := []classMapping{
+		{"salahfajr", false, func(v string) { pt.Fajr = v }},
+		{"iqamah_fajr", true, func(v string) { pt.FajrIqama = v }},
+		{"salah_dhuhr", false, func(v string) { pt.Dhuhr = v }},
+		{"iqamah_dhuhr", true, func(v string) { pt.DhuhrIqama = v }},
+		{"salah_asr", false, func(v string) { pt.Asr = v }},
+		{"iqamah_asr", true, func(v string) { pt.AsrIqama = v }},
+		{"salah_maghrib", false, func(v string) { pt.Maghrib = v }},
+		{"iqamah_maghrib", true, func(v string) { pt.MaghribIqama = v }},
+		{"salah_isha", false, func(v string) { pt.Isha = v }},
+		{"iqamah_isha", true, func(v string) { pt.IshaIqama = v }},
+	}
+
+	for _, m := range mappings {
+		doc.Find("[class*=" + m.fragment + "]").Each(func(i int, sel *goquery.Selection) {
+			if i > 0 {
+				return // take first match only
+			}
+			raw := strings.TrimSpace(sel.Find("span").First().Text())
+			if raw == "" {
+				raw = strings.TrimSpace(sel.Text())
+			}
+			if parsed, parseErr := parseTime12or24(raw); parseErr == nil {
+				m.set(parsed)
+			}
+		})
+	}
+
+	if pt.Fajr == "" || pt.Dhuhr == "" || pt.Asr == "" || pt.Maghrib == "" || pt.Isha == "" {
+		return nil, fmt.Errorf("incomplete prayer times extracted from CSS classes")
+	}
+
+	if err := s.validatePrayerTimes(pt); err != nil {
+		return nil, err
+	}
+
+	return pt, nil
 }
 
 // validatePrayerTimes validates the format and chronological order
