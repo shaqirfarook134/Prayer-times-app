@@ -367,9 +367,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="url">Awqat URL *</label>
-                    <input type="url" id="url" name="url" required placeholder="https://awqat.com.au/yourmasjid/">
-                    <small style="color: #666; font-size: 12px;">Must be an Awqat website URL</small>
+                    <label for="url">Prayer Times URL *</label>
+                    <input type="url" id="url" name="url" required placeholder="https://example.com/masjidname/">
+                    <small style="color: #666; font-size: 12px;">Any URL where prayer times can be scraped (awqat.com.au, or any site with a prayer times table)</small>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -596,18 +596,15 @@
             data.latitude = data.latitude ? parseFloat(data.latitude) : null;
             data.longitude = data.longitude ? parseFloat(data.longitude) : null;
 
-            // Extract cityCode from URL (e.g., https://awqat.com.au/mgm/ -> mgm)
+            // Derive cityCode from URL path, or fall back to hostname slug
             try {
                 const url = new URL(data.url);
                 const pathParts = url.pathname.split('/').filter(p => p);
-                if (pathParts.length > 0) {
-                    data.cityCode = pathParts[0];
-                } else {
-                    showAlert('❌ Invalid URL format. URL should be like: https://awqat.com.au/masjidname/', 'error');
-                    return;
-                }
+                data.cityCode = pathParts.length > 0
+                    ? pathParts[0]
+                    : url.hostname.replace(/\./g, '-');
             } catch (e) {
-                showAlert('❌ Invalid URL format', 'error');
+                showAlert('❌ Invalid URL', 'error');
                 return;
             }
 
@@ -745,15 +742,15 @@
                 longitude: document.getElementById('edit-longitude').value ? parseFloat(document.getElementById('edit-longitude').value) : null,
             };
 
-            // Extract cityCode from URL
+            // Derive cityCode from URL path, or fall back to hostname slug
             try {
                 const url = new URL(data.url);
                 const pathParts = url.pathname.split('/').filter(p => p);
-                if (pathParts.length > 0) {
-                    data.cityCode = pathParts[0];
-                }
+                data.cityCode = pathParts.length > 0
+                    ? pathParts[0]
+                    : url.hostname.replace(/\./g, '-');
             } catch (e) {
-                showAlert('❌ Invalid URL format', 'error');
+                showAlert('❌ Invalid URL', 'error');
                 return;
             }
 
