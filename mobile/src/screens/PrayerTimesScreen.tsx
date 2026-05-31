@@ -10,7 +10,10 @@ import {
   Switch,
   AppState,
   Animated,
+  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -34,12 +37,28 @@ interface Props {
   route: PrayerTimesScreenRouteProp;
 }
 
+function getHijriDate(): string {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US-u-ca-islamic', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    return formatter.format(new Date());
+  } catch {
+    return '';
+  }
+}
+
 const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const { masjidId } = route.params;
   const { isTablet, isIPad } = useResponsive();
   // activeMasjidId is the source of truth — read from storage on focus
   // so switching masjids and returning from tabs always loads the correct one
   const [activeMasjidId, setActiveMasjidId] = useState<number>(masjidId);
+  const insets = useSafeAreaInsets();
+  // Tab bar clearance — floating pill (60pt) + margin (10pt) + insets.bottom
+  const tabBarClearance = Platform.OS === 'ios' ? 60 + 10 + insets.bottom + 8 : insets.bottom;
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [masjid, setMasjid] = useState<Masjid | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,23 +128,37 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     };
   }, [activeMasjidId]);
 
-  // Fallback notification scheduling (safety net if background task fails)
+  // Schedule notifications once per day — guard prevents rescheduling on every loadData() call
   useEffect(() => {
     const scheduleNotifications = async () => {
-      // Mutex: prevent duplicate scheduling if this fires multiple times rapidly
-      if (isSchedulingNotificationsRef.current) return;
+      if (!prayerTimes || !masjid || !notificationsEnabled) return;
+
+      // Synchronous in-memory lock — prevents a second call slipping through before
+      // the AsyncStorage date guard is written (which only happens after scheduling completes).
+      if (isSchedulingNotificationsRef.current) {
+        console.log('⏭️ Notifications already being scheduled, skipping');
+        return;
+      }
       isSchedulingNotificationsRef.current = true;
+
       try {
-        if (prayerTimes && masjid && notificationsEnabled) {
-          console.log('🔔 Scheduling prayer notifications');
-          const success = await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
-          if (!success) {
-            console.error('❌ Failed to schedule notifications');
-            setNotificationPermissionDenied(true);
-          } else {
-            console.log('✅ Notifications scheduled successfully');
-            setNotificationPermissionDenied(false);
-          }
+        const today = new Date().toDateString();
+        const lastScheduledDate = await storageService.getLastNotificationScheduledDate();
+        if (lastScheduledDate === today) {
+          console.log('⏭️ Notifications already scheduled today, skipping');
+          return;
+        }
+
+        console.log('🔔 Scheduling prayer notifications for today');
+        const success = await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
+
+        if (!success) {
+          console.error('❌ Failed to schedule notifications');
+          setNotificationPermissionDenied(true);
+        } else {
+          console.log('✅ Notifications scheduled successfully');
+          setNotificationPermissionDenied(false);
+          await storageService.setLastNotificationScheduledDate(today);
         }
       } finally {
         isSchedulingNotificationsRef.current = false;
@@ -331,10 +364,14 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     await notificationService.updatePreferences(masjidId, value);
 
     if (value && prayerTimes && masjid) {
+      // Clear the date guard so the useEffect reschedules immediately
+      await storageService.setLastNotificationScheduledDate('');
       const success = await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
       if (!success) {
         console.error('❌ Failed to schedule notifications');
         setNotificationPermissionDenied(true);
+      } else {
+        await storageService.setLastNotificationScheduledDate(new Date().toDateString());
       }
     } else {
       await notificationService.cancelAll();
@@ -354,45 +391,13 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   }
 
-  // Create dynamic styles based on device type
-  const dynamicStyles = StyleSheet.create({
-    contentContainer: {
-      width: '100%',
-    },
-    header: {
-      ...styles.header,
-      padding: isTablet ? 32 : 24,
-      paddingTop: isTablet ? 80 : 60,
-    },
-    masjidName: {
-      ...styles.masjidName,
-      fontSize: isTablet ? 32 : 24,
-    },
-    date: {
-      ...styles.date,
-      fontSize: isTablet ? 20 : 16,
-    },
-    prayerTimesContainer: {
-      ...styles.prayerTimesContainer,
-      margin: isTablet ? 24 : 16,
-      borderRadius: isTablet ? 16 : 12,
-    },
-    settingsCard: {
-      ...styles.settingsCard,
-      margin: isTablet ? 24 : 16,
-      padding: isTablet ? 28 : 20,
-      borderRadius: isTablet ? 16 : 12,
-    },
-    changeMasjidButton: {
-      ...styles.changeMasjidButton,
-      margin: isTablet ? 24 : 16,
-      padding: isTablet ? 20 : 16,
-    },
-  });
+  const hijriDate = getHijriDate();
+  const timeUntil = getTimeUntilPrayer();
 
   return (
     <ScrollView
       style={styles.container}
+      contentContainerStyle={{ paddingBottom: tabBarClearance }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => {
           setRefreshing(true);
@@ -400,95 +405,87 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         }} />
       }
     >
-      <View style={dynamicStyles.contentContainer}>
-        {/* Header */}
-        <View style={dynamicStyles.header}>
-          <Text style={dynamicStyles.masjidName}>{masjid?.name || 'Prayer Times'}</Text>
-          <Text style={dynamicStyles.date}>
-            Prayer Times for {new Date().toLocaleDateString('en-US', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </Text>
-          {lastUpdated && (
-            <Text style={styles.lastUpdated}>
-              Last updated: {lastUpdated.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-              })} at {lastUpdated.toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true,
-              })}
-            </Text>
-          )}
-        </View>
+      {/* ── Hero card ── */}
+      <LinearGradient
+        colors={['#1a3a6b', '#0d2447', '#0a1f3d']}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={[styles.hero, { paddingTop: insets.top + 16 }]}
+      >
+        {/* Radial glow top-right */}
+        <View style={styles.heroGlow} pointerEvents="none" />
 
+        {/* Location + date */}
+        <Text style={styles.heroLocation}>
+          📍 {masjid?.name || 'Prayer Times'}
+          {masjid?.city ? `  ·  ${masjid.city}` : ''}
+        </Text>
+        <Text style={styles.heroDate}>
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {hijriDate ? `  ·  ${hijriDate}` : ''}
+        </Text>
+
+        {/* Next prayer */}
+        {nextPrayer && (
+          <>
+            <Text style={styles.nextPrayerLabel}>Next Prayer</Text>
+            <Text style={styles.nextPrayerName}>{nextPrayer.name}</Text>
+            <Text style={styles.nextPrayerTime}>{nextPrayer.time.adhan12}</Text>
+            {timeUntil ? (
+              <View style={styles.countdownPill}>
+                <Text style={styles.countdownText}>⏱ in {timeUntil}</Text>
+              </View>
+            ) : null}
+          </>
+        )}
+      </LinearGradient>
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
-
       {notificationPermissionDenied && (
         <View style={styles.notificationBanner}>
           <Text style={styles.notificationText}>
-            ⚠️ Notification permissions denied. Enable notifications in Settings to receive prayer alerts.
+            ⚠️ Notification permissions denied. Enable in Settings to receive prayer alerts.
           </Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={requestNotificationPermissions}
-          >
+          <TouchableOpacity style={styles.retryButton} onPress={requestNotificationPermissions}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       )}
 
-        {/* Prayer Times List */}
-        {prayerTimes && (
-          <View style={dynamicStyles.prayerTimesContainer}>
-            {/* Header Row */}
-            <View style={styles.headerRow}>
-              <Text style={[styles.headerPrayerName, isTablet && { fontSize: 16 }]}>Prayer</Text>
-              <View style={styles.timesContainer}>
-                <Text style={[styles.headerTimeLabel, isTablet && { fontSize: 16, width: 90 }]}>Adhan</Text>
-                <Text style={[styles.headerTimeLabel, isTablet && { fontSize: 16, width: 90 }]}>Iqama</Text>
-              </View>
-            </View>
-
-            <PrayerTimeRow name="Fajr" time={prayerTimes.fajr} isNext={nextPrayer?.name === 'Fajr'} isAdhan={currentAdhanPrayer === 'Fajr'} isTablet={isTablet} />
-            <PrayerTimeRow name="Dhuhr" time={prayerTimes.dhuhr} isNext={nextPrayer?.name === 'Dhuhr'} isAdhan={currentAdhanPrayer === 'Dhuhr'} isTablet={isTablet} />
-            <PrayerTimeRow name="Asr" time={prayerTimes.asr} isNext={nextPrayer?.name === 'Asr'} isAdhan={currentAdhanPrayer === 'Asr'} isTablet={isTablet} />
-            <PrayerTimeRow name="Maghrib" time={prayerTimes.maghrib} isNext={nextPrayer?.name === 'Maghrib'} isAdhan={currentAdhanPrayer === 'Maghrib'} isTablet={isTablet} />
-            <PrayerTimeRow name="Isha" time={prayerTimes.isha} isNext={nextPrayer?.name === 'Isha'} isAdhan={currentAdhanPrayer === 'Isha'} isTablet={isTablet} />
-          </View>
-        )}
-
-        {/* Notification Settings */}
-        <View style={dynamicStyles.settingsCard}>
-          <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, isTablet && { fontSize: 20 }]}>Prayer Notifications</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={toggleNotifications}
-              trackColor={{ false: '#D0D0D0', true: '#34C759' }}
-            />
-          </View>
-          <Text style={[styles.settingDescription, isTablet && { fontSize: 16 }]}>
-            Receive notifications 10 minutes before each prayer
-          </Text>
+      {/* ── Prayer list ── */}
+      {prayerTimes && (
+        <View style={styles.prayerList}>
+          <PrayerTimeRow name="Fajr"    time={prayerTimes.fajr}    isNext={nextPrayer?.name === 'Fajr'}    isAdhan={currentAdhanPrayer === 'Fajr'}    isTablet={isTablet} />
+          <PrayerTimeRow name="Dhuhr"   time={prayerTimes.dhuhr}   isNext={nextPrayer?.name === 'Dhuhr'}   isAdhan={currentAdhanPrayer === 'Dhuhr'}   isTablet={isTablet} />
+          <PrayerTimeRow name="Asr"     time={prayerTimes.asr}     isNext={nextPrayer?.name === 'Asr'}     isAdhan={currentAdhanPrayer === 'Asr'}     isTablet={isTablet} />
+          <PrayerTimeRow name="Maghrib" time={prayerTimes.maghrib} isNext={nextPrayer?.name === 'Maghrib'} isAdhan={currentAdhanPrayer === 'Maghrib'} isTablet={isTablet} />
+          <PrayerTimeRow name="Isha"    time={prayerTimes.isha}    isNext={nextPrayer?.name === 'Isha'}    isAdhan={currentAdhanPrayer === 'Isha'}    isTablet={isTablet} />
         </View>
+      )}
 
-        {/* Change Masjid Button */}
-        <TouchableOpacity style={dynamicStyles.changeMasjidButton} onPress={changeMasjid}>
-          <Text style={[styles.changeMasjidText, isTablet && { fontSize: 18 }]}>Change Masjid</Text>
-        </TouchableOpacity>
-
-        {/* Version Number */}
-        <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
+      {/* ── Settings ── */}
+      <View style={styles.settingsCard}>
+        <View style={styles.settingRow}>
+          <Text style={styles.settingLabel}>Prayer Notifications</Text>
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={toggleNotifications}
+            trackColor={{ false: '#D0D0D0', true: '#34C759' }}
+          />
+        </View>
+        <Text style={styles.settingDescription}>
+          Receive notifications 10 minutes before each prayer
+        </Text>
       </View>
+
+      <TouchableOpacity style={styles.changeMasjidButton} onPress={changeMasjid}>
+        <Text style={styles.changeMasjidText}>Change Masjid</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
     </ScrollView>
   );
 };
@@ -506,68 +503,45 @@ const PrayerTimeRow: React.FC<PrayerTimeRowProps> = ({ name, time, isNext, isAdh
 
   React.useEffect(() => {
     if (isAdhan) {
-      // Start blinking animation
       const blink = Animated.loop(
         Animated.sequence([
-          Animated.timing(blinkAnim, {
-            toValue: 0.3,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(blinkAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
+          Animated.timing(blinkAnim, { toValue: 0.3, duration: 500, useNativeDriver: true }),
+          Animated.timing(blinkAnim, { toValue: 1,   duration: 500, useNativeDriver: true }),
         ])
       );
       blink.start();
-
-      return () => {
-        blink.stop();
-        blinkAnim.setValue(1);
-      };
+      return () => { blink.stop(); blinkAnim.setValue(1); };
     } else {
       blinkAnim.setValue(1);
     }
   }, [isAdhan]);
 
+  const rowColor = isAdhan ? '#FF6F00' : isNext ? '#007AFF' : '#1c1c1e';
+  const timeColor = isAdhan ? '#FF6F00' : isNext ? '#007AFF' : '#48484a';
+
   return (
     <Animated.View
       style={[
         styles.prayerRow,
-        isTablet && { padding: 28 },
         isNext && !isAdhan && styles.prayerRowHighlight,
         isAdhan && styles.prayerRowAdhan,
-        { opacity: blinkAnim }
+        { opacity: blinkAnim },
       ]}
     >
-      <Text style={[
-        styles.prayerName,
-        isTablet && { fontSize: 22 },
-        isNext && !isAdhan && styles.prayerNameHighlight,
-        isAdhan && styles.prayerNameAdhan
-      ]}>
+      <Text style={[styles.prayerName, { color: rowColor }, isTablet && { fontSize: 18 }]}>
         {name}
       </Text>
-      <View style={[styles.timesContainer, isTablet && { width: 200, gap: 32 }]}>
-        <Text style={[
-          styles.prayerTime,
-          isTablet && { fontSize: 20, width: 90 },
-          isNext && !isAdhan && styles.prayerTimeHighlight,
-          isAdhan && styles.prayerTimeAdhan
-        ]}>
-          {time.adhan12}
-        </Text>
-        <Text style={[
-          styles.prayerTime,
-          isTablet && { fontSize: 20, width: 90 },
-          isNext && !isAdhan && styles.prayerTimeHighlight,
-          isAdhan && styles.prayerTimeAdhan
-        ]}>
-          {time.iqama12}
-        </Text>
+      <View style={styles.timesContainer}>
+        <View style={styles.timeColumn}>
+          <Text style={[styles.timeLabel]}>Adhan</Text>
+          <Text style={[styles.prayerTime, { color: timeColor }, isTablet && { fontSize: 16 }]}>{time.adhan12}</Text>
+        </View>
+        <View style={styles.timeColumn}>
+          <Text style={styles.timeLabel}>Iqama</Text>
+          <Text style={[styles.prayerTime, { color: timeColor }, isTablet && { fontSize: 16 }]}>{time.iqama12}</Text>
+        </View>
       </View>
+      {isNext && !isAdhan && <View style={styles.activeDot} />}
     </Animated.View>
   );
 };
@@ -575,57 +549,92 @@ const PrayerTimeRow: React.FC<PrayerTimeRowProps> = ({ name, time, isNext, isAdh
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#f2f2f7',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    backgroundColor: '#007AFF',
-    padding: 24,
-    paddingTop: 60,
+
+  // ── Hero card ──
+  hero: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  masjidName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
+  heroGlow: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,200,50,0.12)',
   },
-  date: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
-  lastUpdated: {
+  heroLocation: {
     fontSize: 13,
-    color: '#FFFFFF',
-    opacity: 0.75,
-    marginTop: 4,
-    fontStyle: 'italic',
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '500',
+    marginBottom: 4,
   },
+  heroDate: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+    marginBottom: 20,
+  },
+  nextPrayerLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  nextPrayerName: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  nextPrayerTime: {
+    fontSize: 17,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  countdownPill: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  countdownText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#ffd60a',
+    letterSpacing: 0.3,
+  },
+
+  // ── Status banners ──
   connectionBanner: {
     backgroundColor: '#FFF3CD',
     padding: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#FF9800',
   },
-  connectionText: {
-    color: '#856404',
-    fontSize: 14,
-    fontWeight: '500',
-  },
+  connectionText: { color: '#856404', fontSize: 14, fontWeight: '500' },
   errorBanner: {
     backgroundColor: '#FFF3CD',
     padding: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#FF9800',
   },
-  errorText: {
-    color: '#856404',
-    fontSize: 14,
-  },
+  errorText: { color: '#856404', fontSize: 14 },
   notificationBanner: {
     backgroundColor: '#FFE5E5',
     padding: 16,
@@ -635,183 +644,117 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  notificationText: {
-    color: '#C62828',
-    fontSize: 14,
-    flex: 1,
-    marginRight: 12,
-  },
+  notificationText: { color: '#C62828', fontSize: 14, flex: 1, marginRight: 12 },
   retryButton: {
     backgroundColor: '#FF5252',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  nextPrayerCard: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    padding: 24,
+  retryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+
+  // ── Prayer list ──
+  prayerList: {
+    marginHorizontal: 16,
+    marginTop: 20,
     borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  nextPrayerLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  nextPrayerName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  nextPrayerTime: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginBottom: 12,
-  },
-  countdown: {
-    fontSize: 20,
-    color: '#666',
-  },
-  prayerTimesContainer: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    marginTop: 16,
-    borderRadius: 12,
     overflow: 'hidden',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
-    backgroundColor: '#F8F9FA',
-    borderBottomWidth: 2,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerPrayerName: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '600',
-    flex: 1,
-    textTransform: 'uppercase',
-  },
-  headerTimeLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '600',
-    textAlign: 'center',
-    width: 70,
-    textTransform: 'uppercase',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   prayerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e5e5ea',
   },
   prayerRowHighlight: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#eef4ff',
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
   },
   prayerRowAdhan: {
-    backgroundColor: '#FFE0B2',
+    backgroundColor: '#fff3e0',
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF6F00',
   },
   prayerName: {
-    fontSize: 18,
-    color: '#333',
-    fontWeight: '500',
-    flex: 1,
-  },
-  prayerNameHighlight: {
-    color: '#007AFF',
+    fontSize: 16,
     fontWeight: '600',
-  },
-  prayerNameAdhan: {
-    color: '#FF6F00',
-    fontWeight: '700',
+    flex: 1,
   },
   timesContainer: {
     flexDirection: 'row',
-    gap: 24,
-    justifyContent: 'space-between',
-    width: 164,
+    gap: 20,
+    alignItems: 'center',
   },
   timeColumn: {
     alignItems: 'center',
+    minWidth: 60,
   },
   timeLabel: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 4,
+    fontSize: 10,
+    color: '#8e8e93',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
   },
   prayerTime: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
     fontWeight: '600',
   },
-  prayerTimeHighlight: {
-    color: '#007AFF',
+  activeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#007AFF',
+    marginLeft: 8,
   },
-  prayerTimeAdhan: {
-    color: '#FF6F00',
-    fontWeight: '700',
-  },
+
+  // ── Settings ──
   settingsCard: {
     backgroundColor: '#FFFFFF',
     margin: 16,
-    padding: 20,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  settingLabel: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  settingDescription: {
-    fontSize: 14,
-    color: '#666',
-  },
+  settingLabel: { fontSize: 16, color: '#1c1c1e', fontWeight: '500' },
+  settingDescription: { fontSize: 14, color: '#8e8e93' },
   changeMasjidButton: {
     backgroundColor: '#FFFFFF',
-    margin: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#007AFF',
   },
-  changeMasjidText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
+  changeMasjidText: { fontSize: 16, color: '#007AFF', fontWeight: '600' },
   versionText: {
     fontSize: 11,
-    color: '#999999',
+    color: '#c7c7cc',
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 8,
   },
 });
 

@@ -7,33 +7,66 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Alert,
   Animated,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useFocusEffect, CommonActions } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList, Masjid } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
-import websocketService from '../services/websocket';
 import { useResponsive } from '../hooks/useResponsive';
 
-type MasjidSelectionScreenNavigationProp = StackNavigationProp<
+type FindMasjidScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   'MasjidSelection'
 >;
 
 interface Props {
-  navigation: MasjidSelectionScreenNavigationProp;
+  navigation: FindMasjidScreenNavigationProp;
 }
 
-const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
+interface MasjidWithDistance extends Masjid {
+  distance?: number; // in kilometers
+}
+
+// Haversine formula to calculate distance between two coordinates
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const toRad = (degrees: number): number => {
+  return (degrees * Math.PI) / 180;
+};
+
+const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const { isTablet } = useResponsive();
-  const [masjids, setMasjids] = useState<Masjid[]>([]);
+  const [masjids, setMasjids] = useState<MasjidWithDistance[]>([]);
+  const [nearbyMasjids, setNearbyMasjids] = useState<MasjidWithDistance[]>([]);
+  const [otherMasjids, setOtherMasjids] = useState<MasjidWithDistance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationPermission, setLocationPermission] = useState(false);
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
   const [selectedMasjidId, setSelectedMasjidId] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -43,106 +76,90 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
   const successTranslateY = useRef(new Animated.Value(-20)).current;
 
   useEffect(() => {
-    const screenStartTime = Date.now();
-    console.log('⏱️  [PERF] MasjidSelectionScreen mounted');
-
-    // Load cached data first (instant), then refresh from API
-    loadCachedMasjids();
+    requestLocationPermission();
     loadMasjids();
     loadSelectedMasjidId();
-    checkExistingSelection();
-
-    // Listen for masjid added (WebSocket connected globally in App.tsx)
-    websocketService.onMasjidAdded(() => {
-      console.log('🔥 Received real-time masjid added!');
-      loadMasjids();
-    });
-
-    // Listen for masjid deleted
-    websocketService.onMasjidDeleted(() => {
-      console.log('🔥 Received real-time masjid deleted!');
-      loadMasjids();
-    });
-
-    return () => {
-      websocketService.removeAllListeners();
-    };
   }, []);
-
-  // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadMasjids();
-    }, [])
-  );
 
   const loadSelectedMasjidId = async () => {
     const selectedId = await storageService.getSelectedMasjidId();
     setSelectedMasjidId(selectedId);
   };
 
-  const checkExistingSelection = async () => {
-    const selectedId = await storageService.getSelectedMasjidId();
-    if (selectedId) {
-      // Navigate directly to Prayer Times tab if already selected
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [
-            {
-              name: 'MainTabs',
-              state: {
-                routes: [
-                  { name: 'FindMasjid' },
-                  { name: 'PrayerTimes', params: { masjidId: selectedId } },
-                  { name: 'QiblaCompass' },
-                ],
-                index: 1, // Set Prayer Times tab as active
-              },
-            },
-          ],
-        })
-      );
+  useEffect(() => {
+    if (userLocation && masjids.length > 0) {
+      calculateDistances();
     }
-  };
+  }, [userLocation, masjids]);
 
-  const loadCachedMasjids = async () => {
-    const cacheStartTime = Date.now();
+  const requestLocationPermission = async () => {
     try {
-      const cached = await storageService.getCachedMasjids();
-      if (cached && cached.length > 0) {
-        const cacheDuration = Date.now() - cacheStartTime;
-        console.log(`📦 Loaded cached masjids: ${cached.length} items in ${cacheDuration}ms`);
-        setMasjids(cached);
-        setLoading(false); // Show UI immediately with cached data
-        console.log(`⏱️  [PERF] UI ready with cached data (${Date.now() - cacheStartTime}ms)`);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setLocationPermission(true);
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setUserLocation(location);
+        console.log('📍 User location:', location.coords.latitude, location.coords.longitude);
+      } else {
+        console.log('⚠️  Location permission denied');
+        Alert.alert(
+          'Location Permission',
+          'Enable location to find nearby masjids. You can still browse all masjids.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (err) {
-      console.error('Error loading cached masjids:', err);
+      console.error('Error requesting location permission:', err);
     }
   };
 
   const loadMasjids = async () => {
-    const apiStartTime = Date.now();
     try {
       setError(null);
       console.log('🌐 Fetching masjids from API...');
       const data = await apiService.getMasjids();
-      const apiDuration = Date.now() - apiStartTime;
-      console.log(`⏱️  [PERF] API response received in ${apiDuration}ms`);
       setMasjids(data);
-      // Cache the fresh data for next time
-      await storageService.setCachedMasjids(data);
-      console.log('✅ Masjids loaded and cached:', data.length);
+      console.log('✅ Masjids loaded:', data.length);
     } catch (err) {
-      const apiDuration = Date.now() - apiStartTime;
-      console.log(`⏱️  [PERF] API failed after ${apiDuration}ms`);
       setError('Failed to load masjids. Please check your connection.');
       console.error('Error loading masjids:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const calculateDistances = () => {
+    if (!userLocation) return;
+
+    const masjidsWithDistance = masjids.map((masjid) => {
+      if (masjid.latitude && masjid.longitude) {
+        const distance = calculateDistance(
+          userLocation.coords.latitude,
+          userLocation.coords.longitude,
+          masjid.latitude,
+          masjid.longitude
+        );
+        return { ...masjid, distance };
+      }
+      return masjid;
+    });
+
+    // Sort by distance
+    const sorted = masjidsWithDistance.sort((a, b) => {
+      if (a.distance === undefined) return 1;
+      if (b.distance === undefined) return -1;
+      return a.distance - b.distance;
+    });
+
+    // Split into nearby (within 50km) and other
+    const nearby = sorted.filter((m) => m.distance !== undefined && m.distance <= 50);
+    const other = sorted.filter((m) => m.distance === undefined || m.distance > 50);
+
+    setNearbyMasjids(nearby);
+    setOtherMasjids(other);
   };
 
   const showSuccessMessage = (message: string) => {
@@ -208,7 +225,7 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
 
       // Wait for visual feedback before navigating
       setTimeout(() => {
-        // Navigate to main tabs with Prayer Times as initial screen
+        // Navigate to Prayer Times tab
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
@@ -258,13 +275,64 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
   const onRefresh = () => {
     setRefreshing(true);
     loadMasjids();
+    if (locationPermission) {
+      requestLocationPermission();
+    }
+  };
+
+  const formatDistance = (distance?: number): string => {
+    if (distance === undefined) return '';
+    if (distance < 1) {
+      return `${(distance * 1000).toFixed(0)}m away`;
+    }
+    return `${distance.toFixed(1)}km away`;
+  };
+
+  const renderMasjidCard = (masjid: MasjidWithDistance) => {
+    const isSelected = masjid.id === selectedMasjidId;
+    return (
+      <TouchableOpacity
+        key={masjid.id}
+        style={[
+          dynamicStyles.masjidCard,
+          isSelected && styles.selectedCard,
+        ]}
+        onPress={() => handleMasjidSelect(masjid)}
+      >
+        <View style={styles.cardContent}>
+          <View style={styles.cardTextContainer}>
+            <Text style={dynamicStyles.masjidName}>{masjid.name}</Text>
+            <Text style={dynamicStyles.masjidLocation}>
+              {masjid.city}, {masjid.state}
+            </Text>
+            {masjid.distance !== undefined && (
+              <Text style={dynamicStyles.distanceText}>{formatDistance(masjid.distance)}</Text>
+            )}
+          </View>
+          {isSelected ? (
+            <View style={styles.selectedBadgeContainer}>
+              <View style={[styles.checkmarkContainer, isTablet && { width: 48, height: 48 }]}>
+                <Text style={[styles.checkmark, isTablet && { fontSize: 28 }]}>✓</Text>
+              </View>
+              <Text style={[styles.defaultLabel, isTablet && { fontSize: 14 }]}>Default</Text>
+            </View>
+          ) : (
+            masjid.distance !== undefined && masjid.distance <= 10 && (
+              <View style={styles.nearbyBadge}>
+                <Text style={styles.nearbyBadgeText}>📍 Nearby</Text>
+              </View>
+            )
+          )}
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading masjids...</Text>
+        <Text style={styles.loadingText}>Finding masjids...</Text>
       </View>
     );
   }
@@ -298,13 +366,16 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
       ...styles.subtitle,
       fontSize: isTablet ? 20 : 16,
     },
-    listContent: {
-      ...styles.listContent,
+    sectionHeader: {
+      ...styles.sectionHeader,
+      fontSize: isTablet ? 24 : 20,
       padding: isTablet ? 24 : 16,
+      paddingBottom: isTablet ? 12 : 8,
     },
     masjidCard: {
       ...styles.masjidCard,
       padding: isTablet ? 28 : 20,
+      marginHorizontal: isTablet ? 24 : 16,
       borderRadius: isTablet ? 16 : 12,
     },
     masjidName: {
@@ -315,51 +386,44 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
       ...styles.masjidLocation,
       fontSize: isTablet ? 16 : 14,
     },
+    distanceText: {
+      ...styles.distanceText,
+      fontSize: isTablet ? 15 : 13,
+    },
   });
 
   return (
     <View style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.title}>Select Your Masjid</Text>
-        <Text style={dynamicStyles.subtitle}>Choose the masjid to receive prayer times</Text>
+        <Text style={dynamicStyles.title}>Find Your Masjid</Text>
+        <Text style={dynamicStyles.subtitle}>
+          {locationPermission
+            ? 'Masjids sorted by distance from your location'
+            : 'Browse all available masjids'}
+        </Text>
       </View>
 
       <FlatList
-        data={masjids}
+        data={[...nearbyMasjids, ...otherMasjids]}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => {
-          const isSelected = item.id === selectedMasjidId;
+        renderItem={({ item, index }) => {
+          const isFirstOther = index === nearbyMasjids.length && otherMasjids.length > 0;
           return (
-            <TouchableOpacity
-              style={[
-                dynamicStyles.masjidCard,
-                isSelected && styles.selectedCard,
-              ]}
-              onPress={() => handleMasjidSelect(item)}
-            >
-              <View style={styles.cardContent}>
-                <View style={styles.cardText}>
-                  <Text style={dynamicStyles.masjidName}>{item.name}</Text>
-                  <Text style={dynamicStyles.masjidLocation}>
-                    {item.city}, {item.state}
-                  </Text>
-                </View>
-                {isSelected && (
-                  <View style={styles.selectedBadgeContainer}>
-                    <View style={[styles.checkmarkContainer, isTablet && { width: 48, height: 48 }]}>
-                      <Text style={[styles.checkmark, isTablet && { fontSize: 28 }]}>✓</Text>
-                    </View>
-                    <Text style={[styles.defaultLabel, isTablet && { fontSize: 14 }]}>Default</Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
+            <>
+              {index === 0 && nearbyMasjids.length > 0 && (
+                <Text style={dynamicStyles.sectionHeader}>Nearby Masjids</Text>
+              )}
+              {isFirstOther && (
+                <Text style={dynamicStyles.sectionHeader}>
+                  {nearbyMasjids.length > 0 ? 'Other Masjids' : 'All Masjids'}
+                </Text>
+              )}
+              {renderMasjidCard(item)}
+            </>
           );
         }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={dynamicStyles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.listContent}
       />
 
       {/* Success Toast */}
@@ -411,13 +475,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  listContent: {
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    backgroundColor: '#F5F5F5',
     padding: 16,
+    paddingBottom: 8,
+    paddingTop: 16,
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   masjidCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 20,
+    marginHorizontal: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -425,17 +499,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  selectedCard: {
-    backgroundColor: '#E3F2FD',
-    borderWidth: 2,
-    borderColor: '#007AFF',
-  },
   cardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cardText: {
+  cardTextContainer: {
     flex: 1,
   },
   masjidName: {
@@ -447,6 +516,52 @@ const styles = StyleSheet.create({
   masjidLocation: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 4,
+  },
+  distanceText: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  nearbyBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginLeft: 12,
+  },
+  nearbyBadgeText: {
+    color: '#2E7D32',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#D32F2F',
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 40,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  selectedCard: {
+    backgroundColor: '#E3F2FD',
+    borderWidth: 2,
+    borderColor: '#007AFF',
   },
   selectedBadgeContainer: {
     alignItems: 'center',
@@ -477,29 +592,6 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     marginTop: 4,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#D32F2F',
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 40,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   successToast: {
     position: 'absolute',
     top: 100,
@@ -529,4 +621,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MasjidSelectionScreen;
+export default FindMasjidScreen;
