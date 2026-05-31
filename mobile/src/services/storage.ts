@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppStorage, PrayerTimes } from '../types';
+import { AppStorage, PrayerTimes, Masjid } from '../types';
 
 const STORAGE_KEYS = {
   SELECTED_MASJID_ID: '@prayer_times:selected_masjid_id',
   NOTIFICATIONS_ENABLED: '@prayer_times:notifications_enabled',
   CACHED_PRAYER_TIMES: '@prayer_times:cached_prayer_times',
+  CACHED_MASJIDS: '@prayer_times:cached_masjids',
   DEVICE_TOKEN: '@prayer_times:device_token',
   LAST_SYNC: '@prayer_times:last_sync',
+  LAST_NOTIFICATION_SCHEDULED_DATE: '@prayer_times:last_notification_scheduled_date',
 };
 
 class StorageService {
@@ -111,6 +113,43 @@ class StorageService {
       await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
     } catch (error) {
       console.error('Error setting last sync:', error);
+    }
+  }
+
+  // Cached Masjids List
+  async getCachedMasjids(): Promise<Masjid[] | null> {
+    try {
+      const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_MASJIDS);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.error('Error getting cached masjids:', error);
+      return null;
+    }
+  }
+
+  async setCachedMasjids(masjids: Masjid[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.CACHED_MASJIDS, JSON.stringify(masjids));
+    } catch (error) {
+      console.error('Error setting cached masjids:', error);
+    }
+  }
+
+  // Last Notification Scheduled Date
+  async getLastNotificationScheduledDate(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(STORAGE_KEYS.LAST_NOTIFICATION_SCHEDULED_DATE);
+    } catch (error) {
+      console.error('Error getting last notification scheduled date:', error);
+      return null;
+    }
+  }
+
+  async setLastNotificationScheduledDate(date: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.LAST_NOTIFICATION_SCHEDULED_DATE, date);
+    } catch (error) {
+      console.error('Error setting last notification scheduled date:', error);
     }
   }
 
