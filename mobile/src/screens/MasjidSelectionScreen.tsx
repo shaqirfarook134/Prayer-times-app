@@ -66,7 +66,7 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
     const selectedId = await storageService.getSelectedMasjidId();
     if (selectedId) {
       // Navigate directly to prayer times if already selected
-      navigation.replace('PrayerTimes', { masjidId: selectedId });
+      navigation.replace('MainTabs', { screen: 'PrayerTimes', params: { masjidId: selectedId } } as any);
     }
   };
 
@@ -93,11 +93,11 @@ const MasjidSelectionScreen: React.FC<Props> = ({ navigation }) => {
       await notificationService.registerDevice(masjid.id);
 
       // Navigate to prayer times
-      navigation.replace('PrayerTimes', { masjidId: masjid.id });
+      navigation.replace('MainTabs', { screen: 'PrayerTimes', params: { masjidId: masjid.id } } as any);
     } catch (err) {
       console.error('Error selecting masjid:', err);
       // Continue navigation even if notification registration fails
-      navigation.replace('PrayerTimes', { masjidId: masjid.id });
+      navigation.replace('MainTabs', { screen: 'PrayerTimes', params: { masjidId: masjid.id } } as any);
     }
   };
 

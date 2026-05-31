@@ -11,7 +11,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, TabParamList } from './src/types';
 import MasjidSelectionScreen from './src/screens/MasjidSelectionScreen';
-import FindMasjidScreen from './src/screens/FindMasjidScreen';
 import PrayerTimesScreen from './src/screens/PrayerTimesScreen';
 import QiblaCompassScreen from './src/screens/QiblaCompassScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -20,7 +19,6 @@ import websocketService from './src/services/websocket';
 import backgroundTaskService from './src/services/backgroundTasks';
 import apiService from './src/services/api';
 import storageService from './src/services/storage';
-import networkService from './src/services/network';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -33,10 +31,6 @@ export default function App() {
     const initializeApp = async () => {
       const initStartTime = Date.now();
       console.log('⏱️  [PERF] App initialization started');
-
-      // Initialize network monitoring (non-blocking)
-      console.log('📶 Initializing network monitoring...');
-      networkService.initialize();
 
       // Request notification permissions on app start (non-blocking, delayed)
       setTimeout(() => {
@@ -63,15 +57,6 @@ export default function App() {
     };
 
     initializeApp();
-
-    // Listen for network restoration and reset WebSocket
-    const handleNetworkChange = (status: 'online' | 'offline' | 'connecting') => {
-      if (status === 'online') {
-        console.log('✅ Network restored - resetting WebSocket reconnection');
-        websocketService.resetReconnection();
-      }
-    };
-    networkService.addListener(handleNetworkChange);
 
     // Add notification listeners
     const receivedSubscription = notificationService.addNotificationReceivedListener(
@@ -106,7 +91,6 @@ export default function App() {
     return () => {
       receivedSubscription.remove();
       responseSubscription.remove();
-      networkService.removeListener(handleNetworkChange);
       websocketService.disconnect();
     };
   }, []);
@@ -117,12 +101,10 @@ export default function App() {
     const useGlass = isLiquidGlassAvailable();
 
     const TAB_ICONS: Record<string, { focused: string; outline: string }> = {
-      FindMasjid:    { focused: 'location',  outline: 'location-outline'  },
       PrayerTimes:   { focused: 'time',      outline: 'time-outline'      },
       QiblaCompass:  { focused: 'compass',   outline: 'compass-outline'   },
     };
     const TAB_LABELS: Record<string, string> = {
-      FindMasjid: 'Masjid',
       PrayerTimes: 'Prayer Times',
       QiblaCompass: 'Qibla',
     };
@@ -232,16 +214,6 @@ export default function App() {
             tabBarLabel: 'Qibla',
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'compass' : 'compass-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="FindMasjid"
-          component={FindMasjidScreen}
-          options={{
-            tabBarLabel: 'Masjid',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'location' : 'location-outline'} size={24} color={color} />
             ),
           }}
         />
