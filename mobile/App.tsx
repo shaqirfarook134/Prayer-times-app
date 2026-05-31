@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -175,9 +175,19 @@ export default function App() {
   };
 
   const MainTabs = ({ route }: any) => {
-    const masjidId = route?.params?.params?.masjidId;
+    const paramMasjidId = route?.params?.params?.masjidId;
+    // initialMasjidId falls back to storage so the hardcoded 9 (Al Taqwa) is never used
+    const [initialMasjidId, setInitialMasjidId] = useState<number>(paramMasjidId || 0);
     const isIOS = Platform.OS === 'ios';
     const insets = useSafeAreaInsets();
+
+    useEffect(() => {
+      if (!paramMasjidId) {
+        storageService.getSelectedMasjidId().then(id => {
+          if (id) setInitialMasjidId(id);
+        });
+      }
+    }, []);
 
     return (
       <Tab.Navigator
@@ -213,7 +223,7 @@ export default function App() {
               <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
             ),
           }}
-          initialParams={{ masjidId: masjidId || 9 }}
+          initialParams={{ masjidId: initialMasjidId }}
         />
         <Tab.Screen
           name="QiblaCompass"

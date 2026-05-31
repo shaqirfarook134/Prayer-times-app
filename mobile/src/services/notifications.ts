@@ -13,13 +13,16 @@ const { NotificationSchedulerModule } = NativeModules;
 const PRAYER_CHANNEL_ID = 'prayer-notifications';
 const DAILY_REFRESH_CHANNEL_ID = 'daily-refresh';
 
-// Configure notification handler
+// Configure notification handler — daily_refresh runs silently (no banner, no sound)
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const isDailyRefresh = notification.request.content.data?.type === 'daily_refresh';
+    return {
+      shouldShowAlert: !isDailyRefresh,
+      shouldPlaySound: !isDailyRefresh,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 class NotificationService {

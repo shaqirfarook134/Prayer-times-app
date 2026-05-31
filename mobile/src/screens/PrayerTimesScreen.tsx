@@ -38,6 +38,9 @@ interface Props {
 const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const { masjidId } = route.params;
   const { isTablet, isIPad } = useResponsive();
+  // activeMasjidId is the source of truth — read from storage on focus
+  // so switching masjids and returning from tabs always loads the correct one
+  const [activeMasjidId, setActiveMasjidId] = useState<number>(masjidId);
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [masjid, setMasjid] = useState<Masjid | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +56,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const hasAttemptedRefresh = React.useRef(false);
   const isLoadingRef = React.useRef(false); // Prevent concurrent loadData() calls
   const dataFromCache = React.useRef(false); // Track if current data is from cache fallback
+  const isSchedulingNotificationsRef = React.useRef(false); // Prevent duplicate notification scheduling
 
   useEffect(() => {
     loadData();
@@ -81,7 +85,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
     // Listen for prayer times updates (WebSocket connected globally in App.tsx)
     websocketService.onPrayerTimesUpdated((data) => {
-      if (data.masjidId === masjidId) {
+      if (data.masjidId === activeMasjidId) {
         console.log('🔥 Received real-time prayer times update!');
         loadData();
       }
@@ -123,27 +127,29 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       websocketService.removeAllListeners();
       // adhanSoundService.cleanup(); // Temporarily disabled - expo-av version incompatibility
     };
-  }, [masjidId]);
+  }, [activeMasjidId]);
 
-  // FIX #3: Fallback notification scheduling (safety net if background task fails)
+  // Fallback notification scheduling (safety net if background task fails)
   useEffect(() => {
     const scheduleNotifications = async () => {
-      if (prayerTimes && masjid && notificationsEnabled) {
-        console.log('🔔 Scheduling prayer notifications (fallback safety net)');
-        console.log('   This runs whenever app opens or prayer times update');
-
-        const success = await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
-
-        if (!success) {
-          console.error('❌ Failed to schedule notifications');
-          setNotificationPermissionDenied(true);
-        } else {
-          console.log('✅ Notifications scheduled successfully');
-          setNotificationPermissionDenied(false);
+      // Mutex: prevent duplicate scheduling if this fires multiple times rapidly
+      if (isSchedulingNotificationsRef.current) return;
+      isSchedulingNotificationsRef.current = true;
+      try {
+        if (prayerTimes && masjid && notificationsEnabled) {
+          console.log('🔔 Scheduling prayer notifications');
+          const success = await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
+          if (!success) {
+            console.error('❌ Failed to schedule notifications');
+            setNotificationPermissionDenied(true);
+          } else {
+            console.log('✅ Notifications scheduled successfully');
+            setNotificationPermissionDenied(false);
+          }
         }
+      } finally {
+        isSchedulingNotificationsRef.current = false;
       }
-      // Schedule adhan sound checks
-      // adhanSoundService.scheduleAdhanChecks(prayerTimes); // Temporarily disabled - expo-av version incompatibility
     };
 
     if (prayerTimes) {
@@ -170,9 +176,24 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [prayerTimes]);
 
-  // Auto-refresh when screen comes into focus (but only if data is stale)
-  // Removed unconditional loadData() to prevent infinite loop
-  // The stale detection useEffect above will handle refreshing when needed
+  // Sync masjid selection from storage whenever screen comes into focus.
+  // Handles tab-switching, returning from Qibla, and the overnight case where
+  // the 12:30 AM notification wakes the app with a stale route.params.masjidId.
+  useFocusEffect(
+    React.useCallback(() => {
+      const syncMasjidFromStorage = async () => {
+        const storedId = await storageService.getSelectedMasjidId();
+        if (storedId && storedId !== activeMasjidId) {
+          console.log(`🔄 Masjid changed in storage (${activeMasjidId} → ${storedId}), reloading`);
+          hasAttemptedRefresh.current = false;
+          dataFromCache.current = false;
+          isLoadingRef.current = false;
+          setActiveMasjidId(storedId);
+        }
+      };
+      syncMasjidFromStorage();
+    }, [activeMasjidId])
+  );
 
   const loadNotificationSettings = async () => {
     const enabled = await storageService.getNotificationsEnabled();
@@ -212,8 +233,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
       // Fetch fresh data from API (instant with Starter plan - <100ms)
       const [prayerData, masjidData] = await Promise.all([
-        apiService.getPrayerTimes(masjidId),
-        apiService.getMasjidById(masjidId),
+        apiService.getPrayerTimes(activeMasjidId),
+        apiService.getMasjidById(activeMasjidId),
       ]);
 
       setPrayerTimes(prayerData);
@@ -222,7 +243,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       hasAttemptedRefresh.current = false; // Reset refresh flag on success
 
       // Cache the fresh data for offline support
-      await storageService.setCachedPrayerTimes(masjidId, prayerData);
+      await storageService.setCachedPrayerTimes(activeMasjidId, prayerData);
 
       console.log('✅ Prayer times loaded successfully at', new Date().toLocaleString());
     } catch (err: any) {
@@ -241,7 +262,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       // Fallback to cached data only if API fails (offline mode)
-      const cached = await storageService.getCachedPrayerTimes(masjidId);
+      const cached = await storageService.getCachedPrayerTimes(activeMasjidId);
       if (cached) {
         dataFromCache.current = true; // Mark that this data is from cache (prevents stale detection loop)
         setPrayerTimes(cached);
