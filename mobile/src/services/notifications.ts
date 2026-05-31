@@ -19,6 +19,8 @@ Notifications.setNotificationHandler({
     const isDailyRefresh = notification.request.content.data?.type === 'daily_refresh';
     return {
       shouldShowAlert: !isDailyRefresh,
+      shouldShowBanner: !isDailyRefresh,
+      shouldShowList: !isDailyRefresh,
       shouldPlaySound: !isDailyRefresh,
       shouldSetBadge: false,
     };

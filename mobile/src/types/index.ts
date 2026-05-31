@@ -63,7 +63,6 @@ export type RootStackParamList = {
 };
 
 export type TabParamList = {
-  FindMasjid: undefined;
   PrayerTimes: { masjidId: number };
   QiblaCompass: undefined;
 };

@@ -12,23 +12,22 @@ import {
   Animated,
 } from 'react-native';
 import Constants from 'expo-constants';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
-import { RootStackParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
+import { TabParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
 import websocketService from '../services/websocket';
-import networkService, { ConnectionStatus } from '../services/network';
 import { useResponsive } from '../hooks/useResponsive';
 // import adhanSoundService from '../services/adhanSound'; // Temporarily disabled - expo-av version incompatibility
 
-type PrayerTimesScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
+type PrayerTimesScreenNavigationProp = BottomTabNavigationProp<
+  TabParamList,
   'PrayerTimes'
 >;
 
-type PrayerTimesScreenRouteProp = RouteProp<RootStackParamList, 'PrayerTimes'>;
+type PrayerTimesScreenRouteProp = RouteProp<TabParamList, 'PrayerTimes'>;
 
 interface Props {
   navigation: PrayerTimesScreenNavigationProp;
@@ -49,8 +48,6 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [nextPrayer, setNextPrayer] = useState<Prayer | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [notificationPermissionDenied, setNotificationPermissionDenied] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(networkService.getStatus());
-  const [websocketConnected, setWebsocketConnected] = useState(websocketService.isConnected());
   const [currentAdhanPrayer, setCurrentAdhanPrayer] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const hasAttemptedRefresh = React.useRef(false);
@@ -66,22 +63,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     // Initialize adhan sound service
     // adhanSoundService.initialize(); // Temporarily disabled - expo-av version incompatibility
 
-    // Listen for network status changes
-    const handleNetworkChange = (status: ConnectionStatus) => {
-      console.log('📶 Network status changed in screen:', status);
-      setConnectionStatus(status);
-      if (status === 'online') {
-        loadData(); // Refresh data when network restored
-      }
-    };
-    networkService.addListener(handleNetworkChange);
-
-    // Listen for WebSocket connection state changes
-    const handleWebSocketChange = (connected: boolean) => {
-      console.log('🔌 WebSocket status changed in screen:', connected);
-      setWebsocketConnected(connected);
-    };
-    websocketService.onConnectionStateChange(handleWebSocketChange);
+    // Listen for WebSocket connection state changes (no-op stub — handled globally in App.tsx)
 
     // Listen for prayer times updates (WebSocket connected globally in App.tsx)
     websocketService.onPrayerTimesUpdated((data) => {
@@ -122,8 +104,6 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       // clearInterval(adhanCheckInterval); // Temporarily disabled - expo-av version incompatibility
       clearInterval(refreshInterval);
       subscription.remove();
-      networkService.removeListener(handleNetworkChange);
-      websocketService.removeConnectionStateListener(handleWebSocketChange);
       websocketService.removeAllListeners();
       // adhanSoundService.cleanup(); // Temporarily disabled - expo-av version incompatibility
     };
@@ -363,7 +343,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const changeMasjid = async () => {
     await storageService.setSelectedMasjidId(0);
-    navigation.replace('MasjidSelection');
+    (navigation as any).getParent()?.replace('MasjidSelection');
   };
 
   if (loading) {
@@ -445,15 +425,6 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
           )}
         </View>
-
-      {/* Connection Status Indicator */}
-      {connectionStatus !== 'online' && (
-        <View style={styles.connectionBanner}>
-          <Text style={styles.connectionText}>
-            {connectionStatus === 'offline' ? '⚠️ Offline (using cached data)' : '🔄 Connecting...'}
-          </Text>
-        </View>
-      )}
 
       {error && (
         <View style={styles.errorBanner}>

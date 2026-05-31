@@ -155,7 +155,7 @@ const QiblaCompassScreen: React.FC = () => {
 
       // Start compass — react-native-compass-heading uses native platform heading
       // (CoreLocation on iOS, SensorManager on Android) — accurate out of the box
-      CompassHeading.start(3, ({ heading, accuracy: acc }) => {
+      CompassHeading.start(3, ({ heading, accuracy: acc }: { heading: number; accuracy: number }) => {
         setDisplayHeading(Math.round(heading));
         setAccuracy(acc);
 

@@ -100,14 +100,12 @@ class BackgroundTaskService {
         content: {
           title: 'Prayer Times Updated',
           body: 'Fetching latest prayer times for today...',
-          sound: null, // Silent notification
           data: { type: 'daily_refresh' },
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: 0,
           minute: 30,
-          repeats: true,
         },
       });
 
