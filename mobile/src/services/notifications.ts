@@ -30,6 +30,7 @@ Notifications.setNotificationHandler({
 class NotificationService {
   private channelsCreated = false;
   private lastScheduledTimestamp: number = 0;
+  private isScheduling = false;
 
   // Create Android notification channels (required for Android 8+)
   private async createNotificationChannels(): Promise<void> {
@@ -157,6 +158,13 @@ class NotificationService {
 
   // Schedule local notifications for prayer times
   async schedulePrayerNotifications(prayerTimes: PrayerTimes, masjidName: string): Promise<boolean> {
+    // Mutex: prevent concurrent scheduling passes from racing each other
+    if (this.isScheduling) {
+      console.log('⏭️ Skipping — scheduling already in progress');
+      return true;
+    }
+
+    this.isScheduling = true;
     try {
       // Check permissions first
       const { status } = await Notifications.getPermissionsAsync();
@@ -188,17 +196,17 @@ class NotificationService {
     } catch (error) {
       console.error('❌ Error scheduling notifications:', error);
       return false;
+    } finally {
+      this.isScheduling = false;
     }
   }
 
   // Helper method for Expo-notifications scheduling (used by iOS and Android fallback)
   private async scheduleExpoNotifications(prayerTimes: PrayerTimes, masjidName: string = 'Masjid'): Promise<void> {
-    // Cancel only prayer notifications — preserve the daily_refresh trigger
+    // Cancel ALL scheduled notifications to start clean (daily_refresh will be re-added below)
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const notification of scheduled) {
-      if (notification.content.data?.type !== 'daily_refresh') {
-        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-      }
+      await Notifications.cancelScheduledNotificationAsync(notification.identifier);
     }
 
     const prayers = [
@@ -212,6 +220,8 @@ class NotificationService {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+    let fajrScheduledForTomorrow = false;
+
     for (const prayer of prayers) {
       // Parse prayer time (HH:MM format) - use adhan time
       const [hours, minutes] = prayer.time.adhan.split(':').map(Number);
@@ -221,46 +231,130 @@ class NotificationService {
       // Calculate notification time (10 minutes before)
       const notificationDate = new Date(prayerDate.getTime() - 10 * 60 * 1000);
 
-      // Only schedule if notification time is in the future
-      if (notificationDate > now) {
-        const notificationContent: Notifications.NotificationContentInput = {
-          title: `${prayer.name} in 10 minutes (${prayer.time.adhan12})`,
+      // If notification time has already passed today, roll forward to tomorrow.
+      // This fixes Fajr being missed when the app schedules late at night — Fajr
+      // is an early-morning prayer so its time has already passed for "today".
+      if (notificationDate <= now) {
+        prayerDate.setDate(prayerDate.getDate() + 1);
+        notificationDate.setDate(notificationDate.getDate() + 1);
+        if (prayer.name === 'Fajr') fajrScheduledForTomorrow = true;
+      }
+
+      // 10-minutes-before reminder
+      const notificationContent: Notifications.NotificationContentInput = {
+        title: `${prayer.name} in 10 minutes (${prayer.time.adhan12})`,
+        body: `${masjidName} • Iqama at ${prayer.time.iqama12}`,
+        sound: 'default',
+        data: {
+          prayer: prayer.name,
+          adhanTime: prayer.time.adhan12,
+          iqamaTime: prayer.time.iqama12,
+        },
+        priority: Platform.OS === 'android' ? Notifications.AndroidNotificationPriority.HIGH : undefined,
+      };
+
+      // Add Android-specific channel
+      if (Platform.OS === 'android') {
+        (notificationContent as any).channelId = PRAYER_CHANNEL_ID;
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: notificationContent,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: notificationDate,
+          channelId: Platform.OS === 'android' ? PRAYER_CHANNEL_ID : undefined,
+        },
+      });
+
+      console.log(`✅ Scheduled 10-min reminder for ${prayer.name} at ${notificationDate.toLocaleTimeString()}`);
+
+      // Adhan-time notification — plays default sound exactly at prayer time
+      if (prayerDate > now) {
+        const adhanContent: Notifications.NotificationContentInput = {
+          title: `${prayer.name} time (${prayer.time.adhan12})`,
           body: `${masjidName} • Iqama at ${prayer.time.iqama12}`,
           sound: 'default',
-          data: {
-            prayer: prayer.name,
-            adhanTime: prayer.time.adhan12,
-            iqamaTime: prayer.time.iqama12,
-          },
+          data: { prayer: prayer.name, type: 'adhan' },
           priority: Platform.OS === 'android' ? Notifications.AndroidNotificationPriority.HIGH : undefined,
         };
-
-        // Add Android-specific channel
         if (Platform.OS === 'android') {
-          (notificationContent as any).channelId = PRAYER_CHANNEL_ID;
+          (adhanContent as any).channelId = PRAYER_CHANNEL_ID;
         }
-
         await Notifications.scheduleNotificationAsync({
-          content: notificationContent,
+          content: adhanContent,
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: notificationDate,
+            date: prayerDate,
+            channelId: Platform.OS === 'android' ? PRAYER_CHANNEL_ID : undefined,
+          },
+        });
+        console.log(`✅ Scheduled Adhan notification for ${prayer.name} at ${prayerDate.toLocaleTimeString()}`);
+      }
+    }
+
+    // Schedule Fajr for the next 7 days as a Doze-mode resilience measure.
+    // Android Doze can suppress the 12:30 AM reschedule trigger overnight, so
+    // pre-scheduling a week of Fajr alarms ensures delivery even if the daily
+    // refresh fails for several consecutive nights.
+    // Start at day 2 if Fajr was already rolled to tomorrow in the main loop above,
+    // to avoid a duplicate Fajr notification for the same slot.
+    const [fajrHours, fajrMinutes] = prayerTimes.fajr.adhan.split(':').map(Number);
+    const fajrLoopStart = fajrScheduledForTomorrow ? 2 : 1;
+    for (let day = fajrLoopStart; day <= 7; day++) {
+      const futureAdhan = new Date(today);
+      futureAdhan.setDate(futureAdhan.getDate() + day);
+      futureAdhan.setHours(fajrHours, fajrMinutes, 0, 0);
+      const futureNotif = new Date(futureAdhan.getTime() - 10 * 60 * 1000); // 10 min before
+
+      if (futureNotif > now) {
+        // 10-min-before reminder
+        const reminderContent: Notifications.NotificationContentInput = {
+          title: `Fajr in 10 minutes (${prayerTimes.fajr.adhan12})`,
+          body: `${masjidName} • Iqama at ${prayerTimes.fajr.iqama12}`,
+          sound: 'default',
+          data: { prayer: 'Fajr', type: 'prayer' },
+          priority: Platform.OS === 'android' ? Notifications.AndroidNotificationPriority.HIGH : undefined,
+        };
+        if (Platform.OS === 'android') {
+          (reminderContent as any).channelId = PRAYER_CHANNEL_ID;
+        }
+        await Notifications.scheduleNotificationAsync({
+          content: reminderContent,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: futureNotif,
             channelId: Platform.OS === 'android' ? PRAYER_CHANNEL_ID : undefined,
           },
         });
 
-        console.log(`✅ Scheduled notification for ${prayer.name} at ${notificationDate.toLocaleTimeString()}`);
+        // Adhan-time notification
+        const adhanContent: Notifications.NotificationContentInput = {
+          title: `Fajr time (${prayerTimes.fajr.adhan12})`,
+          body: `${masjidName} • Iqama at ${prayerTimes.fajr.iqama12}`,
+          sound: 'default',
+          data: { prayer: 'Fajr', type: 'adhan' },
+          priority: Platform.OS === 'android' ? Notifications.AndroidNotificationPriority.HIGH : undefined,
+        };
+        if (Platform.OS === 'android') {
+          (adhanContent as any).channelId = PRAYER_CHANNEL_ID;
+        }
+        await Notifications.scheduleNotificationAsync({
+          content: adhanContent,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: futureAdhan,
+            channelId: Platform.OS === 'android' ? PRAYER_CHANNEL_ID : undefined,
+          },
+        });
       }
     }
+    console.log(`✅ Scheduled Fajr for next 7 days (Doze resilience)`);
 
-    // Always ensure the 12:30 AM daily trigger exists — it may have been wiped by a previous
-    // cancelAllScheduledNotificationsAsync call or never re-scheduled after first install.
-    const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
-    const hasDailyTrigger = allScheduled.some(n => n.content.data?.type === 'daily_refresh');
-    if (!hasDailyTrigger) {
-      await backgroundTaskService.scheduleDailyTriggerNotification();
-      console.log('✅ Re-scheduled missing 12:30 AM daily trigger notification');
-    }
+    // Always re-schedule exactly one daily_refresh trigger.
+    // scheduleDailyTriggerNotification() is idempotent — it checks for an existing entry first.
+    await backgroundTaskService.scheduleDailyTriggerNotification();
+    console.log('✅ Ensured 12:30 AM daily trigger notification exists');
   }
 
   // Update device preferences
