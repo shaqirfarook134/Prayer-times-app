@@ -87,6 +87,14 @@ class BackgroundTaskService {
         next1230AM.setDate(next1230AM.getDate() + 1);
       }
 
+      // Idempotency check — don't create a second daily trigger if one already exists
+      const existing = await Notifications.getAllScheduledNotificationsAsync();
+      const alreadyScheduled = existing.some(n => n.content.data?.type === 'daily_refresh');
+      if (alreadyScheduled) {
+        console.log('⏭️ Daily 12:30 AM trigger already scheduled, skipping');
+        return;
+      }
+
       // Schedule daily repeating notification at 12:30 AM
       await Notifications.scheduleNotificationAsync({
         content: {
