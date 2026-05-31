@@ -64,6 +64,7 @@ export default function App() {
     const handleNetworkChange = (status: 'online' | 'offline' | 'connecting') => {
       if (status === 'online') {
         console.log('✅ Network restored - reconnecting WebSocket');
+        websocketService.resetReconnection();
         websocketService.connect();
       }
     };

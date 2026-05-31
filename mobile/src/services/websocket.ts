@@ -5,7 +5,7 @@ const API_BASE_URL = 'https://prayer-times-api-uddr.onrender.com';
 class WebSocketService {
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private connectionStateListeners: ((connected: boolean) => void)[] = [];
 
   connect() {
     if (this.socket?.connected) {
@@ -19,27 +19,51 @@ class WebSocketService {
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionDelayMax: 30000, // Max 30s delay
+      reconnectionAttempts: Infinity, // Unlimited reconnection attempts
     });
 
     this.socket.on('connect', () => {
       console.log('✅ WebSocket connected:', this.socket?.id);
       this.reconnectAttempts = 0;
+      this.notifyConnectionStateChange(true);
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('❌ WebSocket disconnected:', reason);
+      this.notifyConnectionStateChange(false);
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('🔴 WebSocket connection error:', error.message);
       this.reconnectAttempts++;
-
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.log('⚠️  Max reconnection attempts reached');
-      }
+      const delay = Math.min(Math.pow(2, this.reconnectAttempts) * 1000, 30000);
+      console.error(`🔴 WebSocket connection error (attempt ${this.reconnectAttempts}): ${error.message}, retrying in ${delay}ms`);
+      this.notifyConnectionStateChange(false);
     });
+  }
+
+  // Reset reconnection counter (called when network becomes available)
+  resetReconnection() {
+    console.log('🔄 Resetting WebSocket reconnection counter');
+    this.reconnectAttempts = 0;
+    if (this.socket && !this.socket.connected) {
+      this.socket.connect();
+    }
+  }
+
+  // Notify listeners about connection state changes
+  private notifyConnectionStateChange(connected: boolean) {
+    this.connectionStateListeners.forEach((listener) => listener(connected));
+  }
+
+  // Add connection state listener
+  onConnectionStateChange(listener: (connected: boolean) => void) {
+    this.connectionStateListeners.push(listener);
+  }
+
+  // Remove connection state listener
+  removeConnectionStateListener(listener: (connected: boolean) => void) {
+    this.connectionStateListeners = this.connectionStateListeners.filter((l) => l !== listener);
   }
 
   disconnect() {
