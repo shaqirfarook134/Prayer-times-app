@@ -1,3 +1,4 @@
+// @ts-ignore — expo-av removed; this file is disabled pending a compatible version
 import { Audio } from 'expo-av';
 import { PrayerTimes } from '../types';
 

@@ -12,15 +12,20 @@ const { NotificationSchedulerModule } = NativeModules;
 // Notification channel IDs
 const PRAYER_CHANNEL_ID = 'prayer-notifications';
 const DAILY_REFRESH_CHANNEL_ID = 'daily-refresh';
+const ADHAN_CHANNEL_ID = 'adhan-sound'; // Sound-only channel (no banner)
 
-// Configure notification handler — daily_refresh runs silently (no banner, no sound)
+// Configure notification handler:
+// - daily_refresh: fully silent (no banner, no sound)
+// - adhan: sound only (no banner, not stored in tray)
+// - prayer reminders: banner + sound
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const isDailyRefresh = notification.request.content.data?.type === 'daily_refresh';
+    const isAdhan = notification.request.content.data?.type === 'adhan';
     return {
-      shouldShowAlert: !isDailyRefresh,
-      shouldShowBanner: !isDailyRefresh,
-      shouldShowList: !isDailyRefresh,
+      shouldShowAlert: !isDailyRefresh && !isAdhan,
+      shouldShowBanner: !isDailyRefresh && !isAdhan,
+      shouldShowList: !isDailyRefresh && !isAdhan,
       shouldPlaySound: !isDailyRefresh,
       shouldSetBadge: false,
     };
@@ -49,6 +54,15 @@ class NotificationService {
         lightColor: '#007AFF',
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
         bypassDnd: true, // Allow notifications even in Do Not Disturb
+      });
+
+      // Channel for adhan-time sound (no banner, no tray entry — sound only)
+      await Notifications.setNotificationChannelAsync(ADHAN_CHANNEL_ID, {
+        name: 'Adhan Sound',
+        description: 'Prayer time sound only — no banner',
+        importance: Notifications.AndroidImportance.MIN,
+        sound: 'default',
+        showBadge: false,
       });
 
       // Channel for daily refresh notifications (silent)
@@ -269,27 +283,27 @@ class NotificationService {
 
       console.log(`✅ Scheduled 10-min reminder for ${prayer.name} at ${notificationDate.toLocaleTimeString()}`);
 
-      // Adhan-time notification — plays default sound exactly at prayer time
+      // Adhan-time notification — sound only, no banner (iOS: handler suppresses visuals;
+      // Android: ADHAN_CHANNEL_ID uses MIN importance so no heads-up banner)
       if (prayerDate > now) {
         const adhanContent: Notifications.NotificationContentInput = {
-          title: `${prayer.name} time (${prayer.time.adhan12})`,
-          body: `${masjidName} • Iqama at ${prayer.time.iqama12}`,
+          title: `${prayer.name}`,
+          body: '',
           sound: 'default',
           data: { prayer: prayer.name, type: 'adhan' },
-          priority: Platform.OS === 'android' ? Notifications.AndroidNotificationPriority.HIGH : undefined,
         };
         if (Platform.OS === 'android') {
-          (adhanContent as any).channelId = PRAYER_CHANNEL_ID;
+          (adhanContent as any).channelId = ADHAN_CHANNEL_ID;
         }
         await Notifications.scheduleNotificationAsync({
           content: adhanContent,
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: prayerDate,
-            channelId: Platform.OS === 'android' ? PRAYER_CHANNEL_ID : undefined,
+            channelId: Platform.OS === 'android' ? ADHAN_CHANNEL_ID : undefined,
           },
         });
-        console.log(`✅ Scheduled Adhan notification for ${prayer.name} at ${prayerDate.toLocaleTimeString()}`);
+        console.log(`✅ Scheduled Adhan sound for ${prayer.name} at ${prayerDate.toLocaleTimeString()}`);
       }
     }
 
@@ -328,23 +342,22 @@ class NotificationService {
           },
         });
 
-        // Adhan-time notification
+        // Adhan-time sound — no banner (same as main loop)
         const adhanContent: Notifications.NotificationContentInput = {
-          title: `Fajr time (${prayerTimes.fajr.adhan12})`,
-          body: `${masjidName} • Iqama at ${prayerTimes.fajr.iqama12}`,
+          title: 'Fajr',
+          body: '',
           sound: 'default',
           data: { prayer: 'Fajr', type: 'adhan' },
-          priority: Platform.OS === 'android' ? Notifications.AndroidNotificationPriority.HIGH : undefined,
         };
         if (Platform.OS === 'android') {
-          (adhanContent as any).channelId = PRAYER_CHANNEL_ID;
+          (adhanContent as any).channelId = ADHAN_CHANNEL_ID;
         }
         await Notifications.scheduleNotificationAsync({
           content: adhanContent,
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: futureAdhan,
-            channelId: Platform.OS === 'android' ? PRAYER_CHANNEL_ID : undefined,
+            channelId: Platform.OS === 'android' ? ADHAN_CHANNEL_ID : undefined,
           },
         });
       }
