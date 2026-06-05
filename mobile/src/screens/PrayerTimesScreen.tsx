@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
   TouchableOpacity,
   Switch,
   AppState,
@@ -487,7 +488,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      {/* ── Hero ── */}
+      {/* ── Hero (fixed, never scrolls) ── */}
       <LinearGradient
         colors={['#1a3a6b', '#0d2447', '#0a1f3d']}
         start={{ x: 0.1, y: 0 }}
@@ -540,69 +541,79 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         )}
       </LinearGradient>
 
-      {/* ── Error banner ── */}
-      {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>⚠️  {error}</Text>
-        </View>
-      )}
-
-      {/* ── Notification permission denied ── */}
-      {notificationPermissionDenied && (
-        <View style={styles.notifBanner}>
-          <Text style={styles.notifBannerText} numberOfLines={2}>
-            Notification permissions denied. Enable in Settings to receive prayer alerts.
-          </Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={requestNotificationPermissions}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* ── Prayer list ── */}
-      {prayerTimes && (
-        <>
-          <Text style={styles.sectionLabel}>Today's Prayers</Text>
-          <View style={styles.prayerList}>
-            <PrayerCard name="Fajr"    time={prayerTimes.fajr}    isNext={nextPrayer?.name === 'Fajr'}    isAdhan={currentAdhanPrayer === 'Fajr'} />
-            <PrayerCard name="Dhuhr"   time={prayerTimes.dhuhr}   isNext={nextPrayer?.name === 'Dhuhr'}   isAdhan={currentAdhanPrayer === 'Dhuhr'} />
-            <PrayerCard name="Asr"     time={prayerTimes.asr}     isNext={nextPrayer?.name === 'Asr'}     isAdhan={currentAdhanPrayer === 'Asr'} />
-            <PrayerCard name="Maghrib" time={prayerTimes.maghrib} isNext={nextPrayer?.name === 'Maghrib'} isAdhan={currentAdhanPrayer === 'Maghrib'} />
-            <PrayerCard name="Isha"    time={prayerTimes.isha}    isNext={nextPrayer?.name === 'Isha'}    isAdhan={currentAdhanPrayer === 'Isha'} />
+      {/* ── Scrollable content below hero ── */}
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={{ paddingBottom: tabBarClearance + 8 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Error banner ── */}
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>⚠️  {error}</Text>
           </View>
-        </>
-      )}
+        )}
 
-      {/* ── Settings ── */}
-      <View style={styles.settingsCard}>
-        <View style={styles.settingRow}>
-          <View>
-            <Text style={styles.settingTitle}>Prayer Notifications</Text>
-            <Text style={styles.settingDesc}>10 min before each prayer</Text>
+        {/* ── Notification permission denied ── */}
+        {notificationPermissionDenied && (
+          <View style={styles.notifBanner}>
+            <Text style={styles.notifBannerText} numberOfLines={2}>
+              Notification permissions denied. Enable in Settings to receive prayer alerts.
+            </Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={requestNotificationPermissions}>
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </TouchableOpacity>
           </View>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={toggleNotifications}
-            trackColor={{ false: 'rgba(255,255,255,0.12)', true: '#34c759' }}
-            thumbColor="#fff"
-          />
+        )}
+
+        {/* ── Prayer list ── */}
+        {prayerTimes && (
+          <>
+            <Text style={styles.sectionLabel}>Today's Prayers</Text>
+            <View style={styles.prayerList}>
+              <PrayerCard name="Fajr"    time={prayerTimes.fajr}    isNext={nextPrayer?.name === 'Fajr'}    isAdhan={currentAdhanPrayer === 'Fajr'} />
+              <PrayerCard name="Dhuhr"   time={prayerTimes.dhuhr}   isNext={nextPrayer?.name === 'Dhuhr'}   isAdhan={currentAdhanPrayer === 'Dhuhr'} />
+              <PrayerCard name="Asr"     time={prayerTimes.asr}     isNext={nextPrayer?.name === 'Asr'}     isAdhan={currentAdhanPrayer === 'Asr'} />
+              <PrayerCard name="Maghrib" time={prayerTimes.maghrib} isNext={nextPrayer?.name === 'Maghrib'} isAdhan={currentAdhanPrayer === 'Maghrib'} />
+              <PrayerCard name="Isha"    time={prayerTimes.isha}    isNext={nextPrayer?.name === 'Isha'}    isAdhan={currentAdhanPrayer === 'Isha'} />
+            </View>
+          </>
+        )}
+
+        {/* ── Settings ── */}
+        <View style={styles.settingsCard}>
+          <View style={styles.settingRow}>
+            <View>
+              <Text style={styles.settingTitle}>Prayer Notifications</Text>
+              <Text style={styles.settingDesc}>10 min before each prayer</Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={toggleNotifications}
+              trackColor={{ false: 'rgba(255,255,255,0.12)', true: '#34c759' }}
+              thumbColor="#fff"
+            />
+          </View>
         </View>
-      </View>
 
-      {/* ── Change Masjid ── */}
-      <TouchableOpacity style={styles.changeMasjidBtn} onPress={changeMasjid}>
-        <Text style={styles.changeMasjidText}>⇄  Change Masjid</Text>
-      </TouchableOpacity>
+        {/* ── Change Masjid ── */}
+        <TouchableOpacity style={styles.changeMasjidBtn} onPress={changeMasjid}>
+          <Text style={styles.changeMasjidText}>⇄  Change Masjid</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
-      {/* Spacer to clear floating tab bar */}
-      <View style={{ height: tabBarClearance }} />
+        <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#0d0d14',
+  },
+
+  scrollArea: {
     flex: 1,
     backgroundColor: '#0d0d14',
   },
@@ -847,8 +858,8 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   timeCol: {
-    alignItems: 'center',
-    minWidth: 52,
+    alignItems: 'flex-end',
+    minWidth: 56,
   },
   timeLabel: {
     fontSize: 9,
@@ -857,6 +868,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 3,
+    textAlign: 'right',
   },
   timeValue: {
     fontSize: 14,
