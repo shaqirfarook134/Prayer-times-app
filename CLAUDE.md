@@ -39,6 +39,17 @@
 - `mobile/app.config.js` — **authoritative version source** (not app.json)
 - `mobile/eas.json` — EAS build config (`appVersionSource: local`)
 
+## UI/UX Design Workflow (MANDATORY)
+
+**For any screen redesign or significant UI change:**
+
+1. Run `/ui-mockup` to generate an HTML prototype first
+2. Write the mockup to `/tmp/ui-mockup-<feature>.html` and tell the user the path
+3. **Stop. Do not write any `.tsx` or component code until the user explicitly approves**
+4. After approval, implement the React Native code to match the approved mockup exactly
+
+Never skip this step for UI changes. The HTML mockup is the source of truth.
+
 ## Key Rules
 
 - Prayer time accuracy is stable — don't touch `backend/internal/scraper/scraper.go` without a specific reason

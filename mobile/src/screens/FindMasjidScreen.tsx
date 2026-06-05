@@ -5,15 +5,16 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
+  Animated,
   RefreshControl,
   Alert,
-  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { CommonActions } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, Masjid } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
@@ -30,17 +31,16 @@ interface Props {
 }
 
 interface MasjidWithDistance extends Masjid {
-  distance?: number; // in kilometers
+  distance?: number;
 }
 
-// Haversine formula to calculate distance between two coordinates
 const calculateDistance = (
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number
 ): number => {
-  const R = 6371; // Earth's radius in kilometers
+  const R = 6371;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -53,12 +53,147 @@ const calculateDistance = (
   return R * c;
 };
 
-const toRad = (degrees: number): number => {
-  return (degrees * Math.PI) / 180;
+const toRad = (degrees: number): number => (degrees * Math.PI) / 180;
+
+// ── Shimmer ────────────────────────────────────────────────────────────────────
+const ShimmerBox: React.FC<{ width: number | string; height: number; borderRadius?: number; style?: object }> = ({
+  width, height, borderRadius = 10, style,
+}) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.04, 0.10] });
+  return (
+    <Animated.View
+      style={[{ width, height, borderRadius, backgroundColor: '#fff', opacity }, style]}
+    />
+  );
 };
 
+const LoadingSkeleton: React.FC = () => (
+  <>
+    {/* Header shimmer */}
+    <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={styles.header}>
+      <ShimmerBox width={180} height={26} borderRadius={6} style={{ marginBottom: 8 }} />
+      <ShimmerBox width={230} height={12} borderRadius={4} style={{ marginBottom: 16 }} />
+      <ShimmerBox width={180} height={28} borderRadius={100} />
+    </LinearGradient>
+    {/* Section label shimmer */}
+    <ShimmerBox width={110} height={10} borderRadius={4} style={{ margin: 18, marginBottom: 10 }} />
+    {/* Card shimmers */}
+    {[150, 170, 140, 160, 130].map((w, i) => (
+      <View key={i} style={styles.shimmerCard}>
+        <ShimmerBox width={44} height={44} borderRadius={14} />
+        <View style={{ flex: 1, marginLeft: 14 }}>
+          <ShimmerBox width={w} height={14} style={{ marginBottom: 6 }} />
+          <ShimmerBox width={100} height={11} style={{ marginBottom: 5 }} />
+          <ShimmerBox width={75} height={11} />
+        </View>
+      </View>
+    ))}
+  </>
+);
+
+// ── Masjid Card ────────────────────────────────────────────────────────────────
+const MasjidCard: React.FC<{
+  masjid: MasjidWithDistance;
+  isSelected: boolean;
+  isNearby: boolean;
+  onPress: () => void;
+}> = ({ masjid, isSelected, isNearby, onPress }) => {
+  const formatDistance = (distance?: number): string => {
+    if (distance === undefined) return '';
+    if (distance < 1) return `${(distance * 1000).toFixed(0)}m away`;
+    return `${distance.toFixed(1)}km away`;
+  };
+
+  return (
+    <TouchableOpacity activeOpacity={0.75} onPress={onPress} style={styles.cardOuter}>
+      {/* Blue left accent bar for selected */}
+      {isSelected && (
+        <LinearGradient
+          colors={['#6091ff', '#3d6ce8']}
+          style={styles.selectedAccentBar}
+        />
+      )}
+
+      {/* Card background */}
+      {isSelected ? (
+        <LinearGradient
+          colors={['rgba(26,62,140,0.5)', 'rgba(20,45,100,0.6)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.cardInner, styles.cardInnerSelected, isNearby && styles.cardInnerNearby]}
+        >
+          <CardContent masjid={masjid} isSelected={isSelected} isNearby={isNearby} formatDistance={formatDistance} />
+        </LinearGradient>
+      ) : (
+        <View style={[styles.cardInner, isNearby && styles.cardInnerNearby]}>
+          <CardContent masjid={masjid} isSelected={isSelected} isNearby={isNearby} formatDistance={formatDistance} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const CardContent: React.FC<{
+  masjid: MasjidWithDistance;
+  isSelected: boolean;
+  isNearby: boolean;
+  formatDistance: (d?: number) => string;
+}> = ({ masjid, isSelected, isNearby, formatDistance }) => (
+  <View style={styles.cardRow}>
+    {/* Mosque icon */}
+    <View style={[
+      styles.masjidIcon,
+      isSelected && styles.masjidIconSelected,
+      isNearby && !isSelected && styles.masjidIconNearby,
+    ]}>
+      <Text style={styles.masjidIconEmoji}>🕌</Text>
+    </View>
+
+    {/* Text info */}
+    <View style={styles.cardText}>
+      <Text style={[styles.masjidName, isSelected && styles.masjidNameSelected]} numberOfLines={1}>
+        {masjid.name}
+      </Text>
+      <Text style={styles.masjidLocation}>{masjid.city}, {masjid.state}</Text>
+      {masjid.distance !== undefined && (
+        <Text style={[styles.masjidDistance, isNearby && styles.masjidDistanceNearby]}>
+          {formatDistance(masjid.distance)}
+        </Text>
+      )}
+    </View>
+
+    {/* Right badge */}
+    <View style={styles.cardRight}>
+      {isSelected ? (
+        <>
+          <LinearGradient colors={['#3d6ce8', '#6091ff']} style={styles.selectedBadge}>
+            <Text style={styles.selectedBadgeCheck}>✓</Text>
+          </LinearGradient>
+          <Text style={styles.selectedLabel}>Default</Text>
+        </>
+      ) : isNearby ? (
+        <View style={styles.nearbyBadge}>
+          <Text style={styles.nearbyBadgeText}>📍 Nearby</Text>
+        </View>
+      ) : null}
+    </View>
+  </View>
+);
+
+// ── Main Screen ────────────────────────────────────────────────────────────────
 const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const { isTablet } = useResponsive();
+  const insets = useSafeAreaInsets();
+
   const [masjids, setMasjids] = useState<MasjidWithDistance[]>([]);
   const [nearbyMasjids, setNearbyMasjids] = useState<MasjidWithDistance[]>([]);
   const [otherMasjids, setOtherMasjids] = useState<MasjidWithDistance[]>([]);
@@ -67,11 +202,11 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [locationPermission, setLocationPermission] = useState(false);
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
+  const [locationName, setLocationName] = useState<string>('');
   const [selectedMasjidId, setSelectedMasjidId] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
 
-  // Animation values
   const successOpacity = useRef(new Animated.Value(0)).current;
   const successTranslateY = useRef(new Animated.Value(-20)).current;
 
@@ -101,9 +236,17 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
           accuracy: Location.Accuracy.Balanced,
         });
         setUserLocation(location);
-        console.log('📍 User location:', location.coords.latitude, location.coords.longitude);
+        try {
+          const geocode = await Location.reverseGeocodeAsync({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+          if (geocode.length > 0) {
+            const p = geocode[0];
+            setLocationName(p.city || p.region || p.country || '');
+          }
+        } catch { /* non-critical */ }
       } else {
-        console.log('⚠️  Location permission denied');
         Alert.alert(
           'Location Permission',
           'Enable location to find nearby masjids. You can still browse all masjids.',
@@ -118,10 +261,8 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const loadMasjids = async () => {
     try {
       setError(null);
-      console.log('🌐 Fetching masjids from API...');
       const data = await apiService.getMasjids();
       setMasjids(data);
-      console.log('✅ Masjids loaded:', data.length);
     } catch (err) {
       setError('Failed to load masjids. Please check your connection.');
       console.error('Error loading masjids:', err);
@@ -133,7 +274,6 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
 
   const calculateDistances = () => {
     if (!userLocation) return;
-
     const masjidsWithDistance = masjids.map((masjid) => {
       if (masjid.latitude && masjid.longitude) {
         const distance = calculateDistance(
@@ -146,86 +286,41 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
       }
       return masjid;
     });
-
-    // Sort by distance
     const sorted = masjidsWithDistance.sort((a, b) => {
       if (a.distance === undefined) return 1;
       if (b.distance === undefined) return -1;
       return a.distance - b.distance;
     });
-
-    // Split into nearby (within 50km) and other
-    const nearby = sorted.filter((m) => m.distance !== undefined && m.distance <= 50);
-    const other = sorted.filter((m) => m.distance === undefined || m.distance > 50);
-
-    setNearbyMasjids(nearby);
-    setOtherMasjids(other);
+    setNearbyMasjids(sorted.filter((m) => m.distance !== undefined && m.distance <= 50));
+    setOtherMasjids(sorted.filter((m) => m.distance === undefined || m.distance > 50));
   };
 
   const showSuccessMessage = (message: string) => {
     setSuccessMessage(message);
-
-    // Animate in
     Animated.parallel([
-      Animated.timing(successOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(successTranslateY, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
+      Animated.timing(successOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(successTranslateY, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
-
-    // Animate out after delay
     setTimeout(() => {
       Animated.parallel([
-        Animated.timing(successOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(successTranslateY, {
-          toValue: -20,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setSuccessMessage(null);
-      });
+        Animated.timing(successOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+        Animated.timing(successTranslateY, { toValue: -20, duration: 300, useNativeDriver: true }),
+      ]).start(() => setSuccessMessage(null));
     }, 2000);
   };
 
   const handleMasjidSelect = async (masjid: Masjid) => {
-    if (isSelecting) return; // Prevent double-tap
-
+    if (isSelecting) return;
     setIsSelecting(true);
-
     try {
-      // Haptic feedback
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (error) {
-        console.warn('Haptics not available');
-      }
-
-      // Update UI immediately
+      } catch { /* ignore */ }
       setSelectedMasjidId(masjid.id);
-
-      // Show success message
-      showSuccessMessage(`✓ ${masjid.name} set as your default masjid`);
-
-      // Save selected masjid
+      showSuccessMessage(`${masjid.name} set as default`);
       await storageService.setSelectedMasjidId(masjid.id);
-
-      // Register device for notifications
       await notificationService.registerDevice(masjid.id);
-
-      // Wait for visual feedback before navigating
       setTimeout(() => {
-        // Navigate to Prayer Times tab
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
@@ -238,7 +333,7 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
                     { name: 'PrayerTimes', params: { masjidId: masjid.id } },
                     { name: 'QiblaCompass' },
                   ],
-                  index: 1, // Set Prayer Times tab as active
+                  index: 1,
                 },
               },
             ],
@@ -248,7 +343,6 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
     } catch (err) {
       console.error('Error selecting masjid:', err);
       setIsSelecting(false);
-      // Continue navigation even if notification registration fails
       setTimeout(() => {
         navigation.dispatch(
           CommonActions.reset({
@@ -262,7 +356,7 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
                     { name: 'PrayerTimes', params: { masjidId: masjid.id } },
                     { name: 'QiblaCompass' },
                   ],
-                  index: 1, // Set Prayer Times tab as active
+                  index: 1,
                 },
               },
             ],
@@ -275,155 +369,109 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const onRefresh = () => {
     setRefreshing(true);
     loadMasjids();
-    if (locationPermission) {
-      requestLocationPermission();
-    }
+    if (locationPermission) requestLocationPermission();
   };
 
-  const formatDistance = (distance?: number): string => {
-    if (distance === undefined) return '';
-    if (distance < 1) {
-      return `${(distance * 1000).toFixed(0)}m away`;
-    }
-    return `${distance.toFixed(1)}km away`;
-  };
-
-  const renderMasjidCard = (masjid: MasjidWithDistance) => {
-    const isSelected = masjid.id === selectedMasjidId;
+  // ── Error state ──────────────────────────────────────────────────────────────
+  if (error && !loading) {
     return (
-      <TouchableOpacity
-        key={masjid.id}
-        style={[
-          dynamicStyles.masjidCard,
-          isSelected && styles.selectedCard,
-        ]}
-        onPress={() => handleMasjidSelect(masjid)}
-      >
-        <View style={styles.cardContent}>
-          <View style={styles.cardTextContainer}>
-            <Text style={dynamicStyles.masjidName}>{masjid.name}</Text>
-            <Text style={dynamicStyles.masjidLocation}>
-              {masjid.city}, {masjid.state}
-            </Text>
-            {masjid.distance !== undefined && (
-              <Text style={dynamicStyles.distanceText}>{formatDistance(masjid.distance)}</Text>
-            )}
-          </View>
-          {isSelected ? (
-            <View style={styles.selectedBadgeContainer}>
-              <View style={[styles.checkmarkContainer, isTablet && { width: 48, height: 48 }]}>
-                <Text style={[styles.checkmark, isTablet && { fontSize: 28 }]}>✓</Text>
-              </View>
-              <Text style={[styles.defaultLabel, isTablet && { fontSize: 14 }]}>Default</Text>
-            </View>
-          ) : (
-            masjid.distance !== undefined && masjid.distance <= 10 && (
-              <View style={styles.nearbyBadge}>
-                <Text style={styles.nearbyBadgeText}>📍 Nearby</Text>
-              </View>
-            )
-          )}
+      <View style={styles.errorContainer}>
+        <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={styles.header}>
+          <Text style={styles.headerTitle}>Find Your Masjid</Text>
+          <Text style={styles.headerSubtitle}>Browse all available masjids</Text>
+        </LinearGradient>
+        <View style={styles.errorBody}>
+          <Text style={styles.errorEmoji}>⚠️</Text>
+          <Text style={styles.errorTitle}>Couldn't Load Masjids</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadMasjids}>
+            <Text style={styles.retryBtnText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
-  };
+  }
 
+  // ── Combined list data with section headers ──────────────────────────────────
+  type ListItem =
+    | { type: 'header'; title: string }
+    | { type: 'masjid'; masjid: MasjidWithDistance };
+
+  const listData: ListItem[] = [];
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Finding masjids...</Text>
-      </View>
-    );
+    // Render nothing — header renders shimmer via ListHeaderComponent
+  } else {
+    if (nearbyMasjids.length > 0) {
+      listData.push({ type: 'header', title: 'Nearby Masjids' });
+      nearbyMasjids.forEach((m) => listData.push({ type: 'masjid', masjid: m }));
+    }
+    if (otherMasjids.length > 0) {
+      listData.push({
+        type: 'header',
+        title: nearbyMasjids.length > 0 ? 'Other Masjids' : 'All Masjids',
+      });
+      otherMasjids.forEach((m) => listData.push({ type: 'masjid', masjid: m }));
+    }
+    if (!loading && nearbyMasjids.length === 0 && otherMasjids.length === 0 && masjids.length > 0) {
+      listData.push({ type: 'header', title: 'All Masjids' });
+      masjids.forEach((m) => listData.push({ type: 'masjid', masjid: m }));
+    }
   }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadMasjids}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // Dynamic styles for iPad
-  const dynamicStyles = StyleSheet.create({
-    container: {
-      ...styles.container,
-    },
-    header: {
-      ...styles.header,
-      padding: isTablet ? 32 : 20,
-      paddingTop: isTablet ? 80 : 60,
-    },
-    title: {
-      ...styles.title,
-      fontSize: isTablet ? 36 : 28,
-    },
-    subtitle: {
-      ...styles.subtitle,
-      fontSize: isTablet ? 20 : 16,
-    },
-    sectionHeader: {
-      ...styles.sectionHeader,
-      fontSize: isTablet ? 24 : 20,
-      padding: isTablet ? 24 : 16,
-      paddingBottom: isTablet ? 12 : 8,
-    },
-    masjidCard: {
-      ...styles.masjidCard,
-      padding: isTablet ? 28 : 20,
-      marginHorizontal: isTablet ? 24 : 16,
-      borderRadius: isTablet ? 16 : 12,
-    },
-    masjidName: {
-      ...styles.masjidName,
-      fontSize: isTablet ? 22 : 18,
-    },
-    masjidLocation: {
-      ...styles.masjidLocation,
-      fontSize: isTablet ? 16 : 14,
-    },
-    distanceText: {
-      ...styles.distanceText,
-      fontSize: isTablet ? 15 : 13,
-    },
-  });
 
   return (
-    <View style={dynamicStyles.container}>
-      <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.title}>Find Your Masjid</Text>
-        <Text style={dynamicStyles.subtitle}>
-          {locationPermission
-            ? 'Masjids sorted by distance from your location'
-            : 'Browse all available masjids'}
-        </Text>
-      </View>
-
+    <View style={styles.container}>
       <FlatList
-        data={[...nearbyMasjids, ...otherMasjids]}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item, index }) => {
-          const isFirstOther = index === nearbyMasjids.length && otherMasjids.length > 0;
+        data={loading ? [] : listData}
+        keyExtractor={(item, index) =>
+          item.type === 'header' ? `header-${index}` : `masjid-${item.masjid.id}`
+        }
+        ListHeaderComponent={
+          loading ? (
+            <LoadingSkeleton />
+          ) : (
+            <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={styles.header}>
+              <Text style={[styles.headerTitle, isTablet && { fontSize: 36 }]}>
+                Find Your Masjid
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                {locationPermission
+                  ? 'Sorted by distance from your location'
+                  : 'Browse all available masjids'}
+              </Text>
+              {locationPermission && (
+                <View style={styles.locationPill}>
+                  <View style={styles.locationDot} />
+                  <Text style={styles.locationPillText}>
+                    {locationName ? `${locationName} · Location active` : 'Location active'}
+                  </Text>
+                </View>
+              )}
+            </LinearGradient>
+          )
+        }
+        renderItem={({ item }) => {
+          if (item.type === 'header') {
+            return <Text style={styles.sectionLabel}>{item.title}</Text>;
+          }
+          const m = item.masjid;
+          const isNearby = m.distance !== undefined && m.distance <= 10;
           return (
-            <>
-              {index === 0 && nearbyMasjids.length > 0 && (
-                <Text style={dynamicStyles.sectionHeader}>Nearby Masjids</Text>
-              )}
-              {isFirstOther && (
-                <Text style={dynamicStyles.sectionHeader}>
-                  {nearbyMasjids.length > 0 ? 'Other Masjids' : 'All Masjids'}
-                </Text>
-              )}
-              {renderMasjidCard(item)}
-            </>
+            <MasjidCard
+              masjid={m}
+              isSelected={m.id === selectedMasjidId}
+              isNearby={isNearby}
+              onPress={() => handleMasjidSelect(m)}
+            />
           );
         }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="rgba(255,255,255,0.3)"
+          />
+        }
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       />
 
       {/* Success Toast */}
@@ -431,16 +479,18 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
         <Animated.View
           style={[
             styles.successToast,
-            isTablet && styles.successToastTablet,
-            {
-              opacity: successOpacity,
-              transform: [{ translateY: successTranslateY }],
-            },
+            { opacity: successOpacity, transform: [{ translateY: successTranslateY }] },
           ]}
         >
-          <Text style={[styles.successText, isTablet && { fontSize: 18 }]}>
-            {successMessage}
-          </Text>
+          <LinearGradient
+            colors={['#10B981', '#059669']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.successToastGradient}
+          >
+            <Text style={styles.successToastIcon}>✓</Text>
+            <Text style={styles.successToastText}>{successMessage}</Text>
+          </LinearGradient>
         </Animated.View>
       )}
     </View>
@@ -450,174 +500,285 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#0d0d14',
   },
-  centered: {
-    flex: 1,
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  header: {
+    paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.8,
+    marginBottom: 6,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '400',
+  },
+  locationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 100,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginTop: 14,
+  },
+  locationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34c759',
+  },
+  locationPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+  },
+
+  // ── Section label ────────────────────────────────────────────────────────────
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.3)',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+
+  // ── Cards ────────────────────────────────────────────────────────────────────
+  cardOuter: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  selectedAccentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 12,
+    bottom: 12,
+    width: 3,
+    borderRadius: 3,
+    zIndex: 2,
+  },
+  cardInner: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 18,
+    padding: 16,
+    paddingLeft: 18,
+  },
+  cardInnerSelected: {
+    borderColor: 'rgba(96,145,255,0.35)',
+    shadowColor: '#000032',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 6,
+  },
+  cardInnerNearby: {
+    borderColor: 'rgba(52,199,89,0.2)',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  masjidIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    flexShrink: 0,
   },
-  header: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+  masjidIconSelected: {
+    backgroundColor: 'rgba(96,145,255,0.15)',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+  masjidIconNearby: {
+    backgroundColor: 'rgba(52,199,89,0.10)',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-  sectionHeader: {
+  masjidIconEmoji: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    backgroundColor: '#F5F5F5',
-    padding: 16,
-    paddingBottom: 8,
-    paddingTop: 16,
   },
-  listContent: {
-    paddingBottom: 20,
-  },
-  masjidCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTextContainer: {
+  cardText: {
     flex: 1,
+    minWidth: 0,
   },
   masjidName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: -0.2,
+  },
+  masjidNameSelected: {
+    color: '#fff',
   },
   masjidLocation: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  distanceText: {
-    fontSize: 13,
-    color: '#007AFF',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 2,
     fontWeight: '500',
   },
-  nearbyBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginLeft: 12,
-  },
-  nearbyBadgeText: {
-    color: '#2E7D32',
+  masjidDistance: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#6091ff',
+    marginTop: 3,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+  masjidDistanceNearby: {
+    color: '#34c759',
   },
-  errorText: {
-    fontSize: 16,
-    color: '#D32F2F',
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 40,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  selectedCard: {
-    backgroundColor: '#E3F2FD',
-    borderWidth: 2,
-    borderColor: '#007AFF',
-  },
-  selectedBadgeContainer: {
+  cardRight: {
+    flexShrink: 0,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
   },
-  checkmarkContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#007AFF',
+  selectedBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowColor: '#3d6ce8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
     elevation: 4,
   },
-  checkmark: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+  selectedBadgeCheck: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#fff',
   },
-  defaultLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#007AFF',
+  selectedLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6091ff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginTop: 4,
   },
+  nearbyBadge: {
+    backgroundColor: 'rgba(52,199,89,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(52,199,89,0.25)',
+    borderRadius: 100,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  nearbyBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#34c759',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // ── Shimmer card shell ───────────────────────────────────────────────────────
+  shimmerCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 18,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+
+  // ── Error state ──────────────────────────────────────────────────────────────
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#0d0d14',
+  },
+  errorBody: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.35)',
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 24,
+  },
+  retryBtn: {
+    backgroundColor: 'rgba(96,145,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(96,145,255,0.3)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  retryBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#6091ff',
+  },
+
+  // ── Success toast ────────────────────────────────────────────────────────────
   successToast: {
     position: 'absolute',
-    top: 100,
-    left: 20,
-    right: 20,
-    backgroundColor: '#10B981',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
+    top: 110,
+    left: 16,
+    right: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 24,
     elevation: 8,
     zIndex: 1000,
   },
-  successToastTablet: {
-    paddingHorizontal: 32,
-    paddingVertical: 20,
+  successToastGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     borderRadius: 16,
   },
-  successText: {
-    fontSize: 16,
+  successToastIcon: {
+    fontSize: 18,
+    color: '#fff',
+  },
+  successToastText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    color: '#fff',
+    flex: 1,
   },
 });
 
