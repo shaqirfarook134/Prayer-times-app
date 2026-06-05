@@ -602,7 +602,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a3a6b',
+    backgroundColor: '#0d0d14',
   },
 
   // ── Hero ──

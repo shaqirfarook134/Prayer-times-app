@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
@@ -107,41 +108,66 @@ export default function App() {
     };
   }, []);
 
-  // Custom iOS tab bar — dark pill matching approved mockup design
-  const IOSTabBar = ({ state, navigation }: BottomTabBarProps) => {
+  // Custom iOS tab bar using GlassView (true Liquid Glass on iOS 26+, BlurView fallback)
+  const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
     const insets = useSafeAreaInsets();
+    const useGlass = isLiquidGlassAvailable();
 
-    const TAB_EMOJIS: Record<string, string> = {
-      FindMasjid:   '🔍',
-      PrayerTimes:  '🕌',
-      QiblaCompass: '🧭',
+    const TAB_ICONS: Record<string, { focused: string; outline: string }> = {
+      FindMasjid:    { focused: 'search',  outline: 'search-outline'  },
+      PrayerTimes:   { focused: 'time',    outline: 'time-outline'    },
+      QiblaCompass:  { focused: 'compass', outline: 'compass-outline' },
     };
+    const TAB_LABELS: Record<string, string> = {
+      FindMasjid:   'Find Masjid',
+      PrayerTimes:  'Prayer Times',
+      QiblaCompass: 'Qibla',
+    };
+
+    // On Qibla (dark bg) use white for both active and inactive so labels stay readable
+    const isOnQibla = state.routes[state.index].name === 'QiblaCompass';
+    const activeColor   = '#007AFF';
+    const inactiveColor = isOnQibla ? 'rgba(255,255,255,0.75)' : 'rgba(60,60,67,0.45)';
+    const activeFocusedColor = isOnQibla ? '#FFFFFF' : '#007AFF';
+
+    const inner = (
+      <View style={tabBarStyles.row}>
+        {state.routes.map((route, index) => {
+          const focused = state.index === index;
+          const icons = TAB_ICONS[route.name] ?? { focused: 'ellipse', outline: 'ellipse-outline' };
+          const color = focused ? activeFocusedColor : inactiveColor;
+
+          return (
+            <TouchableOpacity
+              key={route.key}
+              accessibilityRole="button"
+              accessibilityState={focused ? { selected: true } : {}}
+              onPress={() => {
+                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+              }}
+              style={tabBarStyles.tab}
+            >
+              {focused && <View style={[tabBarStyles.activePill, isOnQibla && tabBarStyles.activePillDark]} />}
+              <Ionicons name={focused ? icons.focused : icons.outline as any} size={22} color={color} />
+              <Text style={[tabBarStyles.label, { color }]}>{TAB_LABELS[route.name]}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
 
     return (
       <View style={[tabBarStyles.wrapper, { bottom: insets.bottom + 10 }]}>
-        <BlurView tint="dark" intensity={80} style={tabBarStyles.pill}>
-          <View style={tabBarStyles.row}>
-            {state.routes.map((route, index) => {
-              const focused = state.index === index;
-              const emoji = TAB_EMOJIS[route.name] ?? '●';
-              return (
-                <TouchableOpacity
-                  key={route.key}
-                  accessibilityRole="button"
-                  accessibilityState={focused ? { selected: true } : {}}
-                  onPress={() => {
-                    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                    if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-                  }}
-                  style={tabBarStyles.tab}
-                >
-                  <Text style={[tabBarStyles.tabEmoji, { opacity: focused ? 1 : 0.3 }]}>{emoji}</Text>
-                  {focused && <View style={tabBarStyles.activeDot} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </BlurView>
+        {useGlass ? (
+          <GlassView glassEffectStyle="regular" style={tabBarStyles.pill}>
+            {inner}
+          </GlassView>
+        ) : (
+          <BlurView tint="systemUltraThinMaterial" intensity={80} style={tabBarStyles.pill}>
+            {inner}
+          </BlurView>
+        )}
       </View>
     );
   };
@@ -248,43 +274,56 @@ export default function App() {
 const tabBarStyles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    borderRadius: 30,
+    left: 16,
+    right: 16,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.75)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
     elevation: 12,
   },
   pill: {
-    borderRadius: 30,
+    borderRadius: 32,
     overflow: 'hidden',
-    backgroundColor: 'rgba(18,18,28,0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   row: {
     flexDirection: 'row',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    gap: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   tab: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 2,
+    gap: 3,
+    position: 'relative',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
-  tabEmoji: {
-    fontSize: 22,
+  activePill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 4,
+    right: 4,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  activeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#6091ff',
+  activePillDark: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
 });
