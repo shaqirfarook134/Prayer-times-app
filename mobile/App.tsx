@@ -3,7 +3,6 @@ import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
@@ -108,65 +107,41 @@ export default function App() {
     };
   }, []);
 
-  // Custom iOS tab bar using GlassView (true Liquid Glass on iOS 26+, BlurView fallback)
-  const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
+  // Custom iOS tab bar — dark pill matching approved mockup design
+  const IOSTabBar = ({ state, navigation }: BottomTabBarProps) => {
     const insets = useSafeAreaInsets();
-    const useGlass = isLiquidGlassAvailable();
 
-    const TAB_ICONS: Record<string, { focused: string; outline: string }> = {
-      PrayerTimes:   { focused: 'time',           outline: 'time-outline'           },
-      QiblaCompass:  { focused: 'compass',        outline: 'compass-outline'        },
-      FindMasjid:    { focused: 'search',         outline: 'search-outline'         },
+    const TAB_EMOJIS: Record<string, string> = {
+      FindMasjid:   '🔍',
+      PrayerTimes:  '🕌',
+      QiblaCompass: '🧭',
     };
-    const TAB_LABELS: Record<string, string> = {
-      PrayerTimes: 'Prayer Times',
-      QiblaCompass: 'Qibla',
-      FindMasjid: 'Find Masjid',
-    };
-
-    // Adaptive colors — Qibla has a dark background, all other screens are light
-    const isOnQibla = state.routes[state.index].name === 'QiblaCompass';
-    const activeColor = isOnQibla ? '#FFFFFF' : '#007AFF';
-    const inactiveColor = isOnQibla ? 'rgba(255,255,255,0.55)' : 'rgba(60,60,67,0.45)';
-
-    const inner = (
-      <View style={tabBarStyles.row}>
-        {state.routes.map((route, index) => {
-          const focused = state.index === index;
-          const icons = TAB_ICONS[route.name] ?? { focused: 'ellipse', outline: 'ellipse-outline' };
-          const color = focused ? activeColor : inactiveColor;
-
-          return (
-            <TouchableOpacity
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={focused ? { selected: true } : {}}
-              onPress={() => {
-                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-              }}
-              style={tabBarStyles.tab}
-            >
-              {focused && <View style={tabBarStyles.activePill} />}
-              <Ionicons name={focused ? icons.focused : icons.outline as any} size={22} color={color} />
-              <Text style={[tabBarStyles.label, { color }]}>{TAB_LABELS[route.name]}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
 
     return (
       <View style={[tabBarStyles.wrapper, { bottom: insets.bottom + 10 }]}>
-        {useGlass ? (
-          <GlassView glassEffectStyle="regular" style={tabBarStyles.pill}>
-            {inner}
-          </GlassView>
-        ) : (
-          <BlurView tint="systemUltraThinMaterial" intensity={80} style={tabBarStyles.pill}>
-            {inner}
-          </BlurView>
-        )}
+        <BlurView tint="dark" intensity={80} style={tabBarStyles.pill}>
+          <View style={tabBarStyles.row}>
+            {state.routes.map((route, index) => {
+              const focused = state.index === index;
+              const emoji = TAB_EMOJIS[route.name] ?? '●';
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  accessibilityRole="button"
+                  accessibilityState={focused ? { selected: true } : {}}
+                  onPress={() => {
+                    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                    if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+                  }}
+                  style={tabBarStyles.tab}
+                >
+                  <Text style={[tabBarStyles.tabEmoji, { opacity: focused ? 1 : 0.3 }]}>{emoji}</Text>
+                  {focused && <View style={tabBarStyles.activeDot} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </BlurView>
       </View>
     );
   };
@@ -212,6 +187,16 @@ export default function App() {
         initialRouteName={route?.params?.screen || 'PrayerTimes'}
       >
         <Tab.Screen
+          name="FindMasjid"
+          component={FindMasjidScreen}
+          options={{
+            tabBarLabel: 'Find Masjid',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'search' : 'search-outline'} size={24} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
           name="PrayerTimes"
           component={PrayerTimesScreen}
           options={{
@@ -229,16 +214,6 @@ export default function App() {
             tabBarLabel: 'Qibla',
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'compass' : 'compass-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="FindMasjid"
-          component={FindMasjidScreen}
-          options={{
-            tabBarLabel: 'Find Masjid',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'search' : 'search-outline'} size={24} color={color} />
             ),
           }}
         />
@@ -273,53 +248,43 @@ export default function App() {
 const tabBarStyles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.75)',
+    left: 20,
+    right: 20,
+    borderRadius: 30,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 32,
     elevation: 12,
   },
   pill: {
-    borderRadius: 32,
+    borderRadius: 30,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(18,18,28,0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   row: {
     flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  tab: {
-    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    gap: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    position: 'relative',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
   },
-  activePill: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 4,
-    right: 4,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.10,
-    shadowRadius: 8,
-    elevation: 2,
+  tab: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 2,
   },
-  label: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+  tabEmoji: {
+    fontSize: 22,
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#6091ff',
   },
 });

@@ -500,7 +500,7 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d14',
+    backgroundColor: '#1a3a6b',
   },
 
   // ── Header ──────────────────────────────────────────────────────────────────
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   masjidName: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.9)',
     letterSpacing: -0.2,
