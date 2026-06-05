@@ -124,11 +124,9 @@ export default function App() {
       QiblaCompass: 'Qibla',
     };
 
-    // On Qibla (dark bg) use white for both active and inactive so labels stay readable
-    const isOnQibla = state.routes[state.index].name === 'QiblaCompass';
-    const activeColor   = '#007AFF';
-    const inactiveColor = isOnQibla ? 'rgba(255,255,255,0.75)' : 'rgba(60,60,67,0.45)';
-    const activeFocusedColor = isOnQibla ? '#FFFFFF' : '#007AFF';
+    // Dark pill — white icons/labels visible on all screens including Qibla
+    const activeFocusedColor = '#FFFFFF';
+    const inactiveColor = 'rgba(255,255,255,0.45)';
 
     const inner = (
       <View style={tabBarStyles.row}>
@@ -148,7 +146,7 @@ export default function App() {
               }}
               style={tabBarStyles.tab}
             >
-              {focused && <View style={[tabBarStyles.activePill, isOnQibla && tabBarStyles.activePillDark]} />}
+              {focused && <View style={tabBarStyles.activePill} />}
               <Ionicons name={focused ? icons.focused : icons.outline as any} size={22} color={color} />
               <Text style={[tabBarStyles.label, { color }]}>{TAB_LABELS[route.name]}</Text>
             </TouchableOpacity>
@@ -159,15 +157,9 @@ export default function App() {
 
     return (
       <View style={[tabBarStyles.wrapper, { bottom: insets.bottom + 10 }]}>
-        {useGlass ? (
-          <GlassView glassEffectStyle="regular" style={tabBarStyles.pill}>
-            {inner}
-          </GlassView>
-        ) : (
-          <BlurView tint="systemUltraThinMaterial" intensity={80} style={tabBarStyles.pill}>
-            {inner}
-          </BlurView>
-        )}
+        <BlurView tint="dark" intensity={90} style={tabBarStyles.pill}>
+          {inner}
+        </BlurView>
       </View>
     );
   };
@@ -288,7 +280,7 @@ const tabBarStyles = StyleSheet.create({
   pill: {
     borderRadius: 32,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(20,20,30,0.6)',
   },
   row: {
     flexDirection: 'row',
@@ -311,15 +303,12 @@ const tabBarStyles = StyleSheet.create({
     left: 4,
     right: 4,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.10,
     shadowRadius: 8,
     elevation: 2,
-  },
-  activePillDark: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   label: {
     fontSize: 10,

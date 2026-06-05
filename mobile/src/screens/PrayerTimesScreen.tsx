@@ -595,6 +595,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       </TouchableOpacity>
 
       <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
+      {/* Spacer to clear floating tab bar */}
+      <View style={{ height: tabBarClearance }} />
     </View>
   );
 };
