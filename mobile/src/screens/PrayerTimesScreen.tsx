@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  RefreshControl,
-  ScrollView,
   TouchableOpacity,
   Switch,
   AppState,
@@ -173,10 +171,6 @@ const PrayerCard: React.FC<PrayerCardProps> = ({ name, time, isNext, isAdhan }) 
         >
           {/* Left accent bar */}
           <View style={styles.cardAccentBar} />
-          {/* Next badge */}
-          <View style={styles.nextBadge}>
-            <Text style={styles.nextBadgeText}>NEXT</Text>
-          </View>
           {/* Icon */}
           <View style={[styles.prayerIcon, styles.prayerIconNext]}>
             <Text style={styles.prayerIconEmoji}>{meta.icon}</Text>
@@ -238,7 +232,6 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [masjid, setMasjid] = useState<Masjid | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nextPrayer, setNextPrayer] = useState<Prayer | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -384,7 +377,6 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       }
     } finally {
       setLoading(false);
-      setRefreshing(false);
       isLoadingRef.current = false;
     }
   };
@@ -494,17 +486,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const progress = getProgressInfo();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: tabBarClearance }}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); loadData(); }}
-          tintColor="rgba(255,255,255,0.4)"
-        />
-      }
-    >
+    <View style={styles.container}>
       {/* ── Hero ── */}
       <LinearGradient
         colors={['#1a3a6b', '#0d2447', '#0a1f3d']}
@@ -613,20 +595,20 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       </TouchableOpacity>
 
       <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d14',
+    backgroundColor: '#1a3a6b',
   },
 
   // ── Hero ──
   hero: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 18,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -663,7 +645,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.5)',
     fontWeight: '400',
-    marginBottom: 28,
+    marginBottom: 14,
     letterSpacing: 0.1,
   },
   nextLabel: {
@@ -675,19 +657,19 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   nextPrayerName: {
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: -1.5,
-    lineHeight: 52,
-    marginBottom: 6,
+    lineHeight: 46,
+    marginBottom: 4,
   },
   nextPrayerTime: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '300',
     color: 'rgba(255,255,255,0.75)',
     letterSpacing: 0.5,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   countdownPill: {
     alignSelf: 'flex-start',
@@ -783,9 +765,9 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
-    paddingTop: 20,
+    paddingTop: 12,
     paddingHorizontal: 24,
-    paddingBottom: 10,
+    paddingBottom: 6,
   },
 
   // ── Prayer list ──
@@ -799,11 +781,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
     borderRadius: 18,
-    paddingVertical: 16,
+    paddingVertical: 11,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -821,22 +803,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 3,
     borderBottomRightRadius: 3,
   },
-  nextBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 12,
-    backgroundColor: '#3d6ce8',
-    borderRadius: 100,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  nextBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-
   // ── Prayer icon ──
   prayerIcon: {
     width: 36,
@@ -910,7 +876,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.06)',
     borderRadius: 18,
     marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 10,
     overflow: 'hidden',
   },
   settingRow: {
@@ -934,8 +900,8 @@ const styles = StyleSheet.create({
   // ── Change Masjid ──
   changeMasjidBtn: {
     marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 4,
     borderWidth: 1,
     borderColor: 'rgba(96,145,255,0.3)',
     backgroundColor: 'rgba(96,145,255,0.08)',
