@@ -874,6 +874,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: -0.3,
+    textAlign: 'center',
   },
   timeDivider: {
     width: 1,
