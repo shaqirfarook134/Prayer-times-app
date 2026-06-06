@@ -147,11 +147,14 @@ const QiblaCompassScreen: React.FC = () => {
   const hasVibratedRef = useRef(false);
   const qiblaRef = useRef<number | null>(null);
   const declinationRef = useRef<number>(0);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     startPulse();
     initializeLocation();
     return () => {
+      isMountedRef.current = false;
       CompassHeading.stop();
     };
   }, []);
@@ -238,6 +241,7 @@ const QiblaCompassScreen: React.FC = () => {
       });
     } catch (error) {
       console.error('Error initializing compass:', error);
+      if (!isMountedRef.current) return;
       setLoading(false);
       Alert.alert('Error', 'Failed to initialize compass. Please try again.');
     }
