@@ -38,7 +38,7 @@ module.exports = {
   expo: {
     name: IS_DEV ? 'My Masjid Dev' : 'My Masjid App',
     slug: 'mymasjid',
-    version: '1.5.4',
+    version: '1.5.5',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',

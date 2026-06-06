@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   timeCol: {
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     minWidth: 56,
   },
   timeLabel: {
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 3,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   timeValue: {
     fontSize: 14,
