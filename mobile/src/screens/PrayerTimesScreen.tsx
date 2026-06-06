@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
   },
   timeCol: {
     alignItems: 'center',
-    minWidth: 56,
+    width: 64,
   },
   timeLabel: {
     fontSize: 9,
