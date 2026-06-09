@@ -302,7 +302,9 @@ func (s *Scraper) extractFromMasjidbox(ctx context.Context, masjidboxURL, timezo
 	// can handle the remaining %XX pairs (Go's QueryUnescape rejects %uXXXX).
 	jsUnicodeRe := regexp.MustCompile(`%u([0-9a-fA-F]{4})`)
 	sanitized := jsUnicodeRe.ReplaceAllString(m[1], `\u$1`)
-	decoded, err := url.QueryUnescape(sanitized)
+	// Use PathUnescape (not QueryUnescape) so that '+' is kept as '+' rather
+	// than decoded to a space — timezone offsets like "+10:00" must stay intact.
+	decoded, err := url.PathUnescape(sanitized)
 	if err != nil {
 		return nil, fmt.Errorf("masjidbox: failed to URL-decode REDUX_STATE: %w", err)
 	}
