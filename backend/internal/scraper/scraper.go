@@ -92,7 +92,7 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 
 	// Method 0b: Masjidbox REDUX_STATE (masjidbox.com)
 	if strings.Contains(url, "masjidbox.com") {
-		prayerTimes, err := s.extractFromMasjidbox(html, timezone)
+		prayerTimes, err := s.extractFromMasjidbox(ctx, url, timezone)
 		if err == nil {
 			return prayerTimes, nil
 		}
@@ -261,13 +261,34 @@ func (s *Scraper) extractFromICVAPI(ctx context.Context, timezone string) (*mode
 // extractFromMasjidbox extracts prayer times from masjidbox.com pages.
 // The page embeds prayer data as a URL-encoded JSON string in window.REDUX_STATE.
 // The timetable array contains up to 7 days; we pick today's entry by date.
-func (s *Scraper) extractFromMasjidbox(html, timezone string) (*models.ScrapedPrayerTimes, error) {
+func (s *Scraper) extractFromMasjidbox(ctx context.Context, masjidboxURL, timezone string) (*models.ScrapedPrayerTimes, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		return nil, fmt.Errorf("invalid timezone: %w", err)
 	}
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	// Re-fetch with a browser User-Agent — masjidbox.com is behind Cloudflare
+	// which blocks obvious bot UAs used by the main fetchWithTimeout request.
+	req, err := http.NewRequestWithContext(ctx, "GET", masjidboxURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("masjidbox: failed to create request: %w", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("masjidbox: failed to fetch page: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("masjidbox: failed to read response: %w", err)
+	}
+	html := string(body)
 
 	// Extract the URL-encoded REDUX_STATE value
 	re := regexp.MustCompile(`REDUX_STATE\s*=\s*'([^']+)'`)
