@@ -93,9 +93,10 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 	// Method 0b: Masjidbox REDUX_STATE (masjidbox.com)
 	if strings.Contains(url, "masjidbox.com") {
 		prayerTimes, err := s.extractFromMasjidbox(ctx, url, timezone)
-		if err == nil {
-			return prayerTimes, nil
+		if err != nil {
+			return nil, fmt.Errorf("masjidbox scraper failed: %w", err)
 		}
+		return prayerTimes, nil
 	}
 
 	// Method 0c: Emir Sultan Mosque via ezanvakti API
