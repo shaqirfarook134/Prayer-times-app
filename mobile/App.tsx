@@ -10,7 +10,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, TabParamList } from './src/types';
-import MasjidSelectionScreen from './src/screens/MasjidSelectionScreen';
 import FindMasjidScreen from './src/screens/FindMasjidScreen';
 import PrayerTimesScreen from './src/screens/PrayerTimesScreen';
 import QiblaCompassScreen from './src/screens/QiblaCompassScreen';
@@ -166,17 +165,20 @@ export default function App() {
 
   const MainTabs = ({ route }: any) => {
     const paramMasjidId = route?.params?.params?.masjidId;
-    // initialMasjidId falls back to storage so the hardcoded 9 (Al Taqwa) is never used
     const [initialMasjidId, setInitialMasjidId] = useState<number>(paramMasjidId || 0);
+    const [initialTab, setInitialTab] = useState<string | null>(null);
     const isIOS = Platform.OS === 'ios';
     const insets = useSafeAreaInsets();
 
     useEffect(() => {
-      if (!paramMasjidId) {
-        storageService.getSelectedMasjidId().then(id => {
-          if (id) setInitialMasjidId(id);
-        });
-      }
+      storageService.getSelectedMasjidId().then(id => {
+        if (id && id !== 0) {
+          setInitialMasjidId(id);
+          setInitialTab('PrayerTimes');
+        } else {
+          setInitialTab('FindMasjid');
+        }
+      });
     }, []);
 
     return (
@@ -202,7 +204,7 @@ export default function App() {
             letterSpacing: 0.2,
           },
         }}
-        initialRouteName={route?.params?.screen || 'PrayerTimes'}
+        initialRouteName={initialTab || route?.params?.screen || 'PrayerTimes'}
       >
         <Tab.Screen
           name="FindMasjid"
@@ -254,7 +256,6 @@ export default function App() {
             headerShown: false,
           }}
         >
-          <Stack.Screen name="MasjidSelection" component={MasjidSelectionScreen} />
           <Stack.Screen name="MainTabs" component={MainTabs} />
         </Stack.Navigator>
       </NavigationContainer>

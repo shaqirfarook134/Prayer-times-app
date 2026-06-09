@@ -239,6 +239,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [notificationPermissionDenied, setNotificationPermissionDenied] = useState(false);
   const [currentAdhanPrayer, setCurrentAdhanPrayer] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isDefaultMasjid, setIsDefaultMasjid] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
 
   const hasAttemptedRefresh = useRef(false);
   const isLoadingRef = useRef(false);
@@ -316,7 +318,9 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     React.useCallback(() => {
       const syncMasjidFromStorage = async () => {
         const storedId = await storageService.getSelectedMasjidId();
+        setIsDefaultMasjid(storedId === activeMasjidId && storedId !== null && storedId !== 0);
         if (storedId && storedId !== activeMasjidId) {
+          await storageService.setLastNotificationScheduledDate('');
           hasAttemptedRefresh.current = false;
           dataFromCache.current = false;
           isLoadingRef.current = false;
@@ -342,6 +346,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const loadData = async () => {
+    if (!activeMasjidId || activeMasjidId === 0) { setLoading(false); return; }
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
     try {
@@ -473,9 +478,22 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const changeMasjid = async () => {
-    await storageService.setSelectedMasjidId(0);
-    (navigation as any).getParent()?.replace('MasjidSelection');
+  const setAsDefault = async () => {
+    if (savingDefault || isDefaultMasjid) return;
+    setSavingDefault(true);
+    try {
+      await storageService.setSelectedMasjidId(activeMasjidId);
+      if (masjid) await notificationService.registerDevice(activeMasjidId);
+      setIsDefaultMasjid(true);
+    } catch (err) {
+      console.error('Error setting default masjid:', err);
+    } finally {
+      setSavingDefault(false);
+    }
+  };
+
+  const changeMasjid = () => {
+    (navigation as any).getParent()?.navigate('FindMasjid');
   };
 
   if (loading) {
@@ -584,8 +602,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.settingsCard}>
           <View style={styles.settingRow}>
             <View>
-              <Text style={styles.settingTitle}>Prayer Notifications</Text>
-              <Text style={styles.settingDesc}>10 min before each prayer</Text>
+              <Text style={styles.settingTitle}>Prayer notifications</Text>
+              <Text style={styles.settingDesc}>Adhan and iqama reminders</Text>
             </View>
             <Switch
               value={notificationsEnabled}
@@ -593,6 +611,20 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
               trackColor={{ false: 'rgba(255,255,255,0.12)', true: '#34c759' }}
               thumbColor="#fff"
             />
+          </View>
+          <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' }]}>
+            {isDefaultMasjid ? (
+              <View style={styles.alreadyDefaultRow}>
+                <View style={styles.checkCircle}>
+                  <Text style={styles.checkCircleText}>✓</Text>
+                </View>
+                <Text style={styles.alreadyDefaultText}>Your current masjid</Text>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.setDefaultBtn} onPress={setAsDefault} disabled={savingDefault} activeOpacity={0.8}>
+                <Text style={styles.setDefaultBtnText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -913,6 +945,46 @@ const styles = StyleSheet.create({
   },
 
   // ── Change Masjid ──
+  setDefaultBtn: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setDefaultBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  alreadyDefaultRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+  },
+  checkCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(52,199,89,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkCircleText: {
+    fontSize: 10,
+    color: '#34c759',
+    fontWeight: '700',
+  },
+  alreadyDefaultText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.35)',
+  },
+
   changeMasjidBtn: {
     marginHorizontal: 16,
     marginTop: 8,

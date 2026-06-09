@@ -10,21 +10,17 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { CommonActions } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RootStackParamList, Masjid } from '../types';
+import { TabParamList, Masjid } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
-import notificationService from '../services/notifications';
 import { useResponsive } from '../hooks/useResponsive';
 
-type FindMasjidScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  'MasjidSelection'
->;
+type FindMasjidScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'FindMasjid'>;
 
 interface Props {
   navigation: FindMasjidScreenNavigationProp;
@@ -78,12 +74,6 @@ const ShimmerBox: React.FC<{ width: number | string; height: number; borderRadiu
 
 const LoadingSkeleton: React.FC = () => (
   <>
-    {/* Header shimmer */}
-    <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={styles.header}>
-      <ShimmerBox width={180} height={26} borderRadius={6} style={{ marginBottom: 8 }} />
-      <ShimmerBox width={230} height={12} borderRadius={4} style={{ marginBottom: 16 }} />
-      <ShimmerBox width={180} height={28} borderRadius={100} />
-    </LinearGradient>
     {/* Section label shimmer */}
     <ShimmerBox width={110} height={10} borderRadius={4} style={{ margin: 18, marginBottom: 10 }} />
     {/* Card shimmers */}
@@ -178,7 +168,7 @@ const CardContent: React.FC<{
           <LinearGradient colors={['#3d6ce8', '#6091ff']} style={styles.selectedBadge}>
             <Text style={styles.selectedBadgeCheck}>✓</Text>
           </LinearGradient>
-          <Text style={styles.selectedLabel}>Default</Text>
+          <Text style={styles.selectedLabel}>My Masjid</Text>
         </>
       ) : isNearby ? (
         <View style={styles.nearbyBadge}>
@@ -204,22 +194,18 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
   const [locationName, setLocationName] = useState<string>('');
   const [selectedMasjidId, setSelectedMasjidId] = useState<number | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
-
-  const successOpacity = useRef(new Animated.Value(0)).current;
-  const successTranslateY = useRef(new Animated.Value(-20)).current;
 
   useEffect(() => {
     requestLocationPermission();
     loadMasjids();
-    loadSelectedMasjidId();
   }, []);
 
-  const loadSelectedMasjidId = async () => {
-    const selectedId = await storageService.getSelectedMasjidId();
-    setSelectedMasjidId(selectedId);
-  };
+  useFocusEffect(
+    React.useCallback(() => {
+      storageService.getSelectedMasjidId().then((id) => setSelectedMasjidId(id));
+    }, [])
+  );
 
   useEffect(() => {
     if (userLocation && masjids.length > 0) {
@@ -295,74 +281,19 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
     setOtherMasjids(sorted.filter((m) => m.distance === undefined || m.distance > 50));
   };
 
-  const showSuccessMessage = (message: string) => {
-    setSuccessMessage(message);
-    Animated.parallel([
-      Animated.timing(successOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(successTranslateY, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start();
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(successOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(successTranslateY, { toValue: -20, duration: 300, useNativeDriver: true }),
-      ]).start(() => setSuccessMessage(null));
-    }, 2000);
-  };
-
   const handleMasjidSelect = async (masjid: Masjid) => {
     if (isSelecting) return;
     setIsSelecting(true);
     try {
       try {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       } catch { /* ignore */ }
-      setSelectedMasjidId(masjid.id);
-      showSuccessMessage(`${masjid.name} set as default`);
-      await storageService.setSelectedMasjidId(masjid.id);
-      await notificationService.registerDevice(masjid.id);
-      setTimeout(() => {
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [
-              {
-                name: 'MainTabs',
-                state: {
-                  routes: [
-                    { name: 'FindMasjid' },
-                    { name: 'PrayerTimes', params: { masjidId: masjid.id } },
-                    { name: 'QiblaCompass' },
-                  ],
-                  index: 1,
-                },
-              },
-            ],
-          })
-        );
-      }, 800);
+      // Navigate to PrayerTimes tab, passing the selected masjid ID
+      navigation.navigate('PrayerTimes', { masjidId: masjid.id });
     } catch (err) {
       console.error('Error selecting masjid:', err);
+    } finally {
       setIsSelecting(false);
-      setTimeout(() => {
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [
-              {
-                name: 'MainTabs',
-                state: {
-                  routes: [
-                    { name: 'FindMasjid' },
-                    { name: 'PrayerTimes', params: { masjidId: masjid.id } },
-                    { name: 'QiblaCompass' },
-                  ],
-                  index: 1,
-                },
-              },
-            ],
-          })
-        );
-      }, 800);
     }
   };
 
@@ -376,9 +307,9 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   if (error && !loading) {
     return (
       <View style={styles.errorContainer}>
-        <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={styles.header}>
+        <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <Text style={styles.headerTitle}>Find Your Masjid</Text>
-          <Text style={styles.headerSubtitle}>Browse all available masjids</Text>
+          <Text style={styles.headerSubtitle}>Tap to view prayer times — set default from there</Text>
         </LinearGradient>
         <View style={styles.errorBody}>
           <Text style={styles.errorEmoji}>⚠️</Text>
@@ -420,35 +351,30 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Fixed header — always visible, never scrolls */}
+      <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Text style={[styles.headerTitle, isTablet && { fontSize: 36 }]}>
+          Find Your Masjid
+        </Text>
+        <Text style={styles.headerSubtitle}>
+          Tap to view prayer times — set default from there
+        </Text>
+        {locationPermission && (
+          <View style={styles.locationPill}>
+            <View style={styles.locationDot} />
+            <Text style={styles.locationPillText}>
+              {locationName ? `${locationName} · Location active` : 'Location active'}
+            </Text>
+          </View>
+        )}
+      </LinearGradient>
+
       <FlatList
         data={loading ? [] : listData}
         keyExtractor={(item, index) =>
           item.type === 'header' ? `header-${index}` : `masjid-${item.masjid.id}`
         }
-        ListHeaderComponent={
-          loading ? (
-            <LoadingSkeleton />
-          ) : (
-            <LinearGradient colors={['#1a3a6b', '#0d2447', '#0a1f3d']} style={styles.header}>
-              <Text style={[styles.headerTitle, isTablet && { fontSize: 36 }]}>
-                Find Your Masjid
-              </Text>
-              <Text style={styles.headerSubtitle}>
-                {locationPermission
-                  ? 'Sorted by distance from your location'
-                  : 'Browse all available masjids'}
-              </Text>
-              {locationPermission && (
-                <View style={styles.locationPill}>
-                  <View style={styles.locationDot} />
-                  <Text style={styles.locationPillText}>
-                    {locationName ? `${locationName} · Location active` : 'Location active'}
-                  </Text>
-                </View>
-              )}
-            </LinearGradient>
-          )
-        }
+        ListHeaderComponent={loading ? <LoadingSkeleton /> : null}
         renderItem={({ item }) => {
           if (item.type === 'header') {
             return <Text style={styles.sectionLabel}>{item.title}</Text>;
@@ -474,25 +400,6 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       />
 
-      {/* Success Toast */}
-      {successMessage && (
-        <Animated.View
-          style={[
-            styles.successToast,
-            { opacity: successOpacity, transform: [{ translateY: successTranslateY }] },
-          ]}
-        >
-          <LinearGradient
-            colors={['#10B981', '#059669']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.successToastGradient}
-          >
-            <Text style={styles.successToastIcon}>✓</Text>
-            <Text style={styles.successToastText}>{successMessage}</Text>
-          </LinearGradient>
-        </Animated.View>
-      )}
     </View>
   );
 };
@@ -505,7 +412,6 @@ const styles = StyleSheet.create({
 
   // ── Header ──────────────────────────────────────────────────────────────────
   header: {
-    paddingTop: 60,
     paddingBottom: 24,
     paddingHorizontal: 24,
   },
@@ -747,39 +653,6 @@ const styles = StyleSheet.create({
     color: '#6091ff',
   },
 
-  // ── Success toast ────────────────────────────────────────────────────────────
-  successToast: {
-    position: 'absolute',
-    top: 110,
-    left: 16,
-    right: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 8,
-    zIndex: 1000,
-  },
-  successToastGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 16,
-  },
-  successToastIcon: {
-    fontSize: 18,
-    color: '#fff',
-  },
-  successToastText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    flex: 1,
-  },
 });
 
 export default FindMasjidScreen;
