@@ -478,7 +478,10 @@ func (s *Scraper) extractFromEmirSultan(ctx context.Context, timezone string) (*
 		return nil, fmt.Errorf("failed to compute isha iqama: %w", err)
 	}
 
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
 	return &models.ScrapedPrayerTimes{
+		Date:         today,
 		Fajr:         entry.Imsak,
 		FajrIqama:    sunriseIqama,
 		Dhuhr:        entry.Ogle,
