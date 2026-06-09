@@ -97,12 +97,17 @@ func (r *PrayerTimesRepository) CheckIfChanged(ctx context.Context, masjidID int
 		return true, nil
 	}
 
-	// Compare times
+	// Compare adhan and iqama times
 	changed := existing.Fajr != newTimes.Fajr ||
 		existing.Dhuhr != newTimes.Dhuhr ||
 		existing.Asr != newTimes.Asr ||
 		existing.Maghrib != newTimes.Maghrib ||
-		existing.Isha != newTimes.Isha
+		existing.Isha != newTimes.Isha ||
+		existing.FajrIqama != newTimes.FajrIqama ||
+		existing.DhuhrIqama != newTimes.DhuhrIqama ||
+		existing.AsrIqama != newTimes.AsrIqama ||
+		existing.MaghribIqama != newTimes.MaghribIqama ||
+		existing.IshaIqama != newTimes.IshaIqama
 
 	return changed, nil
 }
