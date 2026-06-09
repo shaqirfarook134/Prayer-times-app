@@ -2,10 +2,12 @@ package scraper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"prayer-times-api/internal/config"
 	"prayer-times-api/internal/models"
 	"regexp"
@@ -80,6 +82,22 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 
 	html := string(body)
 
+	// Method 0a: ICV JSON API (icv.org.au)
+	if strings.Contains(url, "icv.org.au") {
+		prayerTimes, err := s.extractFromICVAPI(ctx, timezone)
+		if err == nil {
+			return prayerTimes, nil
+		}
+	}
+
+	// Method 0b: Masjidbox REDUX_STATE (masjidbox.com)
+	if strings.Contains(url, "masjidbox.com") {
+		prayerTimes, err := s.extractFromMasjidbox(html, timezone)
+		if err == nil {
+			return prayerTimes, nil
+		}
+	}
+
 	// Method 1: Try to extract from .ini data files (for awqat.com.au sites)
 	prayerTimes, err := s.extractFromIniDataFile(ctx, html, url, timezone)
 	if err == nil {
@@ -105,6 +123,256 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 	}
 
 	return prayerTimes, nil
+}
+
+// extractFromICVAPI fetches prayer times from the ICV public JSON API.
+// ICV (Islamic Council of Victoria) provides a REST endpoint at /api/prayer-times
+// returning a full year of prayer times indexed by month and day_of_month.
+func (s *Scraper) extractFromICVAPI(ctx context.Context, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.icv.org.au/api/prayer-times", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ICV request: %w", err)
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ICV API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ICV API returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read ICV API response: %w", err)
+	}
+
+	var apiResp struct {
+		PrayerTimes []struct {
+			Month      string `json:"month"`
+			DayOfMonth string `json:"day_of_month"`
+			Fajr       struct {
+				Start             string `json:"start"`
+				CongregationStart string `json:"congregation_start"`
+			} `json:"fajr"`
+			Zuhr struct {
+				Start             string `json:"start"`
+				CongregationStart string `json:"congregation_start"`
+			} `json:"zuhr"`
+			Asr struct {
+				Start             string `json:"start"`
+				CongregationStart string `json:"congregation_start"`
+			} `json:"asr"`
+			Maghrib struct {
+				Start             string `json:"start"`
+				CongregationStart string `json:"congregation_start"`
+			} `json:"maghrib"`
+			Isha struct {
+				Start             string `json:"start"`
+				CongregationStart string `json:"congregation_start"`
+			} `json:"isha"`
+		} `json:"prayer_times"`
+	}
+
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("failed to parse ICV API JSON: %w", err)
+	}
+
+	monthStr := strconv.Itoa(int(now.Month()))
+	dayStr := strconv.Itoa(now.Day())
+
+	for _, entry := range apiResp.PrayerTimes {
+		if entry.Month == monthStr && entry.DayOfMonth == dayStr {
+			fajr, err := parseTime12or24(entry.Fajr.Start)
+			if err != nil {
+				return nil, fmt.Errorf("ICV: invalid fajr time: %w", err)
+			}
+			dhuhr, err := parseTime12or24(entry.Zuhr.Start)
+			if err != nil {
+				return nil, fmt.Errorf("ICV: invalid dhuhr time: %w", err)
+			}
+			asr, err := parseTime12or24(entry.Asr.Start)
+			if err != nil {
+				return nil, fmt.Errorf("ICV: invalid asr time: %w", err)
+			}
+			maghrib, err := parseTime12or24(entry.Maghrib.Start)
+			if err != nil {
+				return nil, fmt.Errorf("ICV: invalid maghrib time: %w", err)
+			}
+			isha, err := parseTime12or24(entry.Isha.Start)
+			if err != nil {
+				return nil, fmt.Errorf("ICV: invalid isha time: %w", err)
+			}
+
+			pt := &models.ScrapedPrayerTimes{
+				Date:    today,
+				Fajr:    fajr,
+				Dhuhr:   dhuhr,
+				Asr:     asr,
+				Maghrib: maghrib,
+				Isha:    isha,
+			}
+
+			// Iqama from congregation_start
+			if v, e := parseTime12or24(entry.Fajr.CongregationStart); e == nil {
+				pt.FajrIqama = v
+			}
+			if v, e := parseTime12or24(entry.Zuhr.CongregationStart); e == nil {
+				pt.DhuhrIqama = v
+			}
+			if v, e := parseTime12or24(entry.Asr.CongregationStart); e == nil {
+				pt.AsrIqama = v
+			}
+			if v, e := parseTime12or24(entry.Maghrib.CongregationStart); e == nil {
+				pt.MaghribIqama = v
+			}
+			if v, e := parseTime12or24(entry.Isha.CongregationStart); e == nil {
+				pt.IshaIqama = v
+			}
+
+			if err := s.validatePrayerTimes(pt); err != nil {
+				return nil, err
+			}
+			return pt, nil
+		}
+	}
+
+	return nil, fmt.Errorf("ICV: no prayer times found for %s/%s", monthStr, dayStr)
+}
+
+// extractFromMasjidbox extracts prayer times from masjidbox.com pages.
+// The page embeds prayer data as a URL-encoded JSON string in window.REDUX_STATE.
+// The timetable array contains up to 7 days; we pick today's entry by date.
+func (s *Scraper) extractFromMasjidbox(html, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	// Extract the URL-encoded REDUX_STATE value
+	re := regexp.MustCompile(`REDUX_STATE\s*=\s*'([^']+)'`)
+	m := re.FindStringSubmatch(html)
+	if len(m) < 2 {
+		return nil, fmt.Errorf("masjidbox: REDUX_STATE not found in HTML")
+	}
+
+	decoded, err := url.QueryUnescape(m[1])
+	if err != nil {
+		return nil, fmt.Errorf("masjidbox: failed to URL-decode REDUX_STATE: %w", err)
+	}
+
+	var state struct {
+		Masjidbox struct {
+			MasjidboxAthany struct {
+				Timetable []struct {
+					Date    string `json:"date"`
+					Fajr    string `json:"fajr"`
+					Dhuhr   string `json:"dhuhr"`
+					Asr     string `json:"asr"`
+					Maghrib string `json:"maghrib"`
+					Isha    string `json:"isha"`
+					Iqamah  struct {
+						Fajr    string `json:"fajr"`
+						Dhuhr   string `json:"dhuhr"`
+						Asr     string `json:"asr"`
+						Maghrib string `json:"maghrib"`
+						Isha    string `json:"isha"`
+					} `json:"iqamah"`
+				} `json:"timetable"`
+			} `json:"masjidboxAthany"`
+		} `json:"masjidbox"`
+	}
+
+	if err := json.Unmarshal([]byte(decoded), &state); err != nil {
+		return nil, fmt.Errorf("masjidbox: failed to parse REDUX_STATE JSON: %w", err)
+	}
+
+	timetable := state.Masjidbox.MasjidboxAthany.Timetable
+	if len(timetable) == 0 {
+		return nil, fmt.Errorf("masjidbox: timetable is empty")
+	}
+
+	todayStr := today.Format("2006-01-02")
+	for _, entry := range timetable {
+		// entry.Date is ISO 8601 e.g. "2026-06-09T00:00:00+10:00" — compare date prefix
+		if !strings.HasPrefix(entry.Date, todayStr) {
+			continue
+		}
+
+		// Parse ISO 8601 timestamp → HH:MM in local timezone
+		parseISO := func(iso string) (string, error) {
+			t, err := time.Parse(time.RFC3339, iso)
+			if err != nil {
+				return "", err
+			}
+			return t.In(loc).Format("15:04"), nil
+		}
+
+		fajr, err := parseISO(entry.Fajr)
+		if err != nil {
+			return nil, fmt.Errorf("masjidbox: invalid fajr: %w", err)
+		}
+		dhuhr, err := parseISO(entry.Dhuhr)
+		if err != nil {
+			return nil, fmt.Errorf("masjidbox: invalid dhuhr: %w", err)
+		}
+		asr, err := parseISO(entry.Asr)
+		if err != nil {
+			return nil, fmt.Errorf("masjidbox: invalid asr: %w", err)
+		}
+		maghrib, err := parseISO(entry.Maghrib)
+		if err != nil {
+			return nil, fmt.Errorf("masjidbox: invalid maghrib: %w", err)
+		}
+		isha, err := parseISO(entry.Isha)
+		if err != nil {
+			return nil, fmt.Errorf("masjidbox: invalid isha: %w", err)
+		}
+
+		pt := &models.ScrapedPrayerTimes{
+			Date:    today,
+			Fajr:    fajr,
+			Dhuhr:   dhuhr,
+			Asr:     asr,
+			Maghrib: maghrib,
+			Isha:    isha,
+		}
+
+		if v, e := parseISO(entry.Iqamah.Fajr); e == nil {
+			pt.FajrIqama = v
+		}
+		if v, e := parseISO(entry.Iqamah.Dhuhr); e == nil {
+			pt.DhuhrIqama = v
+		}
+		if v, e := parseISO(entry.Iqamah.Asr); e == nil {
+			pt.AsrIqama = v
+		}
+		if v, e := parseISO(entry.Iqamah.Maghrib); e == nil {
+			pt.MaghribIqama = v
+		}
+		if v, e := parseISO(entry.Iqamah.Isha); e == nil {
+			pt.IshaIqama = v
+		}
+
+		if err := s.validatePrayerTimes(pt); err != nil {
+			return nil, err
+		}
+		return pt, nil
+	}
+
+	return nil, fmt.Errorf("masjidbox: no entry found for %s in timetable", todayStr)
 }
 
 // extractFromIniDataFile attempts to extract prayer times from awqat.com.au sites.
