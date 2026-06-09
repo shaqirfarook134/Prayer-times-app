@@ -298,10 +298,20 @@ func (s *Scraper) extractFromMasjidbox(ctx context.Context, masjidboxURL, timezo
 		return nil, fmt.Errorf("masjidbox: REDUX_STATE not found in HTML")
 	}
 
-	decoded, err := url.QueryUnescape(m[1])
+	// Replace JS-style %uXXXX unicode escapes with \uXXXX so url.QueryUnescape
+	// can handle the remaining %XX pairs (Go's QueryUnescape rejects %uXXXX).
+	jsUnicodeRe := regexp.MustCompile(`%u([0-9a-fA-F]{4})`)
+	sanitized := jsUnicodeRe.ReplaceAllString(m[1], `\u$1`)
+	decoded, err := url.QueryUnescape(sanitized)
 	if err != nil {
 		return nil, fmt.Errorf("masjidbox: failed to URL-decode REDUX_STATE: %w", err)
 	}
+	// Unescape \uXXXX sequences left from the JS unicode replacement
+	jsUnescapeRe := regexp.MustCompile(`\\u([0-9a-fA-F]{4})`)
+	decoded = jsUnescapeRe.ReplaceAllStringFunc(decoded, func(s string) string {
+		r, _ := strconv.ParseInt(s[2:], 16, 32)
+		return string(rune(r))
+	})
 
 	var state struct {
 		Masjidbox struct {
