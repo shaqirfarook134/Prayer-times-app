@@ -98,6 +98,14 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		}
 	}
 
+	// Method 0c: Emir Sultan Mosque via ezanvakti API
+	if strings.Contains(url, "emirsultanmosque.com") {
+		prayerTimes, err := s.extractFromEmirSultan(ctx, timezone)
+		if err == nil {
+			return prayerTimes, nil
+		}
+	}
+
 	// Method 1: Try to extract from .ini data files (for awqat.com.au sites)
 	prayerTimes, err := s.extractFromIniDataFile(ctx, html, url, timezone)
 	if err == nil {
@@ -373,6 +381,115 @@ func (s *Scraper) extractFromMasjidbox(html, timezone string) (*models.ScrapedPr
 	}
 
 	return nil, fmt.Errorf("masjidbox: no entry found for %s in timetable", todayStr)
+}
+
+// extractFromEmirSultan fetches prayer times from the Emir Sultan Mosque (Dandenong, VIC)
+// via the ezanvakti.emushaf.net API. The mosque uses non-standard iqama rules:
+//   - Fajr iqama = sunrise − 40 minutes
+//   - All other iqamas = adhan + 10 minutes
+func (s *Scraper) extractFromEmirSultan(ctx context.Context, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	todayStr := now.Format("02.01.2006") // DD.MM.YYYY
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://ezanvakti.emushaf.net/vakitler/11413", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ezanvakti API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ezanvakti API returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read ezanvakti response: %w", err)
+	}
+
+	var entries []struct {
+		MiladiTarihKisa string `json:"MiladiTarihKisa"`
+		Imsak           string `json:"Imsak"`
+		GunesDogus      string `json:"GunesDogus"`
+		Ogle            string `json:"Ogle"`
+		Ikindi          string `json:"Ikindi"`
+		Aksam           string `json:"Aksam"`
+		Yatsi           string `json:"Yatsi"`
+	}
+	if err := json.Unmarshal(body, &entries); err != nil {
+		return nil, fmt.Errorf("failed to parse ezanvakti JSON: %w", err)
+	}
+
+	var entry *struct {
+		MiladiTarihKisa string `json:"MiladiTarihKisa"`
+		Imsak           string `json:"Imsak"`
+		GunesDogus      string `json:"GunesDogus"`
+		Ogle            string `json:"Ogle"`
+		Ikindi          string `json:"Ikindi"`
+		Aksam           string `json:"Aksam"`
+		Yatsi           string `json:"Yatsi"`
+	}
+	for i := range entries {
+		if entries[i].MiladiTarihKisa == todayStr {
+			entry = &entries[i]
+			break
+		}
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("no entry found for today (%s) in ezanvakti response", todayStr)
+	}
+
+	// addMinutes parses an "HH:MM" string, adds n minutes, and returns "HH:MM"
+	addMinutes := func(hhmm string, n int) (string, error) {
+		t, err := time.Parse("15:04", hhmm)
+		if err != nil {
+			return "", fmt.Errorf("invalid time %q: %w", hhmm, err)
+		}
+		return t.Add(time.Duration(n) * time.Minute).Format("15:04"), nil
+	}
+
+	sunriseIqama, err := addMinutes(entry.GunesDogus, -40)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute fajr iqama: %w", err)
+	}
+	dhuhrIqama, err := addMinutes(entry.Ogle, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute dhuhr iqama: %w", err)
+	}
+	asrIqama, err := addMinutes(entry.Ikindi, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute asr iqama: %w", err)
+	}
+	maghribIqama, err := addMinutes(entry.Aksam, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute maghrib iqama: %w", err)
+	}
+	ishaIqama, err := addMinutes(entry.Yatsi, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute isha iqama: %w", err)
+	}
+
+	return &models.ScrapedPrayerTimes{
+		Fajr:         entry.Imsak,
+		FajrIqama:    sunriseIqama,
+		Dhuhr:        entry.Ogle,
+		DhuhrIqama:   dhuhrIqama,
+		Asr:          entry.Ikindi,
+		AsrIqama:     asrIqama,
+		Maghrib:      entry.Aksam,
+		MaghribIqama: maghribIqama,
+		Isha:         entry.Yatsi,
+		IshaIqama:    ishaIqama,
+	}, nil
 }
 
 // extractFromIniDataFile attempts to extract prayer times from awqat.com.au sites.
