@@ -419,7 +419,7 @@ func (s *Scraper) extractFromEmirSultan(ctx context.Context, timezone string) (*
 	var entries []struct {
 		MiladiTarihKisa string `json:"MiladiTarihKisa"`
 		Imsak           string `json:"Imsak"`
-		GunesDogus      string `json:"GunesDogus"`
+		Gunes           string `json:"Gunes"`
 		Ogle            string `json:"Ogle"`
 		Ikindi          string `json:"Ikindi"`
 		Aksam           string `json:"Aksam"`
@@ -432,7 +432,7 @@ func (s *Scraper) extractFromEmirSultan(ctx context.Context, timezone string) (*
 	var entry *struct {
 		MiladiTarihKisa string `json:"MiladiTarihKisa"`
 		Imsak           string `json:"Imsak"`
-		GunesDogus      string `json:"GunesDogus"`
+		Gunes           string `json:"Gunes"`
 		Ogle            string `json:"Ogle"`
 		Ikindi          string `json:"Ikindi"`
 		Aksam           string `json:"Aksam"`
@@ -457,7 +457,7 @@ func (s *Scraper) extractFromEmirSultan(ctx context.Context, timezone string) (*
 		return t.Add(time.Duration(n) * time.Minute).Format("15:04"), nil
 	}
 
-	sunriseIqama, err := addMinutes(entry.GunesDogus, -40)
+	sunriseIqama, err := addMinutes(entry.Gunes, -40)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute fajr iqama: %w", err)
 	}
