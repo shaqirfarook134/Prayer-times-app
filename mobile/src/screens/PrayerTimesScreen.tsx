@@ -246,6 +246,23 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const isLoadingRef = useRef(false);
   const dataFromCache = useRef(false);
   const isSchedulingNotificationsRef = useRef(false);
+  // True when user navigated here by tapping a masjid in FindMasjid (browse mode)
+  // Prevents useFocusEffect from overriding activeMasjidId with the stored default
+  const isBrowsingRef = useRef(false);
+
+  // When user taps a masjid in FindMasjid, route.params.masjidId updates.
+  // Set isBrowsingRef so useFocusEffect doesn't override with the stored default.
+  useEffect(() => {
+    if (masjidId && masjidId !== 0) {
+      isBrowsingRef.current = true;
+      if (masjidId !== activeMasjidId) {
+        hasAttemptedRefresh.current = false;
+        dataFromCache.current = false;
+        isLoadingRef.current = false;
+        setActiveMasjidId(masjidId);
+      }
+    }
+  }, [masjidId]);
 
   useEffect(() => {
     loadData();
@@ -319,10 +336,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       const syncMasjidFromStorage = async () => {
         const storedId = await storageService.getSelectedMasjidId();
         setIsDefaultMasjid(storedId === activeMasjidId && storedId !== null && storedId !== 0);
-        // Don't override activeMasjidId if the user is browsing a non-default masjid
-        // (detected when route.params.masjidId differs from the stored default)
-        const browsingNonDefault = route.params.masjidId && storedId && route.params.masjidId !== storedId;
-        if (browsingNonDefault) return;
+        // Skip override if user is browsing a masjid they tapped from FindMasjid
+        if (isBrowsingRef.current) return;
         if (storedId && storedId !== activeMasjidId) {
           await storageService.setLastNotificationScheduledDate('');
           hasAttemptedRefresh.current = false;
@@ -488,6 +503,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       await storageService.setSelectedMasjidId(activeMasjidId);
       if (masjid) await notificationService.registerDevice(activeMasjidId);
+      isBrowsingRef.current = false; // no longer browsing — this is now the default
       setIsDefaultMasjid(true);
     } catch (err) {
       console.error('Error setting default masjid:', err);
