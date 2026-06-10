@@ -504,6 +504,27 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     return <LoadingSkeleton insets={insets} />;
   }
 
+  // No masjid selected yet — prompt user to pick one
+  if (!activeMasjidId || activeMasjidId === 0) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }]}>
+        <Text style={{ fontSize: 48, marginBottom: 20 }}>🕌</Text>
+        <Text style={{ fontSize: 20, fontWeight: '700', color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginBottom: 10 }}>
+          No Masjid Selected
+        </Text>
+        <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 21, marginBottom: 28 }}>
+          Find and select a masjid to see prayer times.
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#007AFF', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 }}
+          onPress={() => navigation.navigate('FindMasjid')}
+        >
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Find a Masjid</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const hijriDate = getHijriDate();
   const timeUntil = getTimeUntilPrayer();
   const progress = getProgressInfo();
