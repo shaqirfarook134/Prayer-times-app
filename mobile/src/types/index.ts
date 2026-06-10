@@ -58,7 +58,6 @@ export interface AppStorage {
 import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type RootStackParamList = {
-  MasjidSelection: undefined;
   MainTabs: NavigatorScreenParams<TabParamList> | undefined;
 };
 
