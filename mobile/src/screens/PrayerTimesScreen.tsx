@@ -319,6 +319,10 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       const syncMasjidFromStorage = async () => {
         const storedId = await storageService.getSelectedMasjidId();
         setIsDefaultMasjid(storedId === activeMasjidId && storedId !== null && storedId !== 0);
+        // Don't override activeMasjidId if the user is browsing a non-default masjid
+        // (detected when route.params.masjidId differs from the stored default)
+        const browsingNonDefault = route.params.masjidId && storedId && route.params.masjidId !== storedId;
+        if (browsingNonDefault) return;
         if (storedId && storedId !== activeMasjidId) {
           await storageService.setLastNotificationScheduledDate('');
           hasAttemptedRefresh.current = false;
@@ -493,7 +497,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const changeMasjid = () => {
-    (navigation as any).getParent()?.navigate('FindMasjid');
+    navigation.navigate('FindMasjid');
   };
 
   if (loading) {
