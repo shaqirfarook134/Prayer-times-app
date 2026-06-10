@@ -181,6 +181,9 @@ export default function App() {
       });
     }, []);
 
+    // Wait for storage check before rendering navigator so initialRouteName is correct
+    if (initialTab === null) return null;
+
     return (
       <Tab.Navigator
         tabBar={isIOS ? (props) => <IOSTabBar {...props} /> : undefined}
@@ -204,7 +207,7 @@ export default function App() {
             letterSpacing: 0.2,
           },
         }}
-        initialRouteName={initialTab || route?.params?.screen || 'PrayerTimes'}
+        initialRouteName={initialTab}
       >
         <Tab.Screen
           name="FindMasjid"
