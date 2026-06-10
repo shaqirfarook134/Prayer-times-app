@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -148,16 +149,32 @@ const QiblaCompassScreen: React.FC = () => {
   const qiblaRef = useRef<number | null>(null);
   const declinationRef = useRef<number>(0);
   const isMountedRef = useRef(true);
+  const isFocusedRef = useRef(false);
 
+  // Pulse animation — runs for component lifetime
   useEffect(() => {
-    isMountedRef.current = true;
     startPulse();
-    initializeLocation();
-    return () => {
-      isMountedRef.current = false;
-      CompassHeading.stop();
-    };
+    return () => { isMountedRef.current = false; };
   }, []);
+
+  // Start/stop compass strictly on tab focus/blur
+  useFocusEffect(
+    useCallback(() => {
+      isMountedRef.current = true;
+      isFocusedRef.current = true;
+      if (qiblaRef.current !== null) {
+        // Already initialized — just restart the compass sensor
+        startCompass();
+      } else {
+        initializeLocation();
+      }
+      return () => {
+        isFocusedRef.current = false;
+        CompassHeading.stop();
+        hasVibratedRef.current = false; // reset so vibration fires again on return
+      };
+    }, [])
+  );
 
   const startPulse = () => {
     Animated.loop(
@@ -166,6 +183,46 @@ const QiblaCompassScreen: React.FC = () => {
         Animated.timing(pulseAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ])
     ).start();
+  };
+
+  const onHeading = (trueHeading: number, acc: number) => {
+    if (!isFocusedRef.current) return;
+    setNeedsCalibration(IS_IOS ? acc < 2 : false);
+
+    const qibla = qiblaRef.current;
+    if (qibla === null) return;
+
+    const offset = shortestAngle(trueHeading, qibla);
+    setDegreesOff(Math.round(offset));
+
+    const newPointer = pointerAccum.current + shortestAngle(pointerAccum.current, offset);
+    pointerAccum.current = newPointer;
+
+    Animated.timing(pointerAnim, {
+      toValue: newPointer,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+    const aligned = Math.abs(offset) < 5;
+    setIsAligned(aligned);
+
+    if (aligned && !hasVibratedRef.current) {
+      hasVibratedRef.current = true;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Animated.timing(glowAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    } else if (!aligned && hasVibratedRef.current) {
+      hasVibratedRef.current = false;
+      Animated.timing(glowAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start();
+    }
+  };
+
+  const startCompass = () => {
+    CompassHeading.start(3, ({ heading: magHeading, accuracy: acc }: { heading: number; accuracy: number }) => {
+      const trueHeading = ((magHeading + declinationRef.current) % 360 + 360) % 360;
+      onHeading(trueHeading, acc);
+    });
   };
 
   const initializeLocation = async () => {
@@ -203,42 +260,7 @@ const QiblaCompassScreen: React.FC = () => {
       setDistanceToKaaba(dist);
       setLoading(false);
 
-      const onHeading = (trueHeading: number, acc: number) => {
-        setNeedsCalibration(IS_IOS ? acc < 2 : false);
-
-        const qibla = qiblaRef.current;
-        if (qibla === null) return;
-
-        const offset = shortestAngle(trueHeading, qibla);
-        setDegreesOff(Math.round(offset));
-
-        const newPointer = pointerAccum.current + shortestAngle(pointerAccum.current, offset);
-        pointerAccum.current = newPointer;
-
-        Animated.timing(pointerAnim, {
-          toValue: newPointer,
-          duration: 150,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }).start();
-
-        const aligned = Math.abs(offset) < 5;
-        setIsAligned(aligned);
-
-        if (aligned && !hasVibratedRef.current) {
-          hasVibratedRef.current = true;
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-          Animated.timing(glowAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-        } else if (!aligned && hasVibratedRef.current) {
-          hasVibratedRef.current = false;
-          Animated.timing(glowAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start();
-        }
-      };
-
-      CompassHeading.start(3, ({ heading: magHeading, accuracy: acc }: { heading: number; accuracy: number }) => {
-        const trueHeading = ((magHeading + declinationRef.current) % 360 + 360) % 360;
-        onHeading(trueHeading, acc);
-      });
+      startCompass();
     } catch (error) {
       console.error('Error initializing compass:', error);
       if (!isMountedRef.current) return;
