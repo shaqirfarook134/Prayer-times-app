@@ -7,9 +7,9 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, TabParamList } from './src/types';
+import { RootStackParamList, TabParamList, PrayerTimesStackParamList } from './src/types';
 import FindMasjidScreen from './src/screens/FindMasjidScreen';
 import PrayerTimesScreen from './src/screens/PrayerTimesScreen';
 import QiblaCompassScreen from './src/screens/QiblaCompassScreen';
@@ -23,6 +23,37 @@ import networkService from './src/services/network';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
+const PrayerTimesStack = createStackNavigator<PrayerTimesStackParamList>();
+
+// Nested stack inside the PrayerTimes tab.
+// PrayerTimesHome = default view (no swipe-back, no back button).
+// PrayerTimesBrowse = pushed when user taps a masjid in FindMasjid
+//   → gets native iOS horizontal swipe-back for free.
+const PrayerTimesNavigator = ({ route }: any) => {
+  const initialMasjidId = route?.params?.masjidId ?? 0;
+  return (
+    <PrayerTimesStack.Navigator screenOptions={{ headerShown: false, gestureEnabled: false }}>
+      <PrayerTimesStack.Screen
+        name="PrayerTimesHome"
+        component={PrayerTimesScreen}
+        initialParams={{ masjidId: initialMasjidId }}
+      />
+      <PrayerTimesStack.Screen
+        name="PrayerTimesBrowse"
+        component={PrayerTimesScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+          transitionSpec: {
+            open:  { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
+            close: { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
+          },
+        }}
+      />
+    </PrayerTimesStack.Navigator>
+  );
+};
 
 // Track app startup time
 const APP_START_TIME = Date.now();
@@ -189,6 +220,7 @@ export default function App() {
         tabBar={isIOS ? (props) => <IOSTabBar {...props} /> : undefined}
         screenOptions={{
           headerShown: false,
+          animation: 'fade',
           tabBarActiveTintColor: '#007AFF',
           tabBarInactiveTintColor: '#8E8E93',
           // Android flat tab bar with safe area inset
@@ -221,7 +253,7 @@ export default function App() {
         />
         <Tab.Screen
           name="PrayerTimes"
-          component={PrayerTimesScreen}
+          component={PrayerTimesNavigator}
           options={{
             tabBarLabel: 'Prayer Times',
             tabBarIcon: ({ color, focused }) => (

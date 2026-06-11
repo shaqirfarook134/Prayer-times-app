@@ -15,17 +15,19 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
-import { TabParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { PrayerTimesStackParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
 import websocketService from '../services/websocket';
 import { useResponsive } from '../hooks/useResponsive';
 
-type PrayerTimesScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'PrayerTimes'>;
-type PrayerTimesScreenRouteProp = RouteProp<TabParamList, 'PrayerTimes'>;
+type PrayerTimesScreenNavigationProp = StackNavigationProp<PrayerTimesStackParamList>;
+type PrayerTimesScreenRouteProp =
+  | RouteProp<PrayerTimesStackParamList, 'PrayerTimesHome'>
+  | RouteProp<PrayerTimesStackParamList, 'PrayerTimesBrowse'>;
 
 interface Props {
   navigation: PrayerTimesScreenNavigationProp;
@@ -242,29 +244,28 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isDefaultMasjid, setIsDefaultMasjid] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
-  const [showBackButton, setShowBackButton] = useState(false);
+
+  // Browse mode = PrayerTimesBrowse stack screen (has native swipe-back + back button)
+  const isBrowseScreen = route.name === 'PrayerTimesBrowse';
 
   const scrollViewRef = useRef<ScrollView>(null);
+  // CTA button press spring animation
+  const ctaScaleAnim = useRef(new Animated.Value(1)).current;
+  // CTA content fade — for "Set as my masjid" → "✓ Your current masjid" transition
+  const ctaFadeAnim = useRef(new Animated.Value(1)).current;
 
   const hasAttemptedRefresh = useRef(false);
   const isLoadingRef = useRef(false);
   const dataFromCache = useRef(false);
   const isSchedulingNotificationsRef = useRef(false);
-  // True when user navigated here by tapping a masjid in FindMasjid (browse mode)
-  // Prevents useFocusEffect from overriding activeMasjidId with the stored default
-  const isBrowsingRef = useRef(false);
 
-  // When user taps a masjid in FindMasjid, route.params.masjidId updates.
-  // Set isBrowsingRef so useFocusEffect doesn't override with the stored default.
+  // On the browse screen, always load data for the passed masjidId on mount.
   useEffect(() => {
-    if (masjidId && masjidId !== 0) {
-      isBrowsingRef.current = true;
-      if (masjidId !== activeMasjidId) {
-        hasAttemptedRefresh.current = false;
-        dataFromCache.current = false;
-        isLoadingRef.current = false;
-        setActiveMasjidId(masjidId);
-      }
+    if (isBrowseScreen && masjidId && masjidId !== 0 && masjidId !== activeMasjidId) {
+      hasAttemptedRefresh.current = false;
+      dataFromCache.current = false;
+      isLoadingRef.current = false;
+      setActiveMasjidId(masjidId);
     }
   }, [masjidId]);
 
@@ -340,11 +341,10 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       const syncMasjidFromStorage = async () => {
         const storedId = await storageService.getSelectedMasjidId();
         setIsDefaultMasjid(storedId === activeMasjidId && storedId !== null && storedId !== 0);
-        setShowBackButton(isBrowsingRef.current);
         // Scroll to top on every focus
         scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-        // Skip override if user is browsing a masjid they tapped from FindMasjid
-        if (isBrowsingRef.current) return;
+        // Browse screen never overrides activeMasjidId from storage
+        if (isBrowseScreen) return;
         if (storedId && storedId !== activeMasjidId) {
           await storageService.setLastNotificationScheduledDate('');
           hasAttemptedRefresh.current = false;
@@ -510,9 +510,15 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       await storageService.setSelectedMasjidId(activeMasjidId);
       if (masjid) await notificationService.registerDevice(activeMasjidId);
-      isBrowsingRef.current = false; // no longer browsing — this is now the default
-      setIsDefaultMasjid(true);
-      setShowBackButton(false);
+      // Animate CTA button content: fade out → update state → fade in
+      Animated.timing(ctaFadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+        setIsDefaultMasjid(true);
+        Animated.timing(ctaFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      });
+      // If browsing, go back to the home screen after saving
+      if (isBrowseScreen) {
+        setTimeout(() => navigation.goBack(), 350);
+      }
     } catch (err) {
       console.error('Error setting default masjid:', err);
     } finally {
@@ -523,19 +529,21 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   // Combined CTA: branches based on isDefaultMasjid + notificationsEnabled
   const handlePrimaryCTA = async () => {
     if (savingDefault) return;
-    const needsDefault = !isDefaultMasjid;
-    const needsNotifs = !notificationsEnabled;
-
-    if (needsDefault) {
-      await setAsDefault();
-    }
-    if (needsNotifs) {
-      await toggleNotifications(true);
-    }
+    if (!isDefaultMasjid) await setAsDefault();
+    if (!notificationsEnabled) await toggleNotifications(true);
   };
 
+  // CTA button spring press animation
+  const onCtaPressIn = () => Animated.spring(ctaScaleAnim, {
+    toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 0,
+  }).start();
+  const onCtaPressOut = () => Animated.spring(ctaScaleAnim, {
+    toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6,
+  }).start();
+
   const changeMasjid = () => {
-    navigation.navigate('FindMasjid');
+    // Navigate to FindMasjid tab via the parent tab navigator
+    navigation.getParent()?.navigate('FindMasjid');
   };
 
   if (loading) {
@@ -555,7 +563,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: '#007AFF', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 }}
-          onPress={() => navigation.navigate('FindMasjid')}
+          onPress={() => navigation.getParent()?.navigate('FindMasjid')}
         >
           <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Find a Masjid</Text>
         </TouchableOpacity>
@@ -579,9 +587,9 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Gold radial glow */}
         <View style={styles.heroGlow} pointerEvents="none" />
 
-        {/* Back button — visible only when browsing a non-default masjid */}
-        {showBackButton && (
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('FindMasjid')} activeOpacity={0.7}>
+        {/* Back button — frosted pill, visible only on the browse stack screen */}
+        {isBrowseScreen && (
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.75}>
             <Text style={styles.backChevron}>‹</Text>
             <Text style={styles.backLabel}>Masjid List</Text>
           </TouchableOpacity>
@@ -689,32 +697,38 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
 
           {/* Combined CTA button */}
-          <View style={[styles.ctaWrap, isDefaultMasjid && notificationsEnabled && styles.ctaWrapBorder]}>
-            {isDefaultMasjid && notificationsEnabled ? (
-              // State 4: all done — greyed non-interactive
-              <View style={styles.ctaBtnDone}>
-                <Text style={styles.ctaDoneText}>✓  Your current masjid</Text>
-              </View>
-            ) : isDefaultMasjid && !notificationsEnabled ? (
-              // State 3: default masjid, notifs off — green enable button
-              <TouchableOpacity style={styles.ctaBtnGreen} onPress={handlePrimaryCTA} disabled={savingDefault} activeOpacity={0.85}>
-                <Text style={styles.ctaMainText}>Enable prayer alerts</Text>
-                <Text style={styles.ctaSubText}>Adhan and iqama reminders</Text>
-              </TouchableOpacity>
-            ) : notificationsEnabled ? (
-              // State 2: browsing, notifs already on — blue set-only button
-              <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} disabled={savingDefault} activeOpacity={0.85}>
-                <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
-                <Text style={styles.ctaSubText}>Alerts will switch to this masjid</Text>
-              </TouchableOpacity>
-            ) : (
-              // State 1: browsing, notifs off — blue set + enable button
-              <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} disabled={savingDefault} activeOpacity={0.85}>
-                <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
-                <Text style={styles.ctaSubText}>Prayer alerts will be enabled</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Animated.View style={[
+            styles.ctaWrap,
+            isDefaultMasjid && notificationsEnabled && styles.ctaWrapBorder,
+            { transform: [{ scale: ctaScaleAnim }] },
+          ]}>
+            <Animated.View style={{ opacity: ctaFadeAnim }}>
+              {isDefaultMasjid && notificationsEnabled ? (
+                // State 4: all done — greyed non-interactive
+                <View style={styles.ctaBtnDone}>
+                  <Text style={styles.ctaDoneText}>✓  Your current masjid</Text>
+                </View>
+              ) : isDefaultMasjid && !notificationsEnabled ? (
+                // State 3: default masjid, notifs off — green enable button
+                <TouchableOpacity style={styles.ctaBtnGreen} onPress={handlePrimaryCTA} onPressIn={onCtaPressIn} onPressOut={onCtaPressOut} disabled={savingDefault} activeOpacity={1}>
+                  <Text style={styles.ctaMainText}>Enable prayer alerts</Text>
+                  <Text style={styles.ctaSubText}>Adhan and iqama reminders</Text>
+                </TouchableOpacity>
+              ) : notificationsEnabled ? (
+                // State 2: browsing, notifs already on — blue set-only button
+                <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} onPressIn={onCtaPressIn} onPressOut={onCtaPressOut} disabled={savingDefault} activeOpacity={1}>
+                  <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
+                  <Text style={styles.ctaSubText}>Alerts will switch to this masjid</Text>
+                </TouchableOpacity>
+              ) : (
+                // State 1: browsing, notifs off — blue set + enable button
+                <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} onPressIn={onCtaPressIn} onPressOut={onCtaPressOut} disabled={savingDefault} activeOpacity={1}>
+                  <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
+                  <Text style={styles.ctaSubText}>Prayer alerts will be enabled</Text>
+                </TouchableOpacity>
+              )}
+            </Animated.View>
+          </Animated.View>
         </View>
 
         {/* ── Change Masjid ── */}
@@ -1033,24 +1047,32 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Back button (browse mode) ──
+  // ── Back button (browse mode) — Option A frosted pill ──
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    marginBottom: 10,
+    gap: 4,
     alignSelf: 'flex-start',
+    marginBottom: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 100,
+    paddingVertical: 6,
+    paddingLeft: 10,
+    paddingRight: 14,
+    overflow: 'hidden',
   },
   backChevron: {
-    fontSize: 22,
-    color: '#60a5fa',
+    fontSize: 16,
+    color: '#fff',
     fontWeight: '300',
-    lineHeight: 24,
+    lineHeight: 18,
   },
   backLabel: {
-    fontSize: 16,
-    color: '#60a5fa',
-    fontWeight: '400',
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '600',
   },
 
   // ── Combined CTA ──
