@@ -101,7 +101,7 @@ function MainTabs({ initialTab, initialMasjidId }: MainTabsProps) {
       tabBar={isIOS ? renderIOSTabBar : undefined}
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
+        animation: 'none',
         sceneStyle: { backgroundColor: '#0d0d14' },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#8E8E93',
@@ -268,6 +268,7 @@ export default function App() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <NavigationContainer
+          theme={{ dark: true, colors: { background: '#0d0d14', card: '#0d0d14', text: '#ffffff', border: 'transparent', primary: '#007AFF', notification: '#007AFF' }, fonts: { regular: { fontFamily: 'System', fontWeight: '400' }, medium: { fontFamily: 'System', fontWeight: '500' }, bold: { fontFamily: 'System', fontWeight: '700' }, heavy: { fontFamily: 'System', fontWeight: '900' } } }}
           onReady={() => {
             console.log(`⏱️  [PERF] Navigation ready in ${Date.now() - APP_START_TIME}ms`);
           }}
