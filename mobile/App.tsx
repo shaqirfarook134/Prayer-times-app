@@ -8,7 +8,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, TabParamList, PrayerTimesStackParamList } from './src/types';
+import { RootStackParamList, TabParamList } from './src/types';
 import FindMasjidScreen from './src/screens/FindMasjidScreen';
 import PrayerTimesScreen from './src/screens/PrayerTimesScreen';
 import QiblaCompassScreen from './src/screens/QiblaCompassScreen';
@@ -22,53 +22,12 @@ import networkService from './src/services/network';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
-const PrayerTimesStack = createStackNavigator<PrayerTimesStackParamList>();
 
 // Track app startup time
 const APP_START_TIME = Date.now();
 
-// ── Nested stack inside the PrayerTimes tab ──────────────────────────────────
-// Defined at module level — NEVER inside a component — so React Navigation
-// never sees a new component reference on re-render (which causes white screens).
-// PrayerTimesHome = default view, no swipe-back gesture.
-// PrayerTimesBrowse = pushed when user taps a masjid from FindMasjid;
-//   gets native iOS horizontal swipe-back gesture automatically.
-const PrayerTimesNavigator = ({ route }: any) => {
-  const initialMasjidId = route?.params?.masjidId ?? 0;
-  return (
-    <PrayerTimesStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        gestureEnabled: false,
-        // Dark background prevents white flash between stack transitions
-        cardStyle: { backgroundColor: '#0d0d14' },
-      }}
-    >
-      <PrayerTimesStack.Screen
-        name="PrayerTimesHome"
-        component={PrayerTimesScreen}
-        initialParams={{ masjidId: initialMasjidId }}
-      />
-      <PrayerTimesStack.Screen
-        name="PrayerTimesBrowse"
-        component={PrayerTimesScreen}
-        options={{
-          gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
-          cardStyle: { backgroundColor: '#0d0d14' },
-          transitionSpec: {
-            open:  { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
-            close: { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
-          },
-        }}
-      />
-    </PrayerTimesStack.Navigator>
-  );
-};
-
 // ── Custom iOS tab bar ────────────────────────────────────────────────────────
-// Also at module level to avoid recreation on App re-renders.
+// Module level — stable reference, never recreated on re-renders.
 const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const insets = useSafeAreaInsets();
 
@@ -86,77 +45,61 @@ const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const activeFocusedColor = '#FFFFFF';
   const inactiveColor = 'rgba(255,255,255,0.45)';
 
-  const inner = (
-    <View style={tabBarStyles.row}>
-      {state.routes.map((route, index) => {
-        const focused = state.index === index;
-        const icons = TAB_ICONS[route.name] ?? { focused: 'ellipse', outline: 'ellipse-outline' };
-        const color = focused ? activeFocusedColor : inactiveColor;
-
-        return (
-          <TouchableOpacity
-            key={route.key}
-            accessibilityRole="button"
-            accessibilityState={focused ? { selected: true } : {}}
-            onPress={() => {
-              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-            }}
-            style={tabBarStyles.tab}
-          >
-            {focused && <View style={tabBarStyles.activePill} />}
-            <Ionicons name={focused ? icons.focused : icons.outline as any} size={22} color={color} />
-            <Text style={[tabBarStyles.label, { color }]}>{TAB_LABELS[route.name]}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-
   return (
     <View style={[tabBarStyles.wrapper, { bottom: insets.bottom + 10 }]}>
       <BlurView tint="dark" intensity={90} style={tabBarStyles.pill}>
-        {inner}
+        <View style={tabBarStyles.row}>
+          {state.routes.map((route, index) => {
+            const focused = state.index === index;
+            const icons = TAB_ICONS[route.name] ?? { focused: 'ellipse', outline: 'ellipse-outline' };
+            const color = focused ? activeFocusedColor : inactiveColor;
+
+            return (
+              <TouchableOpacity
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={focused ? { selected: true } : {}}
+                onPress={() => {
+                  const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                  if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+                }}
+                style={tabBarStyles.tab}
+              >
+                {focused && <View style={tabBarStyles.activePill} />}
+                <Ionicons name={focused ? icons.focused : icons.outline as any} size={22} color={color} />
+                <Text style={[tabBarStyles.label, { color }]}>{TAB_LABELS[route.name]}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </BlurView>
     </View>
   );
 };
 
 // ── Main tab navigator ────────────────────────────────────────────────────────
-// At module level for the same reason as above.
-const MainTabs = ({ route }: any) => {
-  const paramMasjidId = route?.params?.params?.masjidId;
-  const [initialMasjidId, setInitialMasjidId] = useState<number>(paramMasjidId || 0);
-  const [initialTab, setInitialTab] = useState<string | null>(null);
+// Module level — never recreated on re-renders.
+// initialTab and initialMasjidId are resolved by App before this mounts,
+// so there is no null-render / remount cycle.
+interface MainTabsProps {
+  initialTab: keyof TabParamList;
+  initialMasjidId: number;
+}
+
+const MainTabs = React.memo(({ initialTab, initialMasjidId }: MainTabsProps) => {
   const isIOS = Platform.OS === 'ios';
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    storageService.getSelectedMasjidId().then(id => {
-      if (id && id !== 0) {
-        setInitialMasjidId(id);
-        setInitialTab('PrayerTimes');
-      } else {
-        setInitialTab('FindMasjid');
-      }
-    });
-  }, []);
-
-  // Wait for storage check before rendering navigator so initialRouteName is correct
-  if (initialTab === null) return null;
-
   return (
     <Tab.Navigator
-      tabBar={isIOS ? (props) => <IOSTabBar {...props} /> : undefined}
+      // Pass component reference directly — stable, no new function on re-renders.
+      tabBar={isIOS ? IOSTabBar : undefined}
       screenOptions={{
         headerShown: false,
-        // Crossfade between tabs — sceneContainerStyle keeps background dark
-        // so there is no white flash during the fade.
         animation: 'fade',
         sceneStyle: { backgroundColor: '#0d0d14' },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#8E8E93',
-        // Android flat tab bar with safe area inset
         tabBarStyle: isIOS ? { display: 'none' } : {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#E5E5EA',
@@ -172,7 +115,7 @@ const MainTabs = ({ route }: any) => {
           letterSpacing: 0.2,
         },
       }}
-      initialRouteName={initialTab as any}
+      initialRouteName={initialTab}
     >
       <Tab.Screen
         name="FindMasjid"
@@ -186,14 +129,14 @@ const MainTabs = ({ route }: any) => {
       />
       <Tab.Screen
         name="PrayerTimes"
-        component={PrayerTimesNavigator}
+        component={PrayerTimesScreen}
+        initialParams={{ masjidId: initialMasjidId }}
         options={{
           tabBarLabel: 'Prayer Times',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
           ),
         }}
-        initialParams={{ screen: 'PrayerTimesHome', params: { masjidId: initialMasjidId } } as any}
       />
       <Tab.Screen
         name="QiblaCompass"
@@ -207,15 +150,42 @@ const MainTabs = ({ route }: any) => {
       />
     </Tab.Navigator>
   );
-};
+});
+
+// Module-level config — set once by App before NavigationContainer mounts.
+// MainTabsScreen reads from here so we avoid passing through initialParams
+// (which would require widening RootStackParamList, fighting the TS type).
+const _mainTabsConfig = { initialTab: 'FindMasjid' as keyof TabParamList, initialMasjidId: 0 };
+
+// Stable module-level component reference — React Navigation requires this.
+const MainTabsScreen = () => (
+  <MainTabs
+    initialTab={_mainTabsConfig.initialTab}
+    initialMasjidId={_mainTabsConfig.initialMasjidId}
+  />
+);
 
 // ── Root app ──────────────────────────────────────────────────────────────────
 export default function App() {
+  // Resolve storage BEFORE mounting NavigationContainer so the navigator tree
+  // is built once with the correct initialRouteName — no remount, no white screen.
+  const [appReady, setAppReady] = useState(false);
+
   useEffect(() => {
     const initializeApp = async () => {
-      const initStartTime = Date.now();
       console.log('⏱️  [PERF] App initialization started');
 
+      // Resolve initial tab/masjid from storage first — NavigationContainer
+      // will not mount until this is done, preventing the null→mount remount cycle.
+      const storedId = await storageService.getSelectedMasjidId();
+      if (storedId && storedId !== 0) {
+        // Write to module-level config before mounting the navigator
+        _mainTabsConfig.initialTab = 'PrayerTimes';
+        _mainTabsConfig.initialMasjidId = storedId;
+      }
+      setAppReady(true);
+
+      // Defer non-critical init so the first frame paints fast
       setTimeout(() => {
         notificationService.requestPermissions().catch(console.error);
       }, 500);
@@ -229,9 +199,7 @@ export default function App() {
         websocketService.connect();
       }, 1500);
 
-      const initEndTime = Date.now();
-      console.log(`⏱️  [PERF] App initialization completed in ${initEndTime - initStartTime}ms`);
-      console.log(`⏱️  [PERF] Total time from app start: ${initEndTime - APP_START_TIME}ms`);
+      console.log(`⏱️  [PERF] Total time from app start: ${Date.now() - APP_START_TIME}ms`);
     };
 
     initializeApp();
@@ -278,18 +246,49 @@ export default function App() {
     };
   }, []);
 
+  // Render a plain dark view while storage resolves — no navigator tree at all,
+  // so there is nothing to remount when appReady flips to true.
+  if (!appReady) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: '#0d0d14' }} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
         <NavigationContainer
           onReady={() => {
-            const navReadyTime = Date.now();
-            console.log(`⏱️  [PERF] Navigation ready in ${navReadyTime - APP_START_TIME}ms`);
+            console.log(`⏱️  [PERF] Navigation ready in ${Date.now() - APP_START_TIME}ms`);
           }}
         >
           <StatusBar style="light" />
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="MainTabs" component={MainTabs} />
+            {/* MainTabs: all three tabs */}
+            <Stack.Screen
+              name="MainTabs"
+              component={MainTabsScreen}
+            />
+            {/* PrayerTimesBrowse: pushed from FindMasjid when user taps a masjid.
+                Lives on the ROOT stack so the iOS swipe-back gesture pops it off
+                entirely and reveals the tabs with FindMasjid still active. */}
+            <Stack.Screen
+              name="PrayerTimesBrowse"
+              component={PrayerTimesScreen}
+              options={{
+                gestureEnabled: true,
+                gestureDirection: 'horizontal',
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+                // Dark card background prevents white flash during the slide transition
+                cardStyle: { backgroundColor: '#0d0d14' },
+                transitionSpec: {
+                  open:  { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
+                  close: { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
+                },
+              }}
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </ErrorBoundary>
