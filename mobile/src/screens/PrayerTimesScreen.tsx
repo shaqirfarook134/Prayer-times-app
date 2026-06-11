@@ -282,6 +282,34 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [masjidId]);
 
+  // Dedicated AppState listener for OS notification permission changes.
+  // Mounted once with [] so it never captures stale state. Only reads the
+  // OS permission status and updates the two relevant state flags.
+  // Rescheduling (which needs prayerTimes/masjid) is handled by the
+  // scheduleNotifications useEffect reacting to notificationsEnabled changes.
+  useEffect(() => {
+    const checkOSPermission = async () => {
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        const granted = status === 'granted';
+        setNotificationPermissionDenied(!granted);
+        if (granted) {
+          const inAppEnabled = await storageService.getNotificationsEnabled();
+          setNotificationsEnabled(inAppEnabled);
+        }
+      } catch { /* non-critical */ }
+    };
+
+    let prev = AppState.currentState;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (prev.match(/inactive|background/) && next === 'active') {
+        checkOSPermission();
+      }
+      prev = next;
+    });
+    return () => sub.remove();
+  }, []);
+
   useEffect(() => {
     loadData();
     loadNotificationSettings();
@@ -300,8 +328,6 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
         loadData();
-        // Re-check OS permission status — user may have changed it in iOS Settings
-        checkNotificationStatus();
       }
       previousAppState = nextAppState;
     });

@@ -213,17 +213,6 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const savedScrollOffset = useRef<number>(0);
   const returningFromBrowse = useRef<boolean>(false);
 
-  useEffect(() => {
-    requestLocationPermission();
-    loadMasjids();
-
-    // Re-check notification status whenever app comes back to foreground
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') checkNotifStatus();
-    });
-    return () => subscription.remove();
-  }, []);
-
   const checkNotifStatus = async () => {
     try {
       const { status } = await Notifications.getPermissionsAsync();
@@ -239,6 +228,22 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
       }
     } catch { /* non-critical */ }
   };
+
+  useEffect(() => {
+    requestLocationPermission();
+    loadMasjids();
+
+    // Re-check notification status whenever app comes back to foreground.
+    // checkNotifStatus is defined above so the closure is valid.
+    let prev = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (prev.match(/inactive|background/) && nextState === 'active') {
+        checkNotifStatus();
+      }
+      prev = nextState;
+    });
+    return () => subscription.remove();
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
