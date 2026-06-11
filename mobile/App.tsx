@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Platform, StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -77,6 +78,36 @@ const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   );
 };
 
+// ── Fade wrapper for tab screens ──────────────────────────────────────────────
+// Wraps each tab screen in a subtle opacity fade on focus. This gives a smooth
+// feel without using Tab.Navigator animation (which caused white screen bugs).
+// animation: 'none' stays on the navigator — the fade happens per-screen here.
+function FadeScreen({ children }: { children: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useFocusEffect(
+    useCallback(() => {
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+      return () => {
+        opacity.setValue(0);
+      };
+    }, [])
+  );
+  return (
+    <Animated.View style={{ flex: 1, opacity, backgroundColor: '#0d0d14' }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+// Module-level screen wrappers — stable references required by React Navigation.
+const FadeFindMasjid    = (props: any) => <FadeScreen><FindMasjidScreen {...props} /></FadeScreen>;
+const FadePrayerTimes   = (props: any) => <FadeScreen><PrayerTimesScreen {...props} /></FadeScreen>;
+const FadeQiblaCompass  = (props: any) => <FadeScreen><QiblaCompassScreen {...props} /></FadeScreen>;
+
 // Stable module-level render function for the tab bar.
 // React Navigation calls tabBar as a render function (not as a mounted component),
 // so IOSTabBar must be rendered as JSX (not called directly) to preserve hook context.
@@ -124,7 +155,7 @@ function MainTabs({ initialTab, initialMasjidId }: MainTabsProps) {
     >
       <Tab.Screen
         name="FindMasjid"
-        component={FindMasjidScreen}
+        component={FadeFindMasjid}
         options={{
           tabBarLabel: 'Find Masjid',
           tabBarIcon: ({ color, focused }) => (
@@ -134,7 +165,7 @@ function MainTabs({ initialTab, initialMasjidId }: MainTabsProps) {
       />
       <Tab.Screen
         name="PrayerTimes"
-        component={PrayerTimesScreen}
+        component={FadePrayerTimes}
         initialParams={{ masjidId: initialMasjidId }}
         options={{
           tabBarLabel: 'Prayer Times',
@@ -145,7 +176,7 @@ function MainTabs({ initialTab, initialMasjidId }: MainTabsProps) {
       />
       <Tab.Screen
         name="QiblaCompass"
-        component={QiblaCompassScreen}
+        component={FadeQiblaCompass}
         options={{
           tabBarLabel: 'Qibla',
           tabBarIcon: ({ color, focused }) => (

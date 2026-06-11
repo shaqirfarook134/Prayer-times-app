@@ -667,14 +667,30 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* ── Notification permission denied ── */}
+        {/* ── OS notification permission denied ── */}
         {notificationPermissionDenied && (
           <View style={styles.notifBanner}>
-            <Text style={styles.notifBannerText} numberOfLines={2}>
-              Notification permissions denied. Enable in Settings to receive prayer alerts.
+            <Text style={styles.notifBannerText} numberOfLines={3}>
+              Reminders are blocked by iOS. Go to Settings → My Masjid App → Notifications and turn them on.
             </Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => Linking.openSettings()}>
               <Text style={styles.retryBtnText}>Open Settings</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Reminders turned off in-app banner ── */}
+        {isDefaultMasjid && !notificationsEnabled && !notificationPermissionDenied && (
+          <View style={styles.remindersOffBanner}>
+            <View style={styles.remindersOffLeft}>
+              <Text style={styles.remindersOffTitle}>Reminders are off</Text>
+              <Text style={styles.remindersOffDesc}>You won't be notified before prayers</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.remindersOffBtn}
+              onPress={() => toggleNotifications(true)}
+            >
+              <Text style={styles.remindersOffBtnText}>Turn on</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -695,12 +711,14 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* ── Settings ── */}
         <View style={styles.settingsCard}>
-          {/* Toggle row — only shown when masjid is default AND notifications are on */}
-          {isDefaultMasjid && notificationsEnabled && (
+          {/* Toggle row — shown when masjid is default (on or off) */}
+          {isDefaultMasjid && (
             <View style={styles.settingRow}>
               <View>
                 <Text style={styles.settingTitle}>Prayer reminders</Text>
-                <Text style={styles.settingDesc}>Adhan and iqama reminders</Text>
+                <Text style={styles.settingDesc}>
+                  {notificationsEnabled ? 'Adhan and iqama reminders' : 'Tap to re-enable reminders'}
+                </Text>
               </View>
               <Switch
                 value={notificationsEnabled}
@@ -714,7 +732,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
           {/* Combined CTA button */}
           <Animated.View style={[
             styles.ctaWrap,
-            isDefaultMasjid && notificationsEnabled && styles.ctaWrapBorder,
+            isDefaultMasjid && styles.ctaWrapBorder,
             { transform: [{ scale: ctaScaleAnim }] },
           ]}>
             <Animated.View style={{ opacity: ctaFadeAnim }}>
@@ -974,6 +992,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#ff5252',
+  },
+
+  // ── Reminders off banner ──
+  remindersOffBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: 'rgba(255,159,10,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,159,10,0.22)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  remindersOffLeft: {
+    flex: 1,
+  },
+  remindersOffTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ff9f0a',
+    marginBottom: 2,
+  },
+  remindersOffDesc: {
+    fontSize: 12,
+    color: 'rgba(255,159,10,0.7)',
+    fontWeight: '400',
+  },
+  remindersOffBtn: {
+    backgroundColor: 'rgba(255,159,10,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,159,10,0.3)',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  remindersOffBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ff9f0a',
   },
 
   // ── Section label ──
