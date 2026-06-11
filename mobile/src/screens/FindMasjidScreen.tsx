@@ -196,6 +196,10 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const [selectedMasjidId, setSelectedMasjidId] = useState<number | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
 
+  const flatListRef = useRef<FlatList>(null);
+  const savedScrollOffset = useRef<number>(0);
+  const returningFromBrowse = useRef<boolean>(false);
+
   useEffect(() => {
     requestLocationPermission();
     loadMasjids();
@@ -204,6 +208,15 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   useFocusEffect(
     React.useCallback(() => {
       storageService.getSelectedMasjidId().then((id) => setSelectedMasjidId(id));
+      if (returningFromBrowse.current) {
+        // Restore scroll position after returning from a masjid browse
+        setTimeout(() => {
+          flatListRef.current?.scrollToOffset({ offset: savedScrollOffset.current, animated: false });
+        }, 0);
+      } else {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      }
+      returningFromBrowse.current = false;
     }, [])
   );
 
@@ -288,7 +301,8 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
       try {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       } catch { /* ignore */ }
-      // Navigate to PrayerTimes tab, passing the selected masjid ID
+      // Remember we're going into browse mode so we can restore scroll on return
+      returningFromBrowse.current = true;
       navigation.navigate('PrayerTimes', { masjidId: masjid.id });
     } catch (err) {
       console.error('Error selecting masjid:', err);
@@ -370,11 +384,14 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
       </LinearGradient>
 
       <FlatList
+        ref={flatListRef}
         data={loading ? [] : listData}
         keyExtractor={(item, index) =>
           item.type === 'header' ? `header-${index}` : `masjid-${item.masjid.id}`
         }
         ListHeaderComponent={loading ? <LoadingSkeleton /> : null}
+        onScroll={(e) => { savedScrollOffset.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
         renderItem={({ item }) => {
           if (item.type === 'header') {
             return <Text style={styles.sectionLabel}>{item.title}</Text>;
