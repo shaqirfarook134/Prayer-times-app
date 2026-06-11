@@ -11,6 +11,7 @@ import {
   Animated,
   Platform,
   Linking,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -254,6 +255,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isDefaultMasjid, setIsDefaultMasjid] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Browse mode = PrayerTimesBrowse stack screen (has native swipe-back + back button)
   const isBrowseScreen = route.name === 'PrayerTimesBrowse';
@@ -520,16 +522,13 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       await storageService.setSelectedMasjidId(activeMasjidId);
       if (masjid) await notificationService.registerDevice(activeMasjidId);
-      // Animate CTA button content: fade out → update state → fade in
+      // Animate CTA: fade out → update state → fade in
       Animated.timing(ctaFadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
         setIsDefaultMasjid(true);
         Animated.timing(ctaFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       });
-      // If on the browse screen, pop off the root stack — returns to tabs with
-      // FindMasjid still active (the tab the user navigated from).
-      if (isBrowseScreen) {
-        setTimeout(() => navigation.goBack(), 400);
-      }
+      // Show confirmation modal — stay on page
+      setTimeout(() => setShowConfirmModal(true), 300);
     } catch (err) {
       console.error('Error setting default masjid:', err);
     } finally {
@@ -700,7 +699,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
           {isDefaultMasjid && notificationsEnabled && (
             <View style={styles.settingRow}>
               <View>
-                <Text style={styles.settingTitle}>Prayer notifications</Text>
+                <Text style={styles.settingTitle}>Prayer reminders</Text>
                 <Text style={styles.settingDesc}>Adhan and iqama reminders</Text>
               </View>
               <Switch
@@ -727,20 +726,20 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
               ) : isDefaultMasjid && !notificationsEnabled ? (
                 // State 3: default masjid, notifs off — green enable button
                 <TouchableOpacity style={styles.ctaBtnGreen} onPress={handlePrimaryCTA} onPressIn={onCtaPressIn} onPressOut={onCtaPressOut} disabled={savingDefault} activeOpacity={1}>
-                  <Text style={styles.ctaMainText}>Enable prayer alerts</Text>
+                  <Text style={styles.ctaMainText}>Enable prayer reminders</Text>
                   <Text style={styles.ctaSubText}>Adhan and iqama reminders</Text>
                 </TouchableOpacity>
               ) : notificationsEnabled ? (
                 // State 2: browsing, notifs already on — blue set-only button
                 <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} onPressIn={onCtaPressIn} onPressOut={onCtaPressOut} disabled={savingDefault} activeOpacity={1}>
                   <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
-                  <Text style={styles.ctaSubText}>Alerts will switch to this masjid</Text>
+                  <Text style={styles.ctaSubText}>Reminders will switch to this masjid</Text>
                 </TouchableOpacity>
               ) : (
                 // State 1: browsing, notifs off — blue set + enable button
                 <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} onPressIn={onCtaPressIn} onPressOut={onCtaPressOut} disabled={savingDefault} activeOpacity={1}>
                   <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
-                  <Text style={styles.ctaSubText}>Prayer alerts will be enabled</Text>
+                  <Text style={styles.ctaSubText}>Prayer reminders will be enabled</Text>
                 </TouchableOpacity>
               )}
             </Animated.View>
@@ -754,6 +753,61 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <Text style={styles.versionText}>v{Constants.expoConfig?.version || '1.3.1'}</Text>
       </ScrollView>
+
+      {/* ── Masjid set confirmation modal ── */}
+      <Modal
+        visible={showConfirmModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowConfirmModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            <View style={styles.modalSheet}>
+              {/* Handle */}
+              <View style={styles.modalHandle} />
+
+              {/* Icon */}
+              <View style={styles.modalIconWrap}>
+                <LinearGradient
+                  colors={['#1a3a6b', '#0d2447']}
+                  style={styles.modalIconGradient}
+                >
+                  <Text style={styles.modalIconEmoji}>🕌</Text>
+                </LinearGradient>
+              </View>
+
+              {/* Heading */}
+              <Text style={styles.modalHeading}>
+                {masjid?.name ?? 'Masjid'} set as your masjid
+              </Text>
+
+              {/* Reminder badge */}
+              <View style={styles.modalBadge}>
+                <Text style={styles.modalBadgeText}>Reminders enabled for all 5 prayers</Text>
+              </View>
+
+              {/* Body */}
+              <Text style={styles.modalBody}>
+                You'll receive a reminder 10 minutes before each Adhan. You can turn this off anytime from the prayer times screen.
+              </Text>
+
+              {/* Dismiss */}
+              <TouchableOpacity
+                style={styles.modalDismissBtn}
+                onPress={() => setShowConfirmModal(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalDismissText}>Got it</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -1174,6 +1228,99 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
     marginTop: 4,
+  },
+
+  // ── Confirmation modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#16161f',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+    alignItems: 'center',
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    marginBottom: 28,
+  },
+  modalIconWrap: {
+    marginBottom: 20,
+    shadowColor: '#1a3a6b',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  modalIconGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalIconEmoji: {
+    fontSize: 32,
+  },
+  modalHeading: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+    letterSpacing: -0.4,
+    marginBottom: 14,
+    lineHeight: 26,
+  },
+  modalBadge: {
+    backgroundColor: 'rgba(52,199,89,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(52,199,89,0.28)',
+    borderRadius: 100,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    alignSelf: 'center',
+  },
+  modalBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34c759',
+    textAlign: 'center',
+  },
+  modalBody: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 28,
+    paddingHorizontal: 8,
+  },
+  modalDismissBtn: {
+    backgroundColor: '#34c759',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    shadowColor: '#34c759',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  modalDismissText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 
