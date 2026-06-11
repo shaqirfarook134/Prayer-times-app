@@ -8,7 +8,10 @@ import {
   Animated,
   RefreshControl,
   Alert,
+  AppState,
+  Linking,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
@@ -19,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabParamList, RootStackParamList, Masjid } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
+import notificationService from '../services/notifications';
 import { useResponsive } from '../hooks/useResponsive';
 
 // Composite type gives access to both tab methods AND root stack methods
@@ -201,6 +205,9 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const [locationName, setLocationName] = useState<string>('');
   const [selectedMasjidId, setSelectedMasjidId] = useState<number | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [notifOsBlocked, setNotifOsBlocked] = useState(false);
+  const [notifInAppOff, setNotifInAppOff] = useState(false);
+  const [hasMasjid, setHasMasjid] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const savedScrollOffset = useRef<number>(0);
@@ -209,11 +216,34 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     requestLocationPermission();
     loadMasjids();
+
+    // Re-check notification status whenever app comes back to foreground
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') checkNotifStatus();
+    });
+    return () => subscription.remove();
   }, []);
+
+  const checkNotifStatus = async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      const osGranted = status === 'granted';
+      setNotifOsBlocked(!osGranted);
+      const masjidId = await storageService.getSelectedMasjidId();
+      setHasMasjid(!!masjidId && masjidId !== 0);
+      if (osGranted) {
+        const inAppEnabled = await storageService.getNotificationsEnabled();
+        setNotifInAppOff(!inAppEnabled);
+      } else {
+        setNotifInAppOff(false); // OS banner takes priority
+      }
+    } catch { /* non-critical */ }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
       storageService.getSelectedMasjidId().then((id) => setSelectedMasjidId(id));
+      checkNotifStatus();
       if (returningFromBrowse.current) {
         // Restore scroll position after returning from a masjid browse
         setTimeout(() => {
@@ -390,6 +420,39 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         )}
       </LinearGradient>
+
+      {/* ── OS notifications blocked banner ── */}
+      {hasMasjid && notifOsBlocked && (
+        <View style={styles.notifBanner}>
+          <View style={styles.notifBannerLeft}>
+            <Text style={styles.notifBannerTitle}>Reminders are blocked by iOS</Text>
+            <Text style={styles.notifBannerDesc}>Go to Settings to allow notifications</Text>
+          </View>
+          <TouchableOpacity style={styles.notifBannerBtn} onPress={() => Linking.openSettings()}>
+            <Text style={styles.notifBannerBtnText}>Open Settings</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── In-app reminders off banner ── */}
+      {hasMasjid && !notifOsBlocked && notifInAppOff && (
+        <View style={styles.remindersOffBanner}>
+          <View style={styles.notifBannerLeft}>
+            <Text style={styles.remindersOffTitle}>Reminders are off</Text>
+            <Text style={styles.remindersOffDesc}>You won't be notified before prayers</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.remindersOffBtn}
+            onPress={async () => {
+              await storageService.setNotificationsEnabled(true);
+              await notificationService.requestPermissions();
+              setNotifInAppOff(false);
+            }}
+          >
+            <Text style={styles.remindersOffBtnText}>Turn on</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <FlatList
         ref={flatListRef}
@@ -676,6 +739,85 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#6091ff',
+  },
+
+  // ── Notification banners ──────────────────────────────────────────────────────
+  notifBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: 'rgba(255,80,80,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,80,80,0.2)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notifBannerLeft: {
+    flex: 1,
+  },
+  notifBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ff5252',
+    marginBottom: 2,
+  },
+  notifBannerDesc: {
+    fontSize: 12,
+    color: 'rgba(255,82,82,0.7)',
+    fontWeight: '400',
+  },
+  notifBannerBtn: {
+    backgroundColor: 'rgba(255,80,80,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,80,80,0.28)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  notifBannerBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ff5252',
+  },
+  remindersOffBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: 'rgba(255,159,10,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,159,10,0.22)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  remindersOffTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ff9f0a',
+    marginBottom: 2,
+  },
+  remindersOffDesc: {
+    fontSize: 12,
+    color: 'rgba(255,159,10,0.7)',
+    fontWeight: '400',
+  },
+  remindersOffBtn: {
+    backgroundColor: 'rgba(255,159,10,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,159,10,0.3)',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  remindersOffBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ff9f0a',
   },
 
 });

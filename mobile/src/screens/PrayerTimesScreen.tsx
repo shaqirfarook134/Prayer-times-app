@@ -23,6 +23,7 @@ import { RootStackParamList, TabParamList, PrayerTimes, Masjid, Prayer, PrayerTi
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
+import * as Notifications from 'expo-notifications';
 import websocketService from '../services/websocket';
 import { useResponsive } from '../hooks/useResponsive';
 
@@ -299,6 +300,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
         loadData();
+        // Re-check OS permission status — user may have changed it in iOS Settings
+        checkNotificationStatus();
       }
       previousAppState = nextAppState;
     });
@@ -350,11 +353,13 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      const syncMasjidFromStorage = async () => {
+      const syncOnFocus = async () => {
         const storedId = await storageService.getSelectedMasjidId();
         setIsDefaultMasjid(storedId === activeMasjidId && storedId !== null && storedId !== 0);
         // Scroll to top on every focus
         scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+        // Re-check OS notification permission (user may have changed it in Settings)
+        checkNotificationStatus();
         // Browse screen never overrides activeMasjidId from storage
         if (isBrowseScreen) return;
         if (storedId && storedId !== activeMasjidId) {
@@ -365,7 +370,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
           setActiveMasjidId(storedId);
         }
       };
-      syncMasjidFromStorage();
+      syncOnFocus();
     }, [activeMasjidId])
   );
 
@@ -381,6 +386,27 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     } catch {
       setNotificationPermissionDenied(true);
     }
+  };
+
+  // Silently check current OS permission status — no prompt.
+  // Called on every app foreground and screen focus so the UI reflects
+  // whatever the user changed in iOS Settings.
+  const checkNotificationStatus = async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      const osGranted = status === 'granted';
+      setNotificationPermissionDenied(!osGranted);
+      // If OS permission was just re-granted and in-app setting is still on,
+      // reschedule notifications immediately.
+      if (osGranted) {
+        const inAppEnabled = await storageService.getNotificationsEnabled();
+        setNotificationsEnabled(inAppEnabled);
+        if (inAppEnabled && prayerTimes && masjid && !isSchedulingNotificationsRef.current) {
+          await storageService.setLastNotificationScheduledDate('');
+          await notificationService.schedulePrayerNotifications(prayerTimes, masjid.name);
+        }
+      }
+    } catch { /* non-critical */ }
   };
 
   const loadData = async () => {
