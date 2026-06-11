@@ -11,16 +11,22 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useFocusEffect } from '@react-navigation/native';
+import { CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TabParamList, Masjid } from '../types';
+import { TabParamList, RootStackParamList, Masjid } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import { useResponsive } from '../hooks/useResponsive';
 
-type FindMasjidScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'FindMasjid'>;
+// Composite type gives access to both tab methods AND root stack methods
+// so we can push PrayerTimesBrowse onto the root stack directly.
+type FindMasjidScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'FindMasjid'>,
+  StackNavigationProp<RootStackParamList>
+>;
 
 interface Props {
   navigation: FindMasjidScreenNavigationProp;
@@ -303,11 +309,9 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
       } catch { /* ignore */ }
       // Remember we're going into browse mode so we can restore scroll on return
       returningFromBrowse.current = true;
-      // Navigate into the nested PrayerTimesBrowse stack screen — gets native swipe-back
-      navigation.navigate('PrayerTimes', {
-        screen: 'PrayerTimesBrowse',
-        params: { masjidId: masjid.id },
-      } as any);
+      // Push PrayerTimesBrowse onto the ROOT stack — this gives native iOS swipe-back
+      // that returns to the tabs (FindMasjid active) rather than another prayer screen.
+      navigation.navigate('PrayerTimesBrowse', { masjidId: masjid.id });
     } catch (err) {
       console.error('Error selecting masjid:', err);
     } finally {

@@ -57,20 +57,16 @@ export interface AppStorage {
 // Navigation Types
 import { NavigatorScreenParams } from '@react-navigation/native';
 
+// Root stack: tabs + PrayerTimesBrowse as a full-screen overlay.
+// Swipe-back on PrayerTimesBrowse pops it off the root stack → tabs resume
+// with FindMasjid active (the screen the user navigated from).
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<TabParamList> | undefined;
+  PrayerTimesBrowse: { masjidId: number };
 };
 
 export type TabParamList = {
   FindMasjid: undefined;
-  PrayerTimes: NavigatorScreenParams<PrayerTimesStackParamList> | undefined;
+  PrayerTimes: { masjidId: number } | undefined;
   QiblaCompass: undefined;
-};
-
-// Nested stack inside the PrayerTimes tab
-// PrayerTimesHome — default masjid view, no back gesture
-// PrayerTimesBrowse — browsing a non-default masjid, native swipe-back enabled
-export type PrayerTimesStackParamList = {
-  PrayerTimesHome: { masjidId: number };
-  PrayerTimesBrowse: { masjidId: number };
 };

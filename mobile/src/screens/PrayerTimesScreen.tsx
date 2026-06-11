@@ -15,19 +15,29 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { RouteProp, useFocusEffect } from '@react-navigation/native';
+import { CompositeNavigationProp, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { PrayerTimesStackParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { RootStackParamList, TabParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
 import websocketService from '../services/websocket';
 import { useResponsive } from '../hooks/useResponsive';
 
-type PrayerTimesScreenNavigationProp = StackNavigationProp<PrayerTimesStackParamList>;
+// PrayerTimesScreen is used in two contexts:
+//   1. As the PrayerTimes tab screen (inside Tab.Navigator)
+//   2. As PrayerTimesBrowse on the root Stack.Navigator
+// Both receive { masjidId: number } as route params.
+// The composite type gives access to root stack methods (navigate, goBack)
+// AND tab methods from either context.
+type PrayerTimesScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<RootStackParamList, 'PrayerTimesBrowse'>,
+  BottomTabNavigationProp<TabParamList>
+>;
 type PrayerTimesScreenRouteProp =
-  | RouteProp<PrayerTimesStackParamList, 'PrayerTimesHome'>
-  | RouteProp<PrayerTimesStackParamList, 'PrayerTimesBrowse'>;
+  | RouteProp<RootStackParamList, 'PrayerTimesBrowse'>
+  | RouteProp<TabParamList, 'PrayerTimes'>;
 
 interface Props {
   navigation: PrayerTimesScreenNavigationProp;
@@ -227,7 +237,7 @@ const PrayerCard: React.FC<PrayerCardProps> = ({ name, time, isNext, isAdhan }) 
 
 // ── Main screen ──
 const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { masjidId } = route.params;
+  const masjidId = (route.params as any)?.masjidId ?? 0;
   const { isTablet } = useResponsive();
   const [activeMasjidId, setActiveMasjidId] = useState<number>(masjidId);
   const insets = useSafeAreaInsets();
@@ -515,10 +525,10 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         setIsDefaultMasjid(true);
         Animated.timing(ctaFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       });
-      // If on the browse screen, navigate to FindMasjid tab after the animation
-      // (goBack() would return to PrayerTimesHome which looks like the same page)
+      // If on the browse screen, pop off the root stack — returns to tabs with
+      // FindMasjid still active (the tab the user navigated from).
       if (isBrowseScreen) {
-        setTimeout(() => navigation.getParent()?.navigate('FindMasjid'), 400);
+        setTimeout(() => navigation.goBack(), 400);
       }
     } catch (err) {
       console.error('Error setting default masjid:', err);
@@ -543,8 +553,13 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   }).start();
 
   const changeMasjid = () => {
-    // Navigate to FindMasjid tab via the parent tab navigator
-    navigation.getParent()?.navigate('FindMasjid');
+    if (isBrowseScreen) {
+      // On root stack — just go back to tabs (FindMasjid was active)
+      navigation.goBack();
+    } else {
+      // On tab screen — navigate to FindMasjid tab
+      navigation.navigate('FindMasjid');
+    }
   };
 
   if (loading) {
@@ -564,7 +579,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: '#007AFF', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32 }}
-          onPress={() => navigation.getParent()?.navigate('FindMasjid')}
+          onPress={() => navigation.navigate('FindMasjid')}
         >
           <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Find a Masjid</Text>
         </TouchableOpacity>
@@ -590,7 +605,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Back button — frosted pill, visible only on the browse stack screen */}
         {isBrowseScreen && (
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.getParent()?.navigate('FindMasjid')} activeOpacity={0.75}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.75}>
             <Text style={styles.backChevron}>‹</Text>
             <Text style={styles.backLabel}>Masjid List</Text>
           </TouchableOpacity>
