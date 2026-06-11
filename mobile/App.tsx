@@ -77,6 +77,11 @@ const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   );
 };
 
+// Stable module-level render function for the tab bar.
+// React Navigation calls tabBar as a render function (not as a mounted component),
+// so IOSTabBar must be rendered as JSX (not called directly) to preserve hook context.
+const renderIOSTabBar = (props: BottomTabBarProps) => <IOSTabBar {...props} />;
+
 // ── Main tab navigator ────────────────────────────────────────────────────────
 // Module level — never recreated on re-renders.
 // initialTab and initialMasjidId are resolved by App before this mounts,
@@ -86,14 +91,14 @@ interface MainTabsProps {
   initialMasjidId: number;
 }
 
-const MainTabs = React.memo(({ initialTab, initialMasjidId }: MainTabsProps) => {
+function MainTabs({ initialTab, initialMasjidId }: MainTabsProps) {
   const isIOS = Platform.OS === 'ios';
   const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
       // Pass component reference directly — stable, no new function on re-renders.
-      tabBar={isIOS ? IOSTabBar : undefined}
+      tabBar={isIOS ? renderIOSTabBar : undefined}
       screenOptions={{
         headerShown: false,
         animation: 'fade',
@@ -150,20 +155,23 @@ const MainTabs = React.memo(({ initialTab, initialMasjidId }: MainTabsProps) => 
       />
     </Tab.Navigator>
   );
-});
+}
 
 // Module-level config — set once by App before NavigationContainer mounts.
 // MainTabsScreen reads from here so we avoid passing through initialParams
 // (which would require widening RootStackParamList, fighting the TS type).
 const _mainTabsConfig = { initialTab: 'FindMasjid' as keyof TabParamList, initialMasjidId: 0 };
 
-// Stable module-level component reference — React Navigation requires this.
-const MainTabsScreen = () => (
-  <MainTabs
-    initialTab={_mainTabsConfig.initialTab}
-    initialMasjidId={_mainTabsConfig.initialMasjidId}
-  />
-);
+// Stable module-level component — React Navigation requires a stable reference.
+// Reads initial values from _mainTabsConfig, which App sets before mounting the navigator.
+function MainTabsScreen() {
+  return (
+    <MainTabs
+      initialTab={_mainTabsConfig.initialTab}
+      initialMasjidId={_mainTabsConfig.initialMasjidId}
+    />
+  );
+}
 
 // ── Root app ──────────────────────────────────────────────────────────────────
 export default function App() {
