@@ -63,6 +63,14 @@ export type RootStackParamList = {
 
 export type TabParamList = {
   FindMasjid: undefined;
-  PrayerTimes: { masjidId: number };
+  PrayerTimes: NavigatorScreenParams<PrayerTimesStackParamList> | undefined;
   QiblaCompass: undefined;
+};
+
+// Nested stack inside the PrayerTimes tab
+// PrayerTimesHome — default masjid view, no back gesture
+// PrayerTimesBrowse — browsing a non-default masjid, native swipe-back enabled
+export type PrayerTimesStackParamList = {
+  PrayerTimesHome: { masjidId: number };
+  PrayerTimesBrowse: { masjidId: number };
 };

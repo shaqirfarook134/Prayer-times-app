@@ -303,7 +303,11 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
       } catch { /* ignore */ }
       // Remember we're going into browse mode so we can restore scroll on return
       returningFromBrowse.current = true;
-      navigation.navigate('PrayerTimes', { masjidId: masjid.id });
+      // Navigate into the nested PrayerTimesBrowse stack screen — gets native swipe-back
+      navigation.navigate('PrayerTimes', {
+        screen: 'PrayerTimesBrowse',
+        params: { masjidId: masjid.id },
+      } as any);
     } catch (err) {
       console.error('Error selecting masjid:', err);
     } finally {
