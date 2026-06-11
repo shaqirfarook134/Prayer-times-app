@@ -10,6 +10,7 @@ import {
   AppState,
   Animated,
   Platform,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -241,6 +242,9 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isDefaultMasjid, setIsDefaultMasjid] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
+  const [showBackButton, setShowBackButton] = useState(false);
+
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const hasAttemptedRefresh = useRef(false);
   const isLoadingRef = useRef(false);
@@ -336,6 +340,9 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       const syncMasjidFromStorage = async () => {
         const storedId = await storageService.getSelectedMasjidId();
         setIsDefaultMasjid(storedId === activeMasjidId && storedId !== null && storedId !== 0);
+        setShowBackButton(isBrowsingRef.current);
+        // Scroll to top on every focus
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
         // Skip override if user is browsing a masjid they tapped from FindMasjid
         if (isBrowsingRef.current) return;
         if (storedId && storedId !== activeMasjidId) {
@@ -505,10 +512,25 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
       if (masjid) await notificationService.registerDevice(activeMasjidId);
       isBrowsingRef.current = false; // no longer browsing — this is now the default
       setIsDefaultMasjid(true);
+      setShowBackButton(false);
     } catch (err) {
       console.error('Error setting default masjid:', err);
     } finally {
       setSavingDefault(false);
+    }
+  };
+
+  // Combined CTA: branches based on isDefaultMasjid + notificationsEnabled
+  const handlePrimaryCTA = async () => {
+    if (savingDefault) return;
+    const needsDefault = !isDefaultMasjid;
+    const needsNotifs = !notificationsEnabled;
+
+    if (needsDefault) {
+      await setAsDefault();
+    }
+    if (needsNotifs) {
+      await toggleNotifications(true);
     }
   };
 
@@ -557,6 +579,14 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Gold radial glow */}
         <View style={styles.heroGlow} pointerEvents="none" />
 
+        {/* Back button — visible only when browsing a non-default masjid */}
+        {showBackButton && (
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('FindMasjid')} activeOpacity={0.7}>
+            <Text style={styles.backChevron}>‹</Text>
+            <Text style={styles.backLabel}>Masjid List</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Location */}
         <View style={styles.locationRow}>
           <View style={styles.locationDot} />
@@ -602,6 +632,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* ── Scrollable content below hero ── */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollArea}
         contentContainerStyle={{ paddingBottom: tabBarClearance + 8 }}
         showsVerticalScrollIndicator={false}
@@ -619,8 +650,8 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text style={styles.notifBannerText} numberOfLines={2}>
               Notification permissions denied. Enable in Settings to receive prayer alerts.
             </Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={requestNotificationPermissions}>
-              <Text style={styles.retryBtnText}>Retry</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => Linking.openSettings()}>
+              <Text style={styles.retryBtnText}>Open Settings</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -641,29 +672,46 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* ── Settings ── */}
         <View style={styles.settingsCard}>
-          <View style={styles.settingRow}>
-            <View>
-              <Text style={styles.settingTitle}>Prayer notifications</Text>
-              <Text style={styles.settingDesc}>Adhan and iqama reminders</Text>
-            </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={toggleNotifications}
-              trackColor={{ false: 'rgba(255,255,255,0.12)', true: '#34c759' }}
-              thumbColor="#fff"
-            />
-          </View>
-          <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' }]}>
-            {isDefaultMasjid ? (
-              <View style={styles.alreadyDefaultRow}>
-                <View style={styles.checkCircle}>
-                  <Text style={styles.checkCircleText}>✓</Text>
-                </View>
-                <Text style={styles.alreadyDefaultText}>Your current masjid</Text>
+          {/* Toggle row — only shown when masjid is default AND notifications are on */}
+          {isDefaultMasjid && notificationsEnabled && (
+            <View style={styles.settingRow}>
+              <View>
+                <Text style={styles.settingTitle}>Prayer notifications</Text>
+                <Text style={styles.settingDesc}>Adhan and iqama reminders</Text>
               </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
+                trackColor={{ false: 'rgba(255,255,255,0.12)', true: '#34c759' }}
+                thumbColor="#fff"
+              />
+            </View>
+          )}
+
+          {/* Combined CTA button */}
+          <View style={[styles.ctaWrap, isDefaultMasjid && notificationsEnabled && styles.ctaWrapBorder]}>
+            {isDefaultMasjid && notificationsEnabled ? (
+              // State 4: all done — greyed non-interactive
+              <View style={styles.ctaBtnDone}>
+                <Text style={styles.ctaDoneText}>✓  Your current masjid</Text>
+              </View>
+            ) : isDefaultMasjid && !notificationsEnabled ? (
+              // State 3: default masjid, notifs off — green enable button
+              <TouchableOpacity style={styles.ctaBtnGreen} onPress={handlePrimaryCTA} disabled={savingDefault} activeOpacity={0.85}>
+                <Text style={styles.ctaMainText}>Enable prayer alerts</Text>
+                <Text style={styles.ctaSubText}>Adhan and iqama reminders</Text>
+              </TouchableOpacity>
+            ) : notificationsEnabled ? (
+              // State 2: browsing, notifs already on — blue set-only button
+              <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} disabled={savingDefault} activeOpacity={0.85}>
+                <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
+                <Text style={styles.ctaSubText}>Alerts will switch to this masjid</Text>
+              </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.setDefaultBtn} onPress={setAsDefault} disabled={savingDefault} activeOpacity={0.8}>
-                <Text style={styles.setDefaultBtnText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
+              // State 1: browsing, notifs off — blue set + enable button
+              <TouchableOpacity style={styles.ctaBtnBlue} onPress={handlePrimaryCTA} disabled={savingDefault} activeOpacity={0.85}>
+                <Text style={styles.ctaMainText}>{savingDefault ? 'Saving…' : 'Set as my masjid'}</Text>
+                <Text style={styles.ctaSubText}>Prayer alerts will be enabled</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -985,45 +1033,83 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Change Masjid ──
-  setDefaultBtn: {
-    flex: 1,
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  setDefaultBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  alreadyDefaultRow: {
-    flex: 1,
+  // ── Back button (browse mode) ──
+  backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 11,
+    gap: 2,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
   },
-  checkCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(52,199,89,0.2)',
+  backChevron: {
+    fontSize: 22,
+    color: '#60a5fa',
+    fontWeight: '300',
+    lineHeight: 24,
+  },
+  backLabel: {
+    fontSize: 16,
+    color: '#60a5fa',
+    fontWeight: '400',
+  },
+
+  // ── Combined CTA ──
+  ctaWrap: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  ctaWrapBorder: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.07)',
+  },
+  ctaBtnBlue: {
+    backgroundColor: '#007AFF',
+    borderRadius: 13,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    justifyContent: 'center',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  checkCircleText: {
-    fontSize: 10,
-    color: '#34c759',
-    fontWeight: '700',
+  ctaBtnGreen: {
+    backgroundColor: '#34c759',
+    borderRadius: 13,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    shadowColor: '#34c759',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  alreadyDefaultText: {
+  ctaBtnDone: {
+    backgroundColor: 'rgba(52,199,89,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(52,199,89,0.22)',
+    borderRadius: 13,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  ctaMainText: {
     fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  ctaSubText: {
+    fontSize: 11,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.72)',
+    marginTop: 2,
+  },
+  ctaDoneText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(52,199,89,0.85)',
   },
 
   changeMasjidBtn: {
