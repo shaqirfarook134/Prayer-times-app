@@ -3,7 +3,6 @@ import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
@@ -25,14 +24,26 @@ const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 const PrayerTimesStack = createStackNavigator<PrayerTimesStackParamList>();
 
-// Nested stack inside the PrayerTimes tab.
-// PrayerTimesHome = default view (no swipe-back, no back button).
-// PrayerTimesBrowse = pushed when user taps a masjid in FindMasjid
-//   → gets native iOS horizontal swipe-back for free.
+// Track app startup time
+const APP_START_TIME = Date.now();
+
+// ── Nested stack inside the PrayerTimes tab ──────────────────────────────────
+// Defined at module level — NEVER inside a component — so React Navigation
+// never sees a new component reference on re-render (which causes white screens).
+// PrayerTimesHome = default view, no swipe-back gesture.
+// PrayerTimesBrowse = pushed when user taps a masjid from FindMasjid;
+//   gets native iOS horizontal swipe-back gesture automatically.
 const PrayerTimesNavigator = ({ route }: any) => {
   const initialMasjidId = route?.params?.masjidId ?? 0;
   return (
-    <PrayerTimesStack.Navigator screenOptions={{ headerShown: false, gestureEnabled: false }}>
+    <PrayerTimesStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: false,
+        // Dark background prevents white flash between stack transitions
+        cardStyle: { backgroundColor: '#0d0d14' },
+      }}
+    >
       <PrayerTimesStack.Screen
         name="PrayerTimesHome"
         component={PrayerTimesScreen}
@@ -45,6 +56,7 @@ const PrayerTimesNavigator = ({ route }: any) => {
           gestureEnabled: true,
           gestureDirection: 'horizontal',
           cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+          cardStyle: { backgroundColor: '#0d0d14' },
           transitionSpec: {
             open:  { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
             close: { animation: 'spring', config: { stiffness: 1000, damping: 500, mass: 3, overshootClamping: true, restDisplacementThreshold: 10, restSpeedThreshold: 10 } },
@@ -55,42 +67,175 @@ const PrayerTimesNavigator = ({ route }: any) => {
   );
 };
 
-// Track app startup time
-const APP_START_TIME = Date.now();
+// ── Custom iOS tab bar ────────────────────────────────────────────────────────
+// Also at module level to avoid recreation on App re-renders.
+const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
+  const insets = useSafeAreaInsets();
 
+  const TAB_ICONS: Record<string, { focused: string; outline: string }> = {
+    FindMasjid:    { focused: 'search',  outline: 'search-outline'  },
+    PrayerTimes:   { focused: 'time',    outline: 'time-outline'    },
+    QiblaCompass:  { focused: 'compass', outline: 'compass-outline' },
+  };
+  const TAB_LABELS: Record<string, string> = {
+    FindMasjid:   'Find Masjid',
+    PrayerTimes:  'Prayer Times',
+    QiblaCompass: 'Qibla',
+  };
+
+  const activeFocusedColor = '#FFFFFF';
+  const inactiveColor = 'rgba(255,255,255,0.45)';
+
+  const inner = (
+    <View style={tabBarStyles.row}>
+      {state.routes.map((route, index) => {
+        const focused = state.index === index;
+        const icons = TAB_ICONS[route.name] ?? { focused: 'ellipse', outline: 'ellipse-outline' };
+        const color = focused ? activeFocusedColor : inactiveColor;
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={focused ? { selected: true } : {}}
+            onPress={() => {
+              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+            }}
+            style={tabBarStyles.tab}
+          >
+            {focused && <View style={tabBarStyles.activePill} />}
+            <Ionicons name={focused ? icons.focused : icons.outline as any} size={22} color={color} />
+            <Text style={[tabBarStyles.label, { color }]}>{TAB_LABELS[route.name]}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  return (
+    <View style={[tabBarStyles.wrapper, { bottom: insets.bottom + 10 }]}>
+      <BlurView tint="dark" intensity={90} style={tabBarStyles.pill}>
+        {inner}
+      </BlurView>
+    </View>
+  );
+};
+
+// ── Main tab navigator ────────────────────────────────────────────────────────
+// At module level for the same reason as above.
+const MainTabs = ({ route }: any) => {
+  const paramMasjidId = route?.params?.params?.masjidId;
+  const [initialMasjidId, setInitialMasjidId] = useState<number>(paramMasjidId || 0);
+  const [initialTab, setInitialTab] = useState<string | null>(null);
+  const isIOS = Platform.OS === 'ios';
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    storageService.getSelectedMasjidId().then(id => {
+      if (id && id !== 0) {
+        setInitialMasjidId(id);
+        setInitialTab('PrayerTimes');
+      } else {
+        setInitialTab('FindMasjid');
+      }
+    });
+  }, []);
+
+  // Wait for storage check before rendering navigator so initialRouteName is correct
+  if (initialTab === null) return null;
+
+  return (
+    <Tab.Navigator
+      tabBar={isIOS ? (props) => <IOSTabBar {...props} /> : undefined}
+      screenOptions={{
+        headerShown: false,
+        // Crossfade between tabs — sceneContainerStyle keeps background dark
+        // so there is no white flash during the fade.
+        animation: 'fade',
+        sceneStyle: { backgroundColor: '#0d0d14' },
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: '#8E8E93',
+        // Android flat tab bar with safe area inset
+        tabBarStyle: isIOS ? { display: 'none' } : {
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#E5E5EA',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          elevation: 8,
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom + 4,
+          paddingTop: 6,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '500',
+          letterSpacing: 0.2,
+        },
+      }}
+      initialRouteName={initialTab as any}
+    >
+      <Tab.Screen
+        name="FindMasjid"
+        component={FindMasjidScreen}
+        options={{
+          tabBarLabel: 'Find Masjid',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'search' : 'search-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="PrayerTimes"
+        component={PrayerTimesNavigator}
+        options={{
+          tabBarLabel: 'Prayer Times',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
+          ),
+        }}
+        initialParams={{ screen: 'PrayerTimesHome', params: { masjidId: initialMasjidId } } as any}
+      />
+      <Tab.Screen
+        name="QiblaCompass"
+        component={QiblaCompassScreen}
+        options={{
+          tabBarLabel: 'Qibla',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'compass' : 'compass-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+// ── Root app ──────────────────────────────────────────────────────────────────
 export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       const initStartTime = Date.now();
       console.log('⏱️  [PERF] App initialization started');
 
-      // Request notification permissions on app start (non-blocking, delayed)
       setTimeout(() => {
         notificationService.requestPermissions().catch(console.error);
       }, 500);
 
-      // Register daily background task for 12:30 AM prayer time refresh (non-blocking, delayed)
       setTimeout(() => {
         backgroundTaskService.registerDailyPrayerRefresh().catch(console.error);
       }, 1000);
 
-      // Connect to WebSocket for real-time updates (non-blocking - runs in background)
       console.log('🌐 Initializing global WebSocket connection...');
-      // Delay WebSocket connection to allow UI to render first
       setTimeout(() => {
         websocketService.connect();
       }, 1500);
 
-      // Log initialization completion time
       const initEndTime = Date.now();
-      const initDuration = initEndTime - initStartTime;
-      console.log(`⏱️  [PERF] App initialization completed in ${initDuration}ms`);
+      console.log(`⏱️  [PERF] App initialization completed in ${initEndTime - initStartTime}ms`);
       console.log(`⏱️  [PERF] Total time from app start: ${initEndTime - APP_START_TIME}ms`);
     };
 
     initializeApp();
 
-    // Listen for network restoration and reconnect WebSocket
     const handleNetworkChange = (status: 'online' | 'offline' | 'connecting') => {
       if (status === 'online') {
         console.log('✅ Network restored - reconnecting WebSocket');
@@ -100,16 +245,11 @@ export default function App() {
     };
     networkService.addListener(handleNetworkChange);
 
-    // Add notification listeners
     const receivedSubscription = notificationService.addNotificationReceivedListener(
       async (notification) => {
         console.log('Notification received:', notification);
-
-        // If this is the daily refresh notification, update the cache only.
-        // Scheduling is handled exclusively by backgroundTasks.ts to avoid duplicates.
         if (notification.request.content.data?.type === 'daily_refresh') {
           console.log('🔄 Daily refresh notification received, updating cache...');
-
           const masjidId = await storageService.getSelectedMasjidId();
           if (masjidId) {
             try {
@@ -138,163 +278,21 @@ export default function App() {
     };
   }, []);
 
-  // Custom iOS tab bar using GlassView (true Liquid Glass on iOS 26+, BlurView fallback)
-  const IOSTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
-    const insets = useSafeAreaInsets();
-    const useGlass = isLiquidGlassAvailable();
-
-    const TAB_ICONS: Record<string, { focused: string; outline: string }> = {
-      FindMasjid:    { focused: 'search',  outline: 'search-outline'  },
-      PrayerTimes:   { focused: 'time',    outline: 'time-outline'    },
-      QiblaCompass:  { focused: 'compass', outline: 'compass-outline' },
-    };
-    const TAB_LABELS: Record<string, string> = {
-      FindMasjid:   'Find Masjid',
-      PrayerTimes:  'Prayer Times',
-      QiblaCompass: 'Qibla',
-    };
-
-    // Dark pill — white icons/labels visible on all screens including Qibla
-    const activeFocusedColor = '#FFFFFF';
-    const inactiveColor = 'rgba(255,255,255,0.45)';
-
-    const inner = (
-      <View style={tabBarStyles.row}>
-        {state.routes.map((route, index) => {
-          const focused = state.index === index;
-          const icons = TAB_ICONS[route.name] ?? { focused: 'ellipse', outline: 'ellipse-outline' };
-          const color = focused ? activeFocusedColor : inactiveColor;
-
-          return (
-            <TouchableOpacity
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={focused ? { selected: true } : {}}
-              onPress={() => {
-                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-              }}
-              style={tabBarStyles.tab}
-            >
-              {focused && <View style={tabBarStyles.activePill} />}
-              <Ionicons name={focused ? icons.focused : icons.outline as any} size={22} color={color} />
-              <Text style={[tabBarStyles.label, { color }]}>{TAB_LABELS[route.name]}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-
-    return (
-      <View style={[tabBarStyles.wrapper, { bottom: insets.bottom + 10 }]}>
-        <BlurView tint="dark" intensity={90} style={tabBarStyles.pill}>
-          {inner}
-        </BlurView>
-      </View>
-    );
-  };
-
-  const MainTabs = ({ route }: any) => {
-    const paramMasjidId = route?.params?.params?.masjidId;
-    const [initialMasjidId, setInitialMasjidId] = useState<number>(paramMasjidId || 0);
-    const [initialTab, setInitialTab] = useState<string | null>(null);
-    const isIOS = Platform.OS === 'ios';
-    const insets = useSafeAreaInsets();
-
-    useEffect(() => {
-      storageService.getSelectedMasjidId().then(id => {
-        if (id && id !== 0) {
-          setInitialMasjidId(id);
-          setInitialTab('PrayerTimes');
-        } else {
-          setInitialTab('FindMasjid');
-        }
-      });
-    }, []);
-
-    // Wait for storage check before rendering navigator so initialRouteName is correct
-    if (initialTab === null) return null;
-
-    return (
-      <Tab.Navigator
-        tabBar={isIOS ? (props) => <IOSTabBar {...props} /> : undefined}
-        screenOptions={{
-          headerShown: false,
-          animation: 'fade',
-          tabBarActiveTintColor: '#007AFF',
-          tabBarInactiveTintColor: '#8E8E93',
-          // Android flat tab bar with safe area inset
-          tabBarStyle: isIOS ? { display: 'none' } : {
-            backgroundColor: '#FFFFFF',
-            borderTopColor: '#E5E5EA',
-            borderTopWidth: StyleSheet.hairlineWidth,
-            elevation: 8,
-            height: 56 + insets.bottom,
-            paddingBottom: insets.bottom + 4,
-            paddingTop: 6,
-          },
-          tabBarLabelStyle: {
-            fontSize: 10,
-            fontWeight: '500',
-            letterSpacing: 0.2,
-          },
-        }}
-        initialRouteName={initialTab}
-      >
-        <Tab.Screen
-          name="FindMasjid"
-          component={FindMasjidScreen}
-          options={{
-            tabBarLabel: 'Find Masjid',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'search' : 'search-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="PrayerTimes"
-          component={PrayerTimesNavigator}
-          options={{
-            tabBarLabel: 'Prayer Times',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
-            ),
-          }}
-          initialParams={{ masjidId: initialMasjidId }}
-        />
-        <Tab.Screen
-          name="QiblaCompass"
-          component={QiblaCompassScreen}
-          options={{
-            tabBarLabel: 'Qibla',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'compass' : 'compass-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-      </Tab.Navigator>
-    );
-  };
-
   return (
     <SafeAreaProvider>
-    <ErrorBoundary>
-      <NavigationContainer
-        onReady={() => {
-          const navReadyTime = Date.now();
-          console.log(`⏱️  [PERF] Navigation ready in ${navReadyTime - APP_START_TIME}ms`);
-        }}
-      >
-        <StatusBar style="light" />
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
+      <ErrorBoundary>
+        <NavigationContainer
+          onReady={() => {
+            const navReadyTime = Date.now();
+            console.log(`⏱️  [PERF] Navigation ready in ${navReadyTime - APP_START_TIME}ms`);
           }}
         >
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </ErrorBoundary>
+          <StatusBar style="light" />
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

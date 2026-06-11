@@ -515,9 +515,10 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
         setIsDefaultMasjid(true);
         Animated.timing(ctaFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       });
-      // If browsing, go back to the home screen after saving
+      // If on the browse screen, navigate to FindMasjid tab after the animation
+      // (goBack() would return to PrayerTimesHome which looks like the same page)
       if (isBrowseScreen) {
-        setTimeout(() => navigation.goBack(), 350);
+        setTimeout(() => navigation.getParent()?.navigate('FindMasjid'), 400);
       }
     } catch (err) {
       console.error('Error setting default masjid:', err);
@@ -589,7 +590,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Back button — frosted pill, visible only on the browse stack screen */}
         {isBrowseScreen && (
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.75}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.getParent()?.navigate('FindMasjid')} activeOpacity={0.75}>
             <Text style={styles.backChevron}>‹</Text>
             <Text style={styles.backLabel}>Masjid List</Text>
           </TouchableOpacity>
