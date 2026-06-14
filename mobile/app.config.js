@@ -38,7 +38,7 @@ module.exports = {
   expo: {
     name: IS_DEV ? 'My Masjid Dev' : 'My Masjid App',
     slug: 'mymasjid',
-    version: '1.7.4',
+    version: '1.7.5',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -92,12 +92,14 @@ module.exports = {
         }
       ],
       withRemoveForegroundService,
+      '@sentry/react-native/expo',
     ],
     extra: {
       isDev: IS_DEV,
       apiUrl: IS_DEV
         ? 'http://localhost:3000'
         : 'https://api.altaqwa.org.au',
+      sentryDsn: 'https://1a1b064b8d659dfca866fea0e098e222@o4511566264860672.ingest.us.sentry.io/4511566268203009',
       eas: {
         projectId: 'b828c5f0-5109-4b00-b058-b8e6211e632d'
       }
