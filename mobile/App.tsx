@@ -1,3 +1,13 @@
+import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
+
+Sentry.init({
+  dsn: Constants.expoConfig?.extra?.sentryDsn,
+  enabled: !__DEV__,
+  tracesSampleRate: 0, // disable performance tracing — saves free quota for errors only
+  attachStacktrace: true,
+});
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Platform, StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -205,7 +215,7 @@ function MainTabsScreen() {
 }
 
 // ── Root app ──────────────────────────────────────────────────────────────────
-export default function App() {
+function App() {
   // Resolve storage BEFORE mounting NavigationContainer so the navigator tree
   // is built once with the correct initialRouteName — no remount, no white screen.
   const [appReady, setAppReady] = useState(false);
@@ -389,3 +399,5 @@ const tabBarStyles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 });
+
+export default Sentry.wrap(App);

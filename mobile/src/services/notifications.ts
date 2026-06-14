@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import * as Sentry from '@sentry/react-native';
 import { Platform, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
 import { PrayerTimes } from '../types';
@@ -170,6 +171,12 @@ class NotificationService {
       const { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') {
         console.error('❌ Notification permissions not granted. Status:', status);
+        Sentry.addBreadcrumb({
+          category: 'notifications',
+          message: 'Scheduling skipped — permission not granted',
+          level: 'warning',
+          data: { status },
+        });
         return false;
       }
 
@@ -192,9 +199,15 @@ class NotificationService {
       this.lastScheduledTimestamp = Date.now();
 
       console.log(`✅ All prayer notifications scheduled successfully`);
+      Sentry.addBreadcrumb({
+        category: 'notifications',
+        message: 'Prayer notifications scheduled successfully',
+        level: 'info',
+      });
       return true;
     } catch (error) {
       console.error('❌ Error scheduling notifications:', error);
+      Sentry.captureException(error, { tags: { type: 'notification_scheduling_failed' } });
       return false;
     } finally {
       this.isScheduling = false;

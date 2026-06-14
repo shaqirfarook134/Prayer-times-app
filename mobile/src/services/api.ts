@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import * as Sentry from '@sentry/react-native';
 import { Masjid, PrayerTimes, RegisterDeviceRequest, UpdateDeviceRequest } from '../types';
 
 // Production API URL (with PostgreSQL database)
@@ -61,6 +62,13 @@ class ApiService {
 
       if (retryCount >= this.MAX_RETRIES) {
         console.error(`Max retries (${this.MAX_RETRIES}) reached, giving up`);
+        Sentry.addBreadcrumb({
+          category: 'api',
+          message: `Request failed after ${this.MAX_RETRIES} retries`,
+          level: 'error',
+          data: { url: error.config?.url, status: error.response?.status },
+        });
+        Sentry.captureException(error, { tags: { type: 'api_retry_exhausted' } });
         throw error;
       }
 
