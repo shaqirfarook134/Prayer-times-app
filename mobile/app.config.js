@@ -38,7 +38,7 @@ module.exports = {
   expo: {
     name: IS_DEV ? 'My Masjid Dev' : 'My Masjid App',
     slug: 'mymasjid',
-    version: '1.8.0',
+    version: '1.9.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -92,7 +92,6 @@ module.exports = {
         }
       ],
       withRemoveForegroundService,
-      ['@sentry/react-native/expo', { uploadSourceMaps: false }],
     ],
     extra: {
       isDev: IS_DEV,
