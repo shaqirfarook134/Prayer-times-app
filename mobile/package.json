@@ -48,5 +48,12 @@
     "babel-plugin-transform-remove-console": "^6.9.4",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "exclude": ["@sentry/react-native"]
+      }
+    }
+  }
 }

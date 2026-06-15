@@ -26,6 +26,7 @@ import Constants from 'expo-constants';
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
   enabled: !__DEV__,
+  enableNative: false,
   tracesSampleRate: 0,
   attachStacktrace: true,
   release: `${Constants.expoConfig?.ios?.bundleIdentifier}@${Constants.expoConfig?.version}`,
