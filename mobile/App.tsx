@@ -20,18 +20,6 @@ import backgroundTaskService from './src/services/backgroundTasks';
 import apiService from './src/services/api';
 import storageService from './src/services/storage';
 import networkService from './src/services/network';
-import * as Sentry from '@sentry/react-native';
-import Constants from 'expo-constants';
-
-// Sentry must be initialised after all native module imports are resolved.
-Sentry.init({
-  dsn: Constants.expoConfig?.extra?.sentryDsn,
-  enabled: !__DEV__,
-  tracesSampleRate: 0,
-  attachStacktrace: true,
-  release: `${Constants.expoConfig?.ios?.bundleIdentifier}@${Constants.expoConfig?.version}`,
-  dist: Constants.expoConfig?.version,
-});
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -402,4 +390,4 @@ const tabBarStyles = StyleSheet.create({
   },
 });
 
-export default Sentry.wrap(App);
+export default App;
