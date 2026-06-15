@@ -6,6 +6,11 @@ Sentry.init({
   enabled: !__DEV__,
   tracesSampleRate: 0, // disable performance tracing — saves free quota for errors only
   attachStacktrace: true,
+  // release + dist lets Sentry show per-version adoption, crash-free session rates,
+  // and which release introduced a regression.
+  // Format: "com.shaqirfarook.mymasjid@1.7.5" matches App Store Connect versioning.
+  release: `${Constants.expoConfig?.ios?.bundleIdentifier}@${Constants.expoConfig?.version}`,
+  dist: Constants.expoConfig?.version,
 });
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
