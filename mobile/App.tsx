@@ -1,18 +1,3 @@
-import * as Sentry from '@sentry/react-native';
-import Constants from 'expo-constants';
-
-Sentry.init({
-  dsn: Constants.expoConfig?.extra?.sentryDsn,
-  enabled: !__DEV__,
-  tracesSampleRate: 0, // disable performance tracing — saves free quota for errors only
-  attachStacktrace: true,
-  // release + dist lets Sentry show per-version adoption, crash-free session rates,
-  // and which release introduced a regression.
-  // Format: "com.shaqirfarook.mymasjid@1.7.5" matches App Store Connect versioning.
-  release: `${Constants.expoConfig?.ios?.bundleIdentifier}@${Constants.expoConfig?.version}`,
-  dist: Constants.expoConfig?.version,
-});
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Platform, StyleSheet, View, Text, TouchableOpacity, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -35,6 +20,18 @@ import backgroundTaskService from './src/services/backgroundTasks';
 import apiService from './src/services/api';
 import storageService from './src/services/storage';
 import networkService from './src/services/network';
+import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
+
+// Sentry must be initialised after all native module imports are resolved.
+Sentry.init({
+  dsn: Constants.expoConfig?.extra?.sentryDsn,
+  enabled: !__DEV__,
+  tracesSampleRate: 0,
+  attachStacktrace: true,
+  release: `${Constants.expoConfig?.ios?.bundleIdentifier}@${Constants.expoConfig?.version}`,
+  dist: Constants.expoConfig?.version,
+});
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
