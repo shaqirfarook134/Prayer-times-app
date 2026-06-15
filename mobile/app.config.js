@@ -92,7 +92,7 @@ module.exports = {
         }
       ],
       withRemoveForegroundService,
-      '@sentry/react-native/expo',
+      ['@sentry/react-native/expo', { uploadSourceMaps: false }],
     ],
     extra: {
       isDev: IS_DEV,
