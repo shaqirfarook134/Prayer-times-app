@@ -99,7 +99,16 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		return prayerTimes, nil
 	}
 
-	// Method 0c: Emir Sultan Mosque via ezanvakti API
+	// Method 0c: TheMasjidApp (themasjidapp.org)
+	if strings.Contains(url, "themasjidapp.org") {
+		prayerTimes, err := s.extractFromTheMasjidApp(html, timezone)
+		if err != nil {
+			return nil, fmt.Errorf("themasjidapp scraper failed: %w", err)
+		}
+		return prayerTimes, nil
+	}
+
+	// Method 0d: Emir Sultan Mosque via ezanvakti API
 	if strings.Contains(url, "emirsultanmosque.com") {
 		prayerTimes, err := s.extractFromEmirSultan(ctx, timezone)
 		if err == nil {
@@ -415,6 +424,78 @@ func (s *Scraper) extractFromMasjidbox(ctx context.Context, masjidboxURL, timezo
 	}
 
 	return nil, fmt.Errorf("masjidbox: no entry found for %s in timetable", todayStr)
+}
+
+// extractFromTheMasjidApp extracts prayer times from themasjidapp.org embedded pages.
+// The page renders a React table where each row follows the pattern:
+//
+//	<!-- -->PrayerName</td><td>H:MM<span>AM|PM</span></td><td>H:MM<span>AM|PM</span>
+//
+// The first time column is Adhan, the second is Iqama (may be "—" if not set).
+func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	// Match: <!-- -->PrayerName</td><td ...>H:MM<span ...>AM|PM</span></td><td ...>H:MM|—<span
+	re := regexp.MustCompile(`-->(\w+)</td><td[^>]*>(\d{1,2}:\d{2})<span[^>]*>(AM|PM)</span></td><td[^>]*>(\d{1,2}:\d{2}|—)`)
+	matches := re.FindAllStringSubmatch(html, -1)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("themasjidapp: no prayer time rows found in HTML")
+	}
+
+	pt := &models.ScrapedPrayerTimes{Date: today}
+
+	for _, m := range matches {
+		name := m[1]
+		rawTime := m[2] + " " + m[3] // e.g. "5:54 AM"
+		rawIqama := m[4]              // e.g. "6:14" or "—"
+
+		adhan, err := parseTime12or24(rawTime)
+		if err != nil {
+			continue
+		}
+
+		// Iqama column has no AM/PM span — infer from adhan (same hour window)
+		var iqama string
+		if rawIqama != "—" && rawIqama != "" {
+			// Prepend AM/PM from adhan to parse correctly
+			iqamaParsed, err := parseTime12or24(rawIqama + " " + m[3])
+			if err == nil {
+				// Sanity check: iqama should be >= adhan (same prayer window)
+				if timeToMinutes(iqamaParsed) >= timeToMinutes(adhan) {
+					iqama = iqamaParsed
+				}
+			}
+		}
+
+		switch strings.ToLower(name) {
+		case "fajr":
+			pt.Fajr = adhan
+			pt.FajrIqama = iqama
+		case "dhuhr", "zuhr":
+			pt.Dhuhr = adhan
+			pt.DhuhrIqama = iqama
+		case "asr":
+			pt.Asr = adhan
+			pt.AsrIqama = iqama
+		case "maghrib":
+			pt.Maghrib = adhan
+			pt.MaghribIqama = iqama
+		case "isha":
+			pt.Isha = adhan
+			pt.IshaIqama = iqama
+		}
+	}
+
+	if err := s.validatePrayerTimes(pt); err != nil {
+		return nil, fmt.Errorf("themasjidapp: %w", err)
+	}
+
+	return pt, nil
 }
 
 // extractFromEmirSultan fetches prayer times from the Emir Sultan Mosque (Dandenong, VIC)
