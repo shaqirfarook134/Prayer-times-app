@@ -12,6 +12,7 @@ type Router struct {
 	prayerTimesHandler *handlers.PrayerTimesHandler
 	deviceHandler      *handlers.DeviceHandler
 	scrapeHandler      *handlers.ScrapeHandler
+	jummahHandler      *handlers.JummahHandler
 }
 
 func NewRouter(
@@ -19,12 +20,14 @@ func NewRouter(
 	prayerTimesHandler *handlers.PrayerTimesHandler,
 	deviceHandler *handlers.DeviceHandler,
 	scrapeHandler *handlers.ScrapeHandler,
+	jummahHandler *handlers.JummahHandler,
 ) *Router {
 	return &Router{
 		masjidHandler:      masjidHandler,
 		prayerTimesHandler: prayerTimesHandler,
 		deviceHandler:      deviceHandler,
 		scrapeHandler:      scrapeHandler,
+		jummahHandler:      jummahHandler,
 	}
 }
 
@@ -52,6 +55,9 @@ func (r *Router) Setup() *gin.Engine {
 		// Prayer times endpoints
 		api.GET("/prayer-times/:masjidId", r.prayerTimesHandler.GetByMasjid)
 		api.GET("/prayer-times/:masjidId/:date", r.prayerTimesHandler.GetByMasjidAndDate)
+
+		// Jummah times endpoints
+		api.GET("/jummah/:masjidId", r.jummahHandler.GetByMasjid)
 
 		// Device registration endpoints
 		api.POST("/devices/register", r.deviceHandler.Register)

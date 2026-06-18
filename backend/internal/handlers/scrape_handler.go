@@ -24,6 +24,7 @@ func NewScrapeHandler(prayerService *services.PrayerService, masjidRepo *reposit
 	}
 }
 
+
 // TriggerScrape manually triggers a prayer times scrape
 // POST /admin/scrape?masjid_id=9  (optional: scrape specific masjid)
 // POST /admin/scrape               (scrapes all masjids)
@@ -81,6 +82,9 @@ func (h *ScrapeHandler) TriggerScrape(c *gin.Context) {
 		})
 		return
 	}
+
+	// Also refresh Jummah times (best-effort — don't fail the whole scrape if this errors)
+	_ = h.prayerService.FetchAndUpdateJummahAllMasjids(ctx)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "success",

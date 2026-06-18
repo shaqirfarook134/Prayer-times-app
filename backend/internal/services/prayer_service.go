@@ -13,6 +13,7 @@ type PrayerService struct {
 	scraperSvc      *scraper.Scraper
 	masjidRepo      *repository.MasjidRepository
 	prayerTimesRepo *repository.PrayerTimesRepository
+	jummahRepo      *repository.JummahRepository
 	logRepo         *repository.LogRepository
 	notificationSvc *NotificationService
 	alertSvc        *AlertService
@@ -22,6 +23,7 @@ func NewPrayerService(
 	scraperSvc *scraper.Scraper,
 	masjidRepo *repository.MasjidRepository,
 	prayerTimesRepo *repository.PrayerTimesRepository,
+	jummahRepo *repository.JummahRepository,
 	logRepo *repository.LogRepository,
 	notificationSvc *NotificationService,
 	alertSvc *AlertService,
@@ -30,6 +32,7 @@ func NewPrayerService(
 		scraperSvc:      scraperSvc,
 		masjidRepo:      masjidRepo,
 		prayerTimesRepo: prayerTimesRepo,
+		jummahRepo:      jummahRepo,
 		logRepo:         logRepo,
 		notificationSvc: notificationSvc,
 		alertSvc:        alertSvc,
@@ -162,4 +165,29 @@ func (s *PrayerService) FetchUpcomingPrayerTimes(ctx context.Context, masjidID i
 	today := time.Now().In(loc).Truncate(24 * time.Hour)
 
 	return s.prayerTimesRepo.GetUpcoming(ctx, masjidID, today, days)
+}
+
+// FetchAndUpdateJummahAllMasjids scrapes Jumu'ah times for all masjids and persists them.
+func (s *PrayerService) FetchAndUpdateJummahAllMasjids(ctx context.Context) error {
+	masjids, err := s.masjidRepo.GetAll(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get masjids: %w", err)
+	}
+	for _, masjid := range masjids {
+		sessions, err := s.scraperSvc.FetchJummahTimes(ctx, masjid.URL)
+		if err != nil || len(sessions) == 0 {
+			continue
+		}
+		// Replace all sessions for this masjid
+		_ = s.jummahRepo.DeleteByMasjid(ctx, masjid.ID)
+		for _, session := range sessions {
+			sessionNum := 1
+			fmt.Sscanf(session[0], "%d", &sessionNum)
+			if err := s.jummahRepo.Upsert(ctx, masjid.ID, sessionNum, session[1]); err != nil {
+				_ = s.logRepo.LogWithMetadata(ctx, &masjid.ID, "warning",
+					fmt.Sprintf("Failed to upsert jummah session %d: %v", sessionNum, err), nil)
+			}
+		}
+	}
+	return nil
 }

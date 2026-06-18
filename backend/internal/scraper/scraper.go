@@ -1442,6 +1442,214 @@ func timeToMinutes(timeStr string) int {
 	return hours*60 + minutes
 }
 
+// FetchJummahTimes scrapes Jumu'ah session times from a masjid's website.
+// Returns a slice of (session, time24h) pairs. Returns nil if the source
+// doesn't expose Jummah data.
+func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]string, error) {
+	if strings.Contains(masjidURL, "awqat.com.au") {
+		return s.parseJummahFromAwqat(ctx, masjidURL)
+	}
+	if strings.Contains(masjidURL, "masjidbox.com") {
+		return s.parseJummahFromMasjidBox(ctx, masjidURL)
+	}
+	if strings.Contains(masjidURL, "pgcc.org.au") {
+		return s.parseJummahFromPGCC(ctx, masjidURL)
+	}
+	return nil, nil
+}
+
+// parseJummahFromAwqat extracts Jumu'ah times from awqat.com.au sites.
+// The main HTML page and iqamafixed.js both carry a JS_ANNONCE_1 variable
+// containing text like: "JUMU'AH @ 1:30PM & 2:15PM"
+// We fetch the main page and scan all JS_ANNONCE_* variables for time patterns.
+func (s *Scraper) parseJummahFromAwqat(ctx context.Context, pageURL string) ([][2]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	html := string(body)
+
+	// Also try to fetch iqamafixed.js which may carry the annonce variables
+	iqamaContent := html
+	if jsURL := extractIqamaJSURL(html, pageURL); jsURL != "" {
+		if jsReq, err := http.NewRequestWithContext(ctx, "GET", jsURL, nil); err == nil {
+			jsReq.Header.Set("User-Agent", s.config.UserAgent)
+			if jsResp, err := s.httpClient.Do(jsReq); err == nil {
+				defer jsResp.Body.Close()
+				if jsBody, err := io.ReadAll(jsResp.Body); err == nil {
+					iqamaContent = html + "\n" + string(jsBody)
+				}
+			}
+		}
+	}
+
+	// Find all JS_ANNONCE_* values that mention jumu'ah / jum'ah / jumuah / jummah
+	announcePat := regexp.MustCompile(`(?i)JS_ANNONCE_\d+\s*=\s*["']([^"']*(?:jumu|jum|jumuah|jummah)[^"']*)["']`)
+	matches := announcePat.FindAllStringSubmatch(iqamaContent, -1)
+	if len(matches) == 0 {
+		return nil, nil
+	}
+
+	timePat := regexp.MustCompile(`(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))`)
+	var results [][2]string
+	for _, m := range matches {
+		text := m[1]
+		times := timePat.FindAllString(text, -1)
+		for i, t := range times {
+			t24, err := parseTime12or24(strings.ReplaceAll(t, " ", ""))
+			if err != nil {
+				continue
+			}
+			results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
+		}
+	}
+	return results, nil
+}
+
+// extractIqamaJSURL finds the iqamafixed.js script URL from a page's HTML.
+func extractIqamaJSURL(html, baseURL string) string {
+	re := regexp.MustCompile(`src=["']([^"']*iqamafixed[^"']*)["']`)
+	m := re.FindStringSubmatch(html)
+	if len(m) < 2 {
+		return ""
+	}
+	jsPath := m[1]
+	if strings.HasPrefix(jsPath, "http") {
+		return jsPath
+	}
+	// Build absolute URL
+	parts := strings.Split(strings.TrimSuffix(baseURL, "/"), "/")
+	base := strings.Join(parts[:3], "/") // scheme + host
+	if !strings.HasPrefix(jsPath, "/") {
+		jsPath = "/" + jsPath
+	}
+	return base + jsPath
+}
+
+// parseJummahFromMasjidBox extracts Jumu'ah times from masjidbox.com pages.
+// The REDUX_STATE JSON includes "jumuah":["ISO timestamp", ...] inside each timetable entry.
+func (s *Scraper) parseJummahFromMasjidBox(ctx context.Context, masjidboxURL string) ([][2]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", masjidboxURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	html := string(body)
+
+	re := regexp.MustCompile(`REDUX_STATE\s*=\s*'([^']+)'`)
+	m := re.FindStringSubmatch(html)
+	if len(m) < 2 {
+		return nil, fmt.Errorf("masjidbox: REDUX_STATE not found")
+	}
+
+	jsUnicodeRe := regexp.MustCompile(`%u([0-9a-fA-F]{4})`)
+	sanitized := jsUnicodeRe.ReplaceAllString(m[1], `\u$1`)
+	decoded, err := url.PathUnescape(sanitized)
+	if err != nil {
+		return nil, fmt.Errorf("masjidbox: failed to decode REDUX_STATE: %w", err)
+	}
+	jsUnescapeRe := regexp.MustCompile(`\\u([0-9a-fA-F]{4})`)
+	decoded = jsUnescapeRe.ReplaceAllStringFunc(decoded, func(s string) string {
+		r, _ := strconv.ParseInt(s[2:], 16, 32)
+		return string(rune(r))
+	})
+
+	// Extract jumuah array from the timetable — grab the first non-empty entry
+	jumuahPat := regexp.MustCompile(`"jumuah"\s*:\s*\[([^\]]*)\]`)
+	jumuahMatches := jumuahPat.FindAllStringSubmatch(decoded, -1)
+	for _, jm := range jumuahMatches {
+		inner := strings.TrimSpace(jm[1])
+		if inner == "" {
+			continue
+		}
+		// Extract ISO timestamp strings
+		tsPat := regexp.MustCompile(`"([^"]+T[^"]+)"`)
+		tsMatches := tsPat.FindAllStringSubmatch(inner, -1)
+		if len(tsMatches) == 0 {
+			continue
+		}
+		var results [][2]string
+		for i, ts := range tsMatches {
+			t, err := time.Parse(time.RFC3339, ts[1])
+			if err != nil {
+				continue
+			}
+			// Use UTC+10 (AEST) as the local timezone for masjidbox times
+			loc, _ := time.LoadLocation("Australia/Melbourne")
+			t24 := t.In(loc).Format("15:04")
+			results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
+		}
+		if len(results) > 0 {
+			return results, nil
+		}
+	}
+	return nil, nil
+}
+
+// parseJummahFromPGCC extracts Jumu'ah times from pgcc.org.au.
+// The page contains elements like: "Jumu'ah 1" ... "12:30 PM" and "Jumu'ah 2" ... "1:45 PM"
+func (s *Scraper) parseJummahFromPGCC(ctx context.Context, pageURL string) ([][2]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	html := string(body)
+
+	// Match patterns like: Jumu'ah 1</...>...<...>12:30 PM
+	// Also handles: Jumu'ah 1: 12:30 PM  or  Jumu'ah<br>1:30 PM
+	// Broad regex: find "Jumu" followed within 200 chars by a 12h time
+	pat := regexp.MustCompile(`(?i)Jumu['']?ah\s*(?:(\d)\s*[:<]?\s*)?(?:[^<]{0,100}<[^>]*>)*\s*(\d{1,2}:\d{2}\s*[AP]M)`)
+	matches := pat.FindAllStringSubmatch(html, -1)
+
+	seen := map[string]bool{}
+	var results [][2]string
+	session := 1
+	for _, m := range matches {
+		timeStr := strings.TrimSpace(m[2])
+		if seen[timeStr] {
+			continue
+		}
+		seen[timeStr] = true
+		t24, err := parseTime12or24(timeStr)
+		if err != nil {
+			continue
+		}
+		results = append(results, [2]string{fmt.Sprintf("%d", session), t24})
+		session++
+	}
+	return results, nil
+}
+
 // ValidateChange checks if new prayer times differ significantly from previous
 func (s *Scraper) ValidateChange(old, new *models.PrayerTimes) error {
 	maxDiffMinutes := 75

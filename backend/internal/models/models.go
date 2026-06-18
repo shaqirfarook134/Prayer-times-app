@@ -116,6 +116,19 @@ type ScrapedPrayerTimes struct {
 	IshaIqama   string
 }
 
+// JummahSession represents a single Jumu'ah prayer session
+type JummahSession struct {
+	Session int    `json:"session"`
+	Time    string `json:"time"`    // 24h "HH:MM"
+	Time12  string `json:"time12"`  // "1:30 PM"
+}
+
+// JummahTimesResponse is the API response for Jumu'ah times
+type JummahTimesResponse struct {
+	MasjidID int             `json:"masjid_id"`
+	Sessions []JummahSession `json:"sessions"`
+}
+
 // NotificationPayload represents the data for a push notification
 type NotificationPayload struct {
 	Title   string            `json:"title"`

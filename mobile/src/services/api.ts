@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import * as Sentry from '@sentry/react-native';
-import { Masjid, PrayerTimes, RegisterDeviceRequest, UpdateDeviceRequest } from '../types';
+import { Masjid, PrayerTimes, JummahTimes, RegisterDeviceRequest, UpdateDeviceRequest } from '../types';
 
 // Production API URL (with PostgreSQL database)
 const API_BASE_URL = 'https://prayer-times-api-uddr.onrender.com/api/v1';
@@ -107,6 +107,14 @@ class ApiService {
   async getPrayerTimesByDate(masjidId: number, date: string): Promise<PrayerTimes> {
     return this.retryRequest(async () => {
       const response = await this.client.get<PrayerTimes>(`/prayer-times/${masjidId}/${date}`);
+      return response.data;
+    });
+  }
+
+  // Jummah times endpoints
+  async getJummahTimes(masjidId: number): Promise<JummahTimes> {
+    return this.retryRequest(async () => {
+      const response = await this.client.get<JummahTimes>(`/jummah/${masjidId}`);
       return response.data;
     });
   }
