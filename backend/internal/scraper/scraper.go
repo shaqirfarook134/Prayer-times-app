@@ -1508,7 +1508,11 @@ func (s *Scraper) parseJummahFromAwqat(ctx context.Context, pageURL string) ([][
 		text := m[1]
 		times := timePat.FindAllString(text, -1)
 		for i, t := range times {
-			t24, err := parseTime12or24(strings.ReplaceAll(t, " ", ""))
+			// Normalise: ensure exactly one space before AM/PM so parseTime12or24 can parse it
+			normalised := regexp.MustCompile(`(?i)\s*(AM|PM)$`).ReplaceAllStringFunc(strings.TrimSpace(t), func(s string) string {
+				return " " + strings.ToUpper(strings.TrimSpace(s))
+			})
+			t24, err := parseTime12or24(normalised)
 			if err != nil {
 				continue
 			}
@@ -1655,7 +1659,7 @@ func (s *Scraper) parseJummahFromPGCC(ctx context.Context, pageURL string) ([][2
 		if tm == "" {
 			continue
 		}
-		tm = strings.TrimSpace(tm)
+		tm = regexp.MustCompile(`\s+`).ReplaceAllString(strings.TrimSpace(tm), " ")
 		if seen[tm] {
 			continue
 		}
