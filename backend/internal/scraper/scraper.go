@@ -1495,8 +1495,10 @@ func (s *Scraper) parseJummahFromAwqat(ctx context.Context, pageURL string) ([][
 		}
 	}
 
-	// Find all JS_ANNONCE_* values that mention jumu'ah / jum'ah / jumuah / jummah
-	announcePat := regexp.MustCompile(`(?i)JS_ANNONCE_\d+\s*=\s*["']([^"']*(?:jumu|jum|jumuah|jummah)[^"']*)["']`)
+	// Find all JS_ANNONCE_* values that mention jumu'ah / jum'ah / jumuah / jummah.
+	// The value may be in double or single quotes. Use [^"\n] and [^'\n] respectively
+	// to avoid crossing string boundaries while allowing the apostrophe in "JUMU'AH".
+	announcePat := regexp.MustCompile(`(?i)JS_ANNONCE_\d+\s*=\s*(?:"([^"\n]*(?:jumu|jum)[^"\n]*)"|'([^'\n]*(?:jumu|jum)[^'\n]*)')`)
 	matches := announcePat.FindAllStringSubmatch(iqamaContent, -1)
 	if len(matches) == 0 {
 		return nil, nil
@@ -1505,7 +1507,11 @@ func (s *Scraper) parseJummahFromAwqat(ctx context.Context, pageURL string) ([][
 	timePat := regexp.MustCompile(`(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))`)
 	var results [][2]string
 	for _, m := range matches {
+		// m[1] = double-quoted capture, m[2] = single-quoted capture
 		text := m[1]
+		if text == "" {
+			text = m[2]
+		}
 		times := timePat.FindAllString(text, -1)
 		for i, t := range times {
 			// Normalise: ensure exactly one space before AM/PM so parseTime12or24 can parse it
