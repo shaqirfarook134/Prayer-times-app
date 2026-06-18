@@ -1259,14 +1259,27 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL str
 		}
 	}
 
+	// Use the timezone from the already-computed prayer date for day-of-week calculations
+	loc := pt.Date.Location()
+	if loc == nil {
+		loc = time.UTC
+	}
+	now := time.Now().In(loc)
+
 	// Calculate iqama times for each prayer
 	// Array indices: [0]=Sunrise, [1]=Fajr, [2]=Dhuhr, [3]=Asr, [4]=Maghrib, [5]=Isha
 
 	// Fajr (index 1)
 	pt.FajrIqama = s.calculateIqama(pt.Fajr, fixedTimes, offsetTimes, 1)
 
-	// Dhuhr (index 2)
-	pt.DhuhrIqama = s.calculateIqama(pt.Dhuhr, fixedTimes, offsetTimes, 2)
+	// Dhuhr (index 2): check for day-of-week override in JS_ANNONCE variables before using fixed time.
+	// Some masjids (e.g. Al Taqwa) vary Dhuhr iqama by day:
+	//   JS_ANNONCE_2 = "Dhuhr Iqamah: Sun to Wed 1:20pm, Thurs & Sat 1:30pm"
+	if dhuhrOverride := s.parseDhuhrDayOverride(content, now); dhuhrOverride != "" {
+		pt.DhuhrIqama = dhuhrOverride
+	} else {
+		pt.DhuhrIqama = s.calculateIqama(pt.Dhuhr, fixedTimes, offsetTimes, 2)
+	}
 
 	// Asr (index 3)
 	pt.AsrIqama = s.calculateIqama(pt.Asr, fixedTimes, offsetTimes, 3)
@@ -1278,6 +1291,100 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL str
 	pt.IshaIqama = s.calculateIqama(pt.Isha, fixedTimes, offsetTimes, 5)
 
 	return nil
+}
+
+// parseDhuhrDayOverride checks JS_ANNONCE variables in iqamafixed.js content for a
+// day-of-week-specific Dhuhr iqama time. Returns "" if no override is found.
+//
+// Handles the pattern used by Al Taqwa:
+//
+//	JS_ANNONCE_2 = "Dhuhr Iqamah: Sun to Wed 1:20pm, Thurs & Sat 1:30pm"
+//
+// The string is split on commas into segments. Each segment contains day tokens
+// (sun/mon/tue/wed/thu/thurs/fri/sat, optionally with "to" for ranges or "&" for lists)
+// and a 12-hour time (e.g. "1:30pm"). The segment whose day set includes today wins.
+func (s *Scraper) parseDhuhrDayOverride(content string, now time.Time) string {
+	// Day name → index where Sunday=0 … Saturday=6
+	dayIndex := map[string]int{
+		"sun": 0, "mon": 1, "tue": 2, "wed": 3,
+		"thu": 4, "thurs": 4, "fri": 5, "sat": 6,
+	}
+
+	// Convert Go's time.Weekday (Sunday=0) to our Sun=0 index — they already match.
+	todayIdx := int(now.Weekday())
+
+	// Find any JS_ANNONCE variable that mentions "Dhuhr" and "Iqamah" (case-insensitive)
+	announcePat := regexp.MustCompile(`(?i)JS_ANNONCE_\d+\s*=\s*["']([^"']*dhuhr[^"']*iqam[^"']*)["']`)
+	m := announcePat.FindStringSubmatch(content)
+	if m == nil {
+		return ""
+	}
+	line := m[1]
+
+	// Strip the "Dhuhr Iqamah:" prefix, then split on commas to get per-day-group segments
+	colonIdx := strings.Index(line, ":")
+	if colonIdx < 0 {
+		return ""
+	}
+	body := line[colonIdx+1:]
+	segments := strings.Split(body, ",")
+
+	timePat := regexp.MustCompile(`(?i)(\d{1,2}:\d{2})\s*(am|pm)`)
+	dayTokenPat := regexp.MustCompile(`(?i)(sun|mon|tue|wed|thurs?|fri|sat)`)
+
+	for _, seg := range segments {
+		seg = strings.TrimSpace(seg)
+		tm := timePat.FindStringSubmatch(seg)
+		if tm == nil {
+			continue
+		}
+		timeRaw := tm[1]   // e.g. "1:30"
+		ampm := strings.ToLower(tm[2]) // "pm"
+
+		// Convert to 24-hour HH:MM
+		parts := strings.Split(timeRaw, ":")
+		if len(parts) != 2 {
+			continue
+		}
+		h, _ := strconv.Atoi(parts[0])
+		min, _ := strconv.Atoi(parts[1])
+		if ampm == "pm" && h != 12 {
+			h += 12
+		} else if ampm == "am" && h == 12 {
+			h = 0
+		}
+		iqamaTime := fmt.Sprintf("%02d:%02d", h, min)
+
+		// Collect day tokens from the part of the segment before the time
+		dayPart := seg[:strings.Index(seg, tm[0])]
+		tokens := dayTokenPat.FindAllString(dayPart, -1)
+		if len(tokens) == 0 {
+			continue
+		}
+
+		// Build the set of days this segment applies to
+		var days []int
+		isRange := strings.Contains(strings.ToLower(dayPart), " to ")
+		if isRange && len(tokens) >= 2 {
+			start := dayIndex[strings.ToLower(tokens[0])]
+			end := dayIndex[strings.ToLower(tokens[len(tokens)-1])]
+			for i := start; i <= end; i++ {
+				days = append(days, i)
+			}
+		} else {
+			for _, t := range tokens {
+				days = append(days, dayIndex[strings.ToLower(t)])
+			}
+		}
+
+		for _, d := range days {
+			if d == todayIdx {
+				return iqamaTime
+			}
+		}
+	}
+
+	return ""
 }
 
 // calculateIqama calculates iqama time based on fixed time or offset
