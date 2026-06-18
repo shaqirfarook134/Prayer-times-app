@@ -1455,6 +1455,9 @@ func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]
 	if strings.Contains(masjidURL, "pgcc.org.au") {
 		return s.parseJummahFromPGCC(ctx, masjidURL)
 	}
+	if strings.Contains(masjidURL, "themasjidapp.org") {
+		return s.parseJummahFromTheMasjidApp(ctx, masjidURL)
+	}
 	return nil, nil
 }
 
@@ -1676,6 +1679,41 @@ func (s *Scraper) parseJummahFromPGCC(ctx context.Context, pageURL string) ([][2
 		}
 		results = append(results, [2]string{fmt.Sprintf("%d", session), t24})
 		session++
+	}
+	return results, nil
+}
+
+// parseJummahFromTheMasjidApp extracts Jumu'ah times from themasjidapp.org pages.
+// The page renders a table row: <strong>Jumuah</strong></td><td ...>H:MM<span ...>AM|PM</span>
+func (s *Scraper) parseJummahFromTheMasjidApp(ctx context.Context, pageURL string) ([][2]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	html := string(body)
+
+	// Match: Jumuah</...><td...>H:MM<span...>AM|PM</span>
+	pat := regexp.MustCompile(`(?i)Jumuah</[^>]+></td><td[^>]*>(\d{1,2}:\d{2})<span[^>]*>(AM|PM)</span>`)
+	matches := pat.FindAllStringSubmatch(html, -1)
+
+	var results [][2]string
+	for i, m := range matches {
+		timeStr := m[1] + " " + strings.ToUpper(m[2])
+		t24, err := parseTime12or24(timeStr)
+		if err != nil {
+			continue
+		}
+		results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
 	}
 	return results, nil
 }
