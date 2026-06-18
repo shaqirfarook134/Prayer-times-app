@@ -1479,16 +1479,18 @@ func (s *Scraper) parseJummahFromAwqat(ctx context.Context, pageURL string) ([][
 	}
 	html := string(body)
 
-	// Also try to fetch iqamafixed.js which may carry the annonce variables
+	// Fetch iqamafixed.js — on awqat.com.au it is always at <pageURL>/iqamafixed.js
+	// and is loaded via document.write (no static <script src=...>), so we construct
+	// the URL directly rather than trying to parse it from the HTML.
 	iqamaContent := html
-	if jsURL := extractIqamaJSURL(html, pageURL); jsURL != "" {
-		if jsReq, err := http.NewRequestWithContext(ctx, "GET", jsURL, nil); err == nil {
-			jsReq.Header.Set("User-Agent", s.config.UserAgent)
-			if jsResp, err := s.httpClient.Do(jsReq); err == nil {
-				defer jsResp.Body.Close()
-				if jsBody, err := io.ReadAll(jsResp.Body); err == nil {
-					iqamaContent = html + "\n" + string(jsBody)
-				}
+	base := strings.TrimSuffix(pageURL, "/")
+	jsURL := base + "/iqamafixed.js"
+	if jsReq, err := http.NewRequestWithContext(ctx, "GET", jsURL, nil); err == nil {
+		jsReq.Header.Set("User-Agent", s.config.UserAgent)
+		if jsResp, err := s.httpClient.Do(jsReq); err == nil {
+			defer jsResp.Body.Close()
+			if jsBody, err := io.ReadAll(jsResp.Body); err == nil {
+				iqamaContent = html + "\n" + string(jsBody)
 			}
 		}
 	}
@@ -1625,22 +1627,40 @@ func (s *Scraper) parseJummahFromPGCC(ctx context.Context, pageURL string) ([][2
 	}
 	html := string(body)
 
-	// Match patterns like: Jumu'ah 1</...>...<...>12:30 PM
-	// Also handles: Jumu'ah 1: 12:30 PM  or  Jumu'ah<br>1:30 PM
-	// Broad regex: find "Jumu" followed within 200 chars by a 12h time
-	pat := regexp.MustCompile(`(?i)Jumu['']?ah\s*(?:(\d)\s*[:<]?\s*)?(?:[^<]{0,100}<[^>]*>)*\s*(\d{1,2}:\d{2}\s*[AP]M)`)
-	matches := pat.FindAllStringSubmatch(html, -1)
+	// PGCC pattern: "Jumu'ah 1<br><div class="jamuah"><div><span>12:30  PM</span>"
+	// Strategy: find each "Jumu'ah \d" heading block (up to 400 chars) then pull the time from <span>.
+	blockPat := regexp.MustCompile(`(?i)Jumu['']?ah\s*\d[\s\S]{0,400}?</h2>`)
+	timePat := regexp.MustCompile(`(\d{1,2}:\d{2}\s*[AP]M)`)
+
+	var results [][2]string
+	blocks := blockPat.FindAllString(html, -1)
+	if len(blocks) == 0 {
+		// Fallback: look for any 12h time near a "jumu" keyword (plain text format)
+		fallbackPat := regexp.MustCompile(`(?i)Jumu['']?ah[^<\d]{0,20}(\d{1,2}:\d{2}\s*[AP]M)`)
+		fbMatches := fallbackPat.FindAllStringSubmatch(html, -1)
+		for i, m := range fbMatches {
+			t24, err := parseTime12or24(strings.TrimSpace(m[1]))
+			if err != nil {
+				continue
+			}
+			results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
+		}
+		return results, nil
+	}
 
 	seen := map[string]bool{}
-	var results [][2]string
 	session := 1
-	for _, m := range matches {
-		timeStr := strings.TrimSpace(m[2])
-		if seen[timeStr] {
+	for _, block := range blocks {
+		tm := timePat.FindString(block)
+		if tm == "" {
 			continue
 		}
-		seen[timeStr] = true
-		t24, err := parseTime12or24(timeStr)
+		tm = strings.TrimSpace(tm)
+		if seen[tm] {
+			continue
+		}
+		seen[tm] = true
+		t24, err := parseTime12or24(tm)
 		if err != nil {
 			continue
 		}
