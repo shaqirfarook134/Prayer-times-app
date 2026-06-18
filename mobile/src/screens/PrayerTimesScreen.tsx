@@ -19,7 +19,7 @@ import Constants from 'expo-constants';
 import { CompositeNavigationProp, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, TabParamList, PrayerTimes, Masjid, Prayer, PrayerTime } from '../types';
+import { RootStackParamList, TabParamList, PrayerTimes, JummahTimes, Masjid, Prayer, PrayerTime } from '../types';
 import apiService from '../services/api';
 import storageService from '../services/storage';
 import notificationService from '../services/notifications';
@@ -247,6 +247,7 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [masjid, setMasjid] = useState<Masjid | null>(null);
+  const [jummahTimes, setJummahTimes] = useState<JummahTimes | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nextPrayer, setNextPrayer] = useState<Prayer | null>(null);
@@ -442,12 +443,14 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       setError(null);
       dataFromCache.current = false;
-      const [prayerData, masjidData] = await Promise.all([
+      const [prayerData, masjidData, jummahData] = await Promise.all([
         apiService.getPrayerTimes(activeMasjidId),
         apiService.getMasjidById(activeMasjidId),
+        apiService.getJummahTimes(activeMasjidId).catch(() => null),
       ]);
       setPrayerTimes(prayerData);
       setMasjid(masjidData);
+      setJummahTimes(jummahData);
       setLastUpdated(new Date());
       hasAttemptedRefresh.current = false;
       await storageService.setCachedPrayerTimes(activeMasjidId, prayerData);
@@ -759,6 +762,42 @@ const PrayerTimesScreen: React.FC<Props> = ({ navigation, route }) => {
               <PrayerCard name="Isha"    time={prayerTimes.isha}    isNext={nextPrayer?.name === 'Isha'}    isAdhan={currentAdhanPrayer === 'Isha'} />
             </View>
           </>
+        )}
+
+        {/* ── Jummah card ── */}
+        {prayerTimes && (
+          <View style={styles.jummahSection}>
+            <Text style={styles.sectionLabel}>Jumu'ah</Text>
+            <View style={styles.jummahCard}>
+              <View style={styles.jummahHeader}>
+                <Text style={styles.jummahIcon}>🕌</Text>
+                <View>
+                  <Text style={styles.jummahTitle}>Friday Prayer</Text>
+                  <Text style={styles.jummahSubtitle}>Jumu'ah congregation</Text>
+                </View>
+              </View>
+              <View style={styles.jummahDivider} />
+              {jummahTimes && jummahTimes.sessions.length > 0 ? (
+                jummahTimes.sessions.length === 1 ? (
+                  <View style={styles.jummahRow}>
+                    <Text style={styles.jummahSessionLabel}>Jumu'ah</Text>
+                    <Text style={styles.jummahTime}>{jummahTimes.sessions[0].time12}</Text>
+                  </View>
+                ) : (
+                  jummahTimes.sessions.map((s, i) => (
+                    <View key={s.session} style={[styles.jummahRow, i < jummahTimes.sessions.length - 1 && styles.jummahRowBorder]}>
+                      <Text style={styles.jummahSessionLabel}>
+                        {i === 0 ? '1st Session' : i === 1 ? '2nd Session' : i === 2 ? '3rd Session' : `${i + 1}th Session`}
+                      </Text>
+                      <Text style={styles.jummahTime}>{s.time12}</Text>
+                    </View>
+                  ))
+                )
+              ) : (
+                <Text style={styles.jummahUnavailable}>Times not available</Text>
+              )}
+            </View>
+          </View>
         )}
 
         {/* ── Settings ── */}
@@ -1199,6 +1238,69 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
     marginHorizontal: 10,
     flexShrink: 0,
+  },
+
+  // ── Jummah card ──
+  jummahSection: {
+    marginTop: 8,
+  },
+  jummahCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 18,
+    marginHorizontal: 16,
+    padding: 16,
+  },
+  jummahHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  jummahIcon: {
+    fontSize: 28,
+  },
+  jummahTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  jummahSubtitle: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 1,
+  },
+  jummahDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginBottom: 12,
+  },
+  jummahRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  jummahRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  jummahSessionLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '500',
+  },
+  jummahTime: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffc951',
+  },
+  jummahUnavailable: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center',
+    paddingVertical: 8,
   },
 
   // ── Settings ──

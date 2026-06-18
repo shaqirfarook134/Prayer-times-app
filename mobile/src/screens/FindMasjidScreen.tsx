@@ -4,12 +4,14 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   Animated,
   RefreshControl,
   Alert,
   AppState,
   Linking,
+  Keyboard,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -208,8 +210,11 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
   const [notifOsBlocked, setNotifOsBlocked] = useState(false);
   const [notifInAppOff, setNotifInAppOff] = useState(false);
   const [hasMasjid, setHasMasjid] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
+  const searchInputRef = useRef<TextInput>(null);
   const savedScrollOffset = useRef<number>(0);
   const returningFromBrowse = useRef<boolean>(false);
 
@@ -385,9 +390,29 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
     | { type: 'header'; title: string }
     | { type: 'masjid'; masjid: MasjidWithDistance };
 
+  const query = searchQuery.trim().toLowerCase();
+
+  const filterMasjid = (m: MasjidWithDistance): boolean => {
+    if (!query) return true;
+    return (
+      m.name.toLowerCase().includes(query) ||
+      (m.city ?? '').toLowerCase().includes(query) ||
+      (m.state ?? '').toLowerCase().includes(query)
+    );
+  };
+
   const listData: ListItem[] = [];
   if (loading) {
     // Render nothing — header renders shimmer via ListHeaderComponent
+  } else if (query) {
+    // Search mode — flat list with no section splits
+    const results = masjids.filter(filterMasjid);
+    if (results.length > 0) {
+      listData.push({ type: 'header', title: `${results.length} result${results.length !== 1 ? 's' : ''}` });
+      results.forEach((m) => listData.push({ type: 'masjid', masjid: m }));
+    } else {
+      listData.push({ type: 'header', title: 'No results' });
+    }
   } else {
     if (nearbyMasjids.length > 0) {
       listData.push({ type: 'header', title: 'Nearby Masjids' });
@@ -400,7 +425,7 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
       });
       otherMasjids.forEach((m) => listData.push({ type: 'masjid', masjid: m }));
     }
-    if (!loading && nearbyMasjids.length === 0 && otherMasjids.length === 0 && masjids.length > 0) {
+    if (nearbyMasjids.length === 0 && otherMasjids.length === 0 && masjids.length > 0) {
       listData.push({ type: 'header', title: 'All Masjids' });
       masjids.forEach((m) => listData.push({ type: 'masjid', masjid: m }));
     }
@@ -458,6 +483,46 @@ const FindMasjidScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* ── Search bar ── */}
+      <View style={styles.searchWrap}>
+        <View style={[styles.searchBar, searchFocused && styles.searchBarFocused]}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            ref={searchInputRef}
+            style={styles.searchInput}
+            placeholder="Search masjids…"
+            placeholderTextColor="rgba(255,255,255,0.28)"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="never"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.searchClear}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {searchFocused && (
+          <TouchableOpacity
+            onPress={() => {
+              setSearchQuery('');
+              setSearchFocused(false);
+              Keyboard.dismiss();
+            }}
+          >
+            <Text style={styles.searchCancel}>Cancel</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <FlatList
         ref={flatListRef}
@@ -823,6 +888,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#ff9f0a',
+  },
+
+  // ── Search bar ───────────────────────────────────────────────────────────────
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 8,
+    backgroundColor: '#0d0d14',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+    gap: 8,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  searchBarFocused: {
+    backgroundColor: 'rgba(96,145,255,0.08)',
+    borderColor: 'rgba(96,145,255,0.30)',
+  },
+  searchIcon: {
+    fontSize: 13,
+    flexShrink: 0,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#fff',
+    padding: 0,
+  },
+  searchClear: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    flexShrink: 0,
+  },
+  searchCancel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6091ff',
+    flexShrink: 0,
   },
 
 });

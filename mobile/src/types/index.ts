@@ -46,6 +46,17 @@ export interface UpdateDeviceRequest {
   notifications_enabled?: boolean;
 }
 
+export interface JummahSession {
+  session: number;
+  time: string;   // "HH:MM" 24h
+  time12: string; // "1:30 PM"
+}
+
+export interface JummahTimes {
+  masjid_id: number;
+  sessions: JummahSession[];
+}
+
 // Local Storage Types
 export interface AppStorage {
   selectedMasjidId: number | null;

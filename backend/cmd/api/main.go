@@ -47,6 +47,7 @@ func main() {
 	// Initialize repositories
 	masjidRepo := repository.NewMasjidRepository(db)
 	prayerTimesRepo := repository.NewPrayerTimesRepository(db)
+	jummahRepo := repository.NewJummahRepository(db)
 	deviceTokenRepo := repository.NewDeviceTokenRepository(db)
 	logRepo := repository.NewLogRepository(db)
 
@@ -58,16 +59,17 @@ func main() {
 	}
 
 	alertSvc := services.NewAlertService(&cfg.Alert)
-	prayerSvc := services.NewPrayerService(scraperSvc, masjidRepo, prayerTimesRepo, logRepo, notificationSvc, alertSvc)
+	prayerSvc := services.NewPrayerService(scraperSvc, masjidRepo, prayerTimesRepo, jummahRepo, logRepo, notificationSvc, alertSvc)
 
 	// Initialize handlers
 	masjidHandler := handlers.NewMasjidHandler(masjidRepo, prayerSvc)
 	prayerTimesHandler := handlers.NewPrayerTimesHandler(prayerTimesRepo, masjidRepo)
 	deviceHandler := handlers.NewDeviceHandler(deviceTokenRepo)
 	scrapeHandler := handlers.NewScrapeHandler(prayerSvc, masjidRepo)
+	jummahHandler := handlers.NewJummahHandler(jummahRepo)
 
 	// Setup routes
-	appRouter := router.NewRouter(masjidHandler, prayerTimesHandler, deviceHandler, scrapeHandler)
+	appRouter := router.NewRouter(masjidHandler, prayerTimesHandler, deviceHandler, scrapeHandler, jummahHandler)
 	engine := appRouter.Setup()
 
 	// Initialize background worker
