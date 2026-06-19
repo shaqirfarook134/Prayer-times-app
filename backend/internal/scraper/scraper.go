@@ -1447,6 +1447,10 @@ func timeToMinutes(timeStr string) int {
 // doesn't expose Jummah data.
 func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]string, error) {
 	if strings.Contains(masjidURL, "awqat.com.au") {
+		// MGM uses awqat but has Jummah in inline JS comments, not JS_ANNONCE
+		if strings.Contains(masjidURL, "/mgm") {
+			return s.parseJummahFromMGM(ctx, masjidURL)
+		}
 		return s.parseJummahFromAwqat(ctx, masjidURL)
 	}
 	if strings.Contains(masjidURL, "masjidbox.com") {
@@ -1457,6 +1461,9 @@ func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]
 	}
 	if strings.Contains(masjidURL, "themasjidapp.org") {
 		return s.parseJummahFromTheMasjidApp(ctx, masjidURL)
+	}
+	if strings.Contains(masjidURL, "icv.org.au") {
+		return s.parseJummahFromICV(ctx)
 	}
 	return nil, nil
 }
@@ -1710,6 +1717,82 @@ func (s *Scraper) parseJummahFromTheMasjidApp(ctx context.Context, pageURL strin
 	for i, m := range matches {
 		timeStr := m[1] + " " + strings.ToUpper(m[2])
 		t24, err := parseTime12or24(timeStr)
+		if err != nil {
+			continue
+		}
+		results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
+	}
+	return results, nil
+}
+
+// parseJummahFromICV extracts Jumu'ah times from the ICV public JSON API.
+// The API returns a "jummah_times" array with label/time pairs.
+func (s *Scraper) parseJummahFromICV(ctx context.Context) ([][2]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.icv.org.au/api/prayer-times", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp struct {
+		JummahTimes []struct {
+			Label string `json:"label"`
+			Time  string `json:"time"` // "HH:MM" 24h
+		} `json:"jummah_times"`
+	}
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("ICV: failed to parse jummah_times: %w", err)
+	}
+
+	var results [][2]string
+	for i, jt := range apiResp.JummahTimes {
+		// Validate it looks like a time
+		if _, err := time.Parse("15:04", jt.Time); err != nil {
+			continue
+		}
+		results = append(results, [2]string{fmt.Sprintf("%d", i+1), jt.Time})
+	}
+	return results, nil
+}
+
+// parseJummahFromMGM extracts Jumu'ah times from MGM's awqat.com.au page.
+// The main HTML contains JS comments like: // MGM Jummah-1 => 12:30 pm
+func (s *Scraper) parseJummahFromMGM(ctx context.Context, pageURL string) ([][2]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	html := string(body)
+
+	// Match: // MGM Jummah-N => H:MM pm
+	pat := regexp.MustCompile(`(?i)Jummah[- ]\d+\s*=>\s*(\d{1,2}:\d{2}\s*[ap]m)`)
+	matches := pat.FindAllStringSubmatch(html, -1)
+
+	var results [][2]string
+	for i, m := range matches {
+		normalised := regexp.MustCompile(`(?i)\s*(AM|PM)$`).ReplaceAllStringFunc(strings.TrimSpace(m[1]), func(s string) string {
+			return " " + strings.ToUpper(strings.TrimSpace(s))
+		})
+		t24, err := parseTime12or24(normalised)
 		if err != nil {
 			continue
 		}
