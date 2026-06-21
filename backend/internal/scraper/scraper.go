@@ -733,24 +733,27 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 			return nil, fmt.Errorf("GPS calculation failed: %w", err)
 		}
 
-		// Apply JS_ATHAN_MINUTES_OF_* per-prayer offsets (server-side declared, first occurrence only).
-		// Later occurrences in the HTML are boundary-clamp lines (= -60, = 60) — skip them.
-		adjRe := regexp.MustCompile(`JS_ATHAN_MINUTES_OF_(\w+)\s*=\s*(-?\d+)`)
-		adjustments := map[string]int{}
-		seen := map[string]bool{}
-		for _, m := range adjRe.FindAllStringSubmatch(html, -1) {
-			if len(m) == 3 && !seen[m[1]] {
-				val, _ := strconv.Atoi(m[2])
-				adjustments[m[1]] = val
-				seen[m[1]] = true
-			}
-		}
-		prayerTimes.Fajr = s.addMinutes(prayerTimes.Fajr, adjustments["FAJR"])
-		prayerTimes.Dhuhr = s.addMinutes(prayerTimes.Dhuhr, adjustments["DOHR"])
-		prayerTimes.Asr = s.addMinutes(prayerTimes.Asr, adjustments["ASR"])
-		prayerTimes.Maghrib = s.addMinutes(prayerTimes.Maghrib, adjustments["MAGHRIB"])
-		prayerTimes.Isha = s.addMinutes(prayerTimes.Isha, adjustments["ISHA"])
 	}
+
+	// Apply JS_ATHAN_MINUTES_OF_* per-prayer offsets for both file and GPS modes.
+	// These are declared server-side and adjust base times per-masjid
+	// (e.g. AMSSA file mode: Dhuhr+4, Asr-1, Maghrib-2, Isha+1).
+	// First occurrence only — later occurrences are boundary-clamp lines (= -60, = 60).
+	adjRe := regexp.MustCompile(`JS_ATHAN_MINUTES_OF_(\w+)\s*=\s*(-?\d+)`)
+	adjustments := map[string]int{}
+	seen := map[string]bool{}
+	for _, m := range adjRe.FindAllStringSubmatch(html, -1) {
+		if len(m) == 3 && !seen[m[1]] {
+			val, _ := strconv.Atoi(m[2])
+			adjustments[m[1]] = val
+			seen[m[1]] = true
+		}
+	}
+	prayerTimes.Fajr = s.addMinutes(prayerTimes.Fajr, adjustments["FAJR"])
+	prayerTimes.Dhuhr = s.addMinutes(prayerTimes.Dhuhr, adjustments["DOHR"])
+	prayerTimes.Asr = s.addMinutes(prayerTimes.Asr, adjustments["ASR"])
+	prayerTimes.Maghrib = s.addMinutes(prayerTimes.Maghrib, adjustments["MAGHRIB"])
+	prayerTimes.Isha = s.addMinutes(prayerTimes.Isha, adjustments["ISHA"])
 
 	if err := s.validatePrayerTimes(prayerTimes); err != nil {
 		return nil, err
