@@ -101,9 +101,10 @@ class BackgroundTaskService {
       // Schedule daily repeating notification at 12:30 AM
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Prayer Times Updated',
-          body: 'Fetching latest prayer times for today...',
+          title: '',
+          body: '',
           data: { type: 'daily_refresh' },
+          sound: false,
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
