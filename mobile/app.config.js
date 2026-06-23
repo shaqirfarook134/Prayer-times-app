@@ -91,6 +91,13 @@ module.exports = {
           color: '#ffffff'
         }
       ],
+      [
+        '@sentry/react-native/expo',
+        {
+          organization: 'scaleup-e6',
+          project: 'react-native'
+        }
+      ],
       withRemoveForegroundService,
     ],
     extra: {
