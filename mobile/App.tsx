@@ -24,8 +24,9 @@ import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 
 Sentry.init({
-  dsn: Constants.expoConfig?.extra?.sentryDsn,
+  dsn: 'https://1a1b064b8d659dfca866fea0e098e222@o4511566264860672.ingest.us.sentry.io/4511566268203009',
   enabled: !__DEV__,
+  environment: 'production',
   tracesSampleRate: 0,
   attachStacktrace: true,
 });
