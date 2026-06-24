@@ -648,15 +648,30 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		baseURLWithoutPath := strings.Join(baseURLParts[:len(baseURLParts)], "/")
 		dataFileURL := fmt.Sprintf("%s/data/wtimes-%s.ini", baseURLWithoutPath, cityCode)
 
-		req, err := http.NewRequestWithContext(ctx, "GET", dataFileURL, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create data file request: %w", err)
-		}
-		req.Header.Set("User-Agent", s.config.UserAgent)
+		// Some awqat.com.au masjids don't have a per-slug /data/ directory and
+		// instead use the shared /www/data/ path. Try the slug-specific URL first,
+		// then fall back to the shared path.
+		fallbackDataFileURL := fmt.Sprintf("https://awqat.com.au/www/data/wtimes-%s.ini", cityCode)
 
-		resp, err := s.httpClient.Do(req)
+		fetchDataFile := func(u string) (*http.Response, error) {
+			req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("User-Agent", s.config.UserAgent)
+			return s.httpClient.Do(req)
+		}
+
+		resp, err := fetchDataFile(dataFileURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch data file: %w", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			resp, err = fetchDataFile(fallbackDataFileURL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch fallback data file: %w", err)
+			}
 		}
 		defer resp.Body.Close()
 
