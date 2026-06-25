@@ -29,6 +29,7 @@ Sentry.init({
   environment: 'production',
   tracesSampleRate: 0,
   attachStacktrace: true,
+  autoSessionTracking: true,
 });
 
 const Stack = createStackNavigator<RootStackParamList>();
