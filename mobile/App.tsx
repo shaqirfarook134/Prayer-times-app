@@ -27,6 +27,7 @@ Sentry.init({
   dsn: 'https://1a1b064b8d659dfca866fea0e098e222@o4511566264860672.ingest.us.sentry.io/4511566268203009',
   enabled: !__DEV__,
   environment: 'production',
+  release: `com.shaqirfarook.mymasjid@${Constants.expoConfig?.version ?? 'unknown'}`,
   tracesSampleRate: 0,
   attachStacktrace: true,
   autoSessionTracking: true,
