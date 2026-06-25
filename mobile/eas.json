@@ -23,7 +23,8 @@
       },
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "buildArtifactPaths": []
     }
   },
   "submit": {
