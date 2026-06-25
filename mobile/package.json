@@ -11,7 +11,8 @@
     "android:dev": "APP_ENV=development expo run:android",
     "ios:dev": "APP_ENV=development expo run:ios",
     "android:prod": "APP_ENV=production expo run:android --variant release",
-    "ios:prod": "APP_ENV=production expo run:ios --configuration Release"
+    "ios:prod": "APP_ENV=production expo run:ios --configuration Release",
+    "sentry:release": "bash scripts/sentry-release.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -52,7 +53,9 @@
   "expo": {
     "autolinking": {
       "ios": {
-        "exclude": ["@sentry/react-native"]
+        "exclude": [
+          "@sentry/react-native"
+        ]
       }
     }
   }
