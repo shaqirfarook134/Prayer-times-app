@@ -1,13 +1,27 @@
 const IS_DEV = process.env.APP_ENV === 'development';
 
-// Config plugin to explicitly remove foreground service permissions from the merged manifest.
-// The app uses expo-background-fetch (Android JobScheduler) — not a foreground service.
-// Without this removal, EAS builds on Expo SDK 55 may inherit FOREGROUND_SERVICE from
-// transitive dependencies, causing Google Play to require a foreground service declaration.
+// Config plugin to explicitly remove foreground service permissions AND the
+// expo-location LocationTaskService from the merged manifest.
+//
+// Root cause of Google Play rejection: expo-location's AAR manifest injects:
+//   <service android:name="expo.modules.location.services.LocationTaskService"
+//            android:foregroundServiceType="location"/>
+// A service with foregroundServiceType triggers Play Store policy review even
+// without an explicit <uses-permission FOREGROUND_SERVICE> entry.
+//
+// The app uses expo-background-fetch (JobScheduler) for background work and
+// expo-location only for one-time foreground permission + getCurrentPositionAsync().
+// No background or task-based location is used.
 const withRemoveForegroundService = (config) => {
-  const { withAndroidManifest } = require('@expo/config-plugins');
+  const { withAndroidManifest, AndroidConfig } = require('@expo/config-plugins');
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
+
+    // Ensure xmlns:tools is declared on the manifest root — required for
+    // tools:node="remove" directives to take effect during Gradle manifest merge.
+    AndroidConfig.Manifest.ensureToolsAvailable(manifest);
+
+    // Remove <uses-permission> entries for all foreground service variants.
     if (!manifest.manifest['uses-permission']) {
       manifest.manifest['uses-permission'] = [];
     }
@@ -16,20 +30,38 @@ const withRemoveForegroundService = (config) => {
       'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
       'android.permission.FOREGROUND_SERVICE_LOCATION',
     ];
-    // Add tools:node="remove" entries to strip these from the merged manifest
     permsToRemove.forEach((perm) => {
-      const already = manifest.manifest['uses-permission'].find(
+      const existing = manifest.manifest['uses-permission'].find(
         (p) => p.$?.['android:name'] === perm
       );
-      if (!already) {
+      if (existing) {
+        // If expo-location's plugin already added it, override with remove directive.
+        existing.$['tools:node'] = 'remove';
+      } else {
         manifest.manifest['uses-permission'].push({
-          $: {
-            'android:name': perm,
-            'tools:node': 'remove',
-          },
+          $: { 'android:name': perm, 'tools:node': 'remove' },
         });
       }
     });
+
+    // Remove the expo-location LocationTaskService <service> element.
+    // This is the actual trigger for all 3 Google Play foreground service violations.
+    const mainApplication = manifest.manifest.application?.[0];
+    if (mainApplication) {
+      if (!mainApplication.service) mainApplication.service = [];
+      const svcName = 'expo.modules.location.services.LocationTaskService';
+      const existing = mainApplication.service.find(
+        (s) => s.$?.['android:name'] === svcName
+      );
+      if (existing) {
+        existing.$['tools:node'] = 'remove';
+      } else {
+        mainApplication.service.push({
+          $: { 'android:name': svcName, 'tools:node': 'remove' },
+        });
+      }
+    }
+
     return config;
   });
 };
