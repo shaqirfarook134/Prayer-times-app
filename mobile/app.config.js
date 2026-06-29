@@ -29,6 +29,9 @@ const withRemoveForegroundService = (config) => {
       'android.permission.FOREGROUND_SERVICE',
       'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
       'android.permission.FOREGROUND_SERVICE_LOCATION',
+      // expo-sensors injects this for Pedometer/DeviceMotion — app only uses
+      // magnetometer for Qibla compass, no activity recognition needed.
+      'android.permission.ACTIVITY_RECOGNITION',
     ];
     permsToRemove.forEach((perm) => {
       const existing = manifest.manifest['uses-permission'].find(
