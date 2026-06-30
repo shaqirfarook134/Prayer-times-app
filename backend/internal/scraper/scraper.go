@@ -501,7 +501,10 @@ func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.Scrape
 // extractFromEmirSultan fetches prayer times from the Emir Sultan Mosque (Dandenong, VIC)
 // via the ezanvakti.emushaf.net API. The mosque uses non-standard iqama rules:
 //   - Fajr iqama = sunrise − 40 minutes
-//   - All other iqamas = adhan + 10 minutes
+//   - Dhuhr iqama = adhan + 8 minutes
+//   - Asr iqama = adhan + 8 minutes
+//   - Maghrib iqama = same as adhan (adhan + 0 minutes)
+//   - Isha iqama = adhan + 8 minutes
 func (s *Scraper) extractFromEmirSultan(ctx context.Context, timezone string) (*models.ScrapedPrayerTimes, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -576,19 +579,19 @@ func (s *Scraper) extractFromEmirSultan(ctx context.Context, timezone string) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute fajr iqama: %w", err)
 	}
-	dhuhrIqama, err := addMinutes(entry.Ogle, 10)
+	dhuhrIqama, err := addMinutes(entry.Ogle, 8)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute dhuhr iqama: %w", err)
 	}
-	asrIqama, err := addMinutes(entry.Ikindi, 10)
+	asrIqama, err := addMinutes(entry.Ikindi, 8)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute asr iqama: %w", err)
 	}
-	maghribIqama, err := addMinutes(entry.Aksam, 10)
+	maghribIqama, err := addMinutes(entry.Aksam, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute maghrib iqama: %w", err)
 	}
-	ishaIqama, err := addMinutes(entry.Yatsi, 10)
+	ishaIqama, err := addMinutes(entry.Yatsi, 8)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute isha iqama: %w", err)
 	}
