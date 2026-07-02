@@ -116,6 +116,43 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		}
 	}
 
+	// Method 0e: ISV Preston — TheMasjidApp iframe (fetch iframe URL directly)
+	if strings.Contains(url, "isv.org.au") {
+		prayerTimes, err := s.extractFromISV(ctx, timezone)
+		if err != nil {
+			return nil, fmt.Errorf("isv scraper failed: %w", err)
+		}
+		return prayerTimes, nil
+	}
+
+	// Method 0f: AthanPlus widget (iewad.org.au)
+	if strings.Contains(url, "iewad.org.au") {
+		prayerTimes, err := s.extractFromAthanPlus(ctx, "nDAg3WA0", timezone)
+		if err != nil {
+			return nil, fmt.Errorf("athanplus scraper failed: %w", err)
+		}
+		return prayerTimes, nil
+	}
+
+	// Method 0g: Masjidal plugin (aicom.com.au)
+	if strings.Contains(url, "aicom.com.au") {
+		prayerTimes, err := s.extractFromMasjidal(html, timezone)
+		if err != nil {
+			return nil, fmt.Errorf("masjidal scraper failed: %w", err)
+		}
+		return prayerTimes, nil
+	}
+
+	// Method 0h: AlAdhan API — for sites that load prayer times dynamically via JS
+	// (umis.com.au, isomer.org.au, sunshinemosque.com.au)
+	if strings.Contains(url, "umis.com.au") || strings.Contains(url, "isomer.org.au") || strings.Contains(url, "sunshinemosque.com.au") {
+		prayerTimes, err := s.extractFromAlAdhan(ctx, url, timezone)
+		if err != nil {
+			return nil, fmt.Errorf("aladhan scraper failed: %w", err)
+		}
+		return prayerTimes, nil
+	}
+
 	// Method 1: Try to extract from .ini data files (for awqat.com.au sites)
 	prayerTimes, err := s.extractFromIniDataFile(ctx, html, url, timezone)
 	if err == nil {
@@ -1820,6 +1857,307 @@ func (s *Scraper) parseJummahFromMGM(ctx context.Context, pageURL string) ([][2]
 		results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
 	}
 	return results, nil
+}
+
+// extractFromISV fetches prayer times for ISV (Preston Mosque) by loading their
+// TheMasjidApp iframe directly at themasjidapp.org/128422/prayers.
+func (s *Scraper) extractFromISV(ctx context.Context, timezone string) (*models.ScrapedPrayerTimes, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://themasjidapp.org/128422/prayers", nil)
+	if err != nil {
+		return nil, fmt.Errorf("isv: failed to create request: %w", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("isv: failed to fetch iframe: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("isv: failed to read response: %w", err)
+	}
+
+	return s.extractFromTheMasjidApp(string(body), timezone)
+}
+
+// extractFromAthanPlus fetches prayer times from the AthanPlus widget API.
+// The widget embeds a weekly timetable in HTML; today's table is in #table_div_0
+// (or whichever div is not display:none). Each prayer row:
+//
+//	<tr><td>PrayerName</td><td>H:MM AM</td><td><b>H:MM AM</b></td></tr>
+//
+// Column 2 = adhan (STARTS), column 3 = iqama (IQAMAH).
+func (s *Scraper) extractFromAthanPlus(ctx context.Context, masjidID, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	widgetURL := fmt.Sprintf("https://timing.athanplus.com/masjid/widgets/embed?theme=1&masjid_id=%s", masjidID)
+	req, err := http.NewRequestWithContext(ctx, "GET", widgetURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("athanplus: failed to create request: %w", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("athanplus: failed to fetch widget: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("athanplus: failed to read response: %w", err)
+	}
+	html := string(body)
+
+	// Today's weekday index (0=Sunday in JS, but AthanPlus starts week on current day)
+	// The first table_div (table_div_0) is always today.
+	// Extract just the first table_div block.
+	divRe := regexp.MustCompile(`(?s)id="table_div_0"[^>]*>(.*?)</div>`)
+	divMatch := divRe.FindStringSubmatch(html)
+	if len(divMatch) < 2 {
+		return nil, fmt.Errorf("athanplus: table_div_0 not found in HTML")
+	}
+	block := divMatch[1]
+
+	// Match prayer rows: <td>..PrayerName..</td><td>H:MM  AM</td><td><b>H:MM  AM</b></td>
+	rowRe := regexp.MustCompile(`(?i)<td[^>]*>[^<]*(?:<[^>]+>[^<]*</[^>]+>)*([A-Za-z]+)[^<]*</td>\s*<td[^>]*>\s*(\d{1,2}:\d{2}\s*[AP]M)\s*</td>\s*<td[^>]*>\s*(?:<b>)?\s*(\d{1,2}:\d{2}\s*[AP]M)\s*(?:</b>)?\s*</td>`)
+	matches := rowRe.FindAllStringSubmatch(block, -1)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("athanplus: no prayer rows found")
+	}
+
+	pt := &models.ScrapedPrayerTimes{Date: today}
+	for _, m := range matches {
+		name := strings.TrimSpace(m[1])
+		adhan, err := parseTime12or24(strings.TrimSpace(m[2]))
+		if err != nil {
+			continue
+		}
+		iqama, err := parseTime12or24(strings.TrimSpace(m[3]))
+		if err != nil {
+			continue
+		}
+		switch strings.ToLower(name) {
+		case "fajr":
+			pt.Fajr = adhan
+			pt.FajrIqama = iqama
+		case "dhuhr", "zuhr":
+			pt.Dhuhr = adhan
+			pt.DhuhrIqama = iqama
+		case "asr":
+			pt.Asr = adhan
+			pt.AsrIqama = iqama
+		case "maghrib":
+			pt.Maghrib = adhan
+			pt.MaghribIqama = iqama
+		case "isha":
+			pt.Isha = adhan
+			pt.IshaIqama = iqama
+		}
+	}
+
+	if err := s.validatePrayerTimes(pt); err != nil {
+		return nil, fmt.Errorf("athanplus: %w", err)
+	}
+	return pt, nil
+}
+
+// extractFromMasjidal extracts prayer times from the Masjidal WordPress plugin
+// (used by aicom.com.au and similar sites). The plugin renders a slideshow of
+// .mySlides_new divs — one per day. The first slide (count_1) is today.
+// Each prayer row:
+//
+//	<li>
+//	  <div class="image_and_text_namze"><span class="namze_name"> FAJR </span></div>
+//	  <div class="time_namze"><span>6:02 AM</span><span class="text-center">6:45 AM</span></div>
+//	</li>
+//
+// First span = STARTS (adhan), second span = IQAMAH.
+func (s *Scraper) extractFromMasjidal(html, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("masjidal: failed to parse HTML: %w", err)
+	}
+
+	// First .mySlides_new div = today's slide
+	slide := doc.Find(".mySlides_new").First()
+	if slide.Length() == 0 {
+		return nil, fmt.Errorf("masjidal: no .mySlides_new found")
+	}
+
+	pt := &models.ScrapedPrayerTimes{Date: today}
+
+	slide.Find("li").Each(func(_ int, li *goquery.Selection) {
+		name := strings.TrimSpace(li.Find(".namze_name").Text())
+		if name == "" {
+			return
+		}
+
+		spans := li.Find(".time_namze span")
+		if spans.Length() < 1 {
+			return
+		}
+
+		adhanRaw := strings.TrimSpace(spans.Eq(0).Text())
+		adhan, err := parseTime12or24(adhanRaw)
+		if err != nil {
+			return
+		}
+
+		var iqama string
+		if spans.Length() >= 2 {
+			iqamaRaw := strings.TrimSpace(spans.Eq(1).Text())
+			if v, e := parseTime12or24(iqamaRaw); e == nil {
+				iqama = v
+			}
+		}
+
+		switch strings.ToLower(name) {
+		case "fajr":
+			pt.Fajr = adhan
+			pt.FajrIqama = iqama
+		case "dhuhr", "zuhr":
+			pt.Dhuhr = adhan
+			pt.DhuhrIqama = iqama
+		case "asr":
+			pt.Asr = adhan
+			pt.AsrIqama = iqama
+		case "maghrib":
+			pt.Maghrib = adhan
+			pt.MaghribIqama = iqama
+		case "isha":
+			pt.Isha = adhan
+			pt.IshaIqama = iqama
+		}
+	})
+
+	if err := s.validatePrayerTimes(pt); err != nil {
+		return nil, fmt.Errorf("masjidal: %w", err)
+	}
+	return pt, nil
+}
+
+// alAdhanCoords maps masjid URL substrings to their GPS coordinates for AlAdhan lookups.
+var alAdhanCoords = map[string][2]float64{
+	"umis.com.au":            {-37.8136, 144.9631}, // Melbourne CBD
+	"isomer.org.au":          {-37.9073, 145.2815}, // Lysterfield
+	"sunshinemosque.com.au":  {-37.7890, 144.8300}, // Ardeer / Sunshine
+}
+
+// extractFromAlAdhan fetches prayer times from the AlAdhan public API using GPS
+// coordinates. Used for sites that render prayer times via JavaScript widgets
+// (MuslimPro, IslamicFinder) which cannot be scraped as static HTML.
+// Only adhan times are available — no iqama data from this source.
+func (s *Scraper) extractFromAlAdhan(ctx context.Context, masjidURL, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	var lat, lon float64
+	for key, coords := range alAdhanCoords {
+		if strings.Contains(masjidURL, key) {
+			lat, lon = coords[0], coords[1]
+			break
+		}
+	}
+	if lat == 0 && lon == 0 {
+		return nil, fmt.Errorf("aladhan: no coordinates configured for %s", masjidURL)
+	}
+
+	apiURL := fmt.Sprintf(
+		"https://api.aladhan.com/v1/timings/%d?latitude=%f&longitude=%f&method=3",
+		now.Unix(), lat, lon,
+	)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: failed to create request: %w", err)
+	}
+	req.Header.Set("User-Agent", s.config.UserAgent)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: failed to fetch API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: failed to read response: %w", err)
+	}
+
+	var apiResp struct {
+		Code int `json:"code"`
+		Data struct {
+			Timings struct {
+				Fajr    string `json:"Fajr"`
+				Dhuhr   string `json:"Dhuhr"`
+				Asr     string `json:"Asr"`
+				Maghrib string `json:"Maghrib"`
+				Isha    string `json:"Isha"`
+			} `json:"timings"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil, fmt.Errorf("aladhan: failed to parse JSON: %w", err)
+	}
+	if apiResp.Code != 200 {
+		return nil, fmt.Errorf("aladhan: API returned code %d", apiResp.Code)
+	}
+
+	t := apiResp.Data.Timings
+	fajr, err := parseTime12or24(t.Fajr)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: invalid fajr: %w", err)
+	}
+	dhuhr, err := parseTime12or24(t.Dhuhr)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: invalid dhuhr: %w", err)
+	}
+	asr, err := parseTime12or24(t.Asr)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: invalid asr: %w", err)
+	}
+	maghrib, err := parseTime12or24(t.Maghrib)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: invalid maghrib: %w", err)
+	}
+	isha, err := parseTime12or24(t.Isha)
+	if err != nil {
+		return nil, fmt.Errorf("aladhan: invalid isha: %w", err)
+	}
+
+	pt := &models.ScrapedPrayerTimes{
+		Date:    today,
+		Fajr:    fajr,
+		Dhuhr:   dhuhr,
+		Asr:     asr,
+		Maghrib: maghrib,
+		Isha:    isha,
+		// No iqama data available from AlAdhan
+	}
+
+	if err := s.validatePrayerTimes(pt); err != nil {
+		return nil, fmt.Errorf("aladhan: %w", err)
+	}
+	return pt, nil
 }
 
 // ValidateChange checks if new prayer times differ significantly from previous
