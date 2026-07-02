@@ -1341,9 +1341,17 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL, pa
 		{"MAGHRIB", 4},
 		{"ISHA", 5},
 	}
+	// Only use the first occurrence of each JS_PRAY_DURATION_OF_* variable —
+	// later occurrences are boundary-clamp lines (e.g. "if > 40 { = 40 }") that
+	// would overwrite the real value if we processed all matches.
+	seenDuration := map[string]bool{}
 	durationRe := regexp.MustCompile(`JS_PRAY_DURATION_OF_(\w+)\s*=\s*(\d+)`)
 	for _, m := range durationRe.FindAllStringSubmatch(pageHTML, -1) {
 		key := m[1]
+		if seenDuration[key] {
+			continue
+		}
+		seenDuration[key] = true
 		val, _ := strconv.Atoi(m[2])
 		for _, dk := range durationKeys {
 			if dk.key == key {
