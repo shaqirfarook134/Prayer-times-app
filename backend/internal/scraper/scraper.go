@@ -822,6 +822,12 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		prayerTimes.IshaIqama = s.addMinutes(prayerTimes.Isha, 20)
 	}
 
+	// AYCC special case: Maghrib iqama = same as adhan. The admin configured this
+	// via the on-page localStorage UI which is not readable by the scraper.
+	if strings.Contains(baseURL, "awqat.com.au/aycc") {
+		prayerTimes.MaghribIqama = prayerTimes.Maghrib
+	}
+
 	return prayerTimes, nil
 }
 
