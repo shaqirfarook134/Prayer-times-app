@@ -814,7 +814,7 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		return nil, err
 	}
 
-	if err := s.extractAndCalculateIqamaTimes(ctx, baseURL, prayerTimes); err != nil {
+	if err := s.extractAndCalculateIqamaTimes(ctx, baseURL, html, prayerTimes); err != nil {
 		prayerTimes.FajrIqama = s.addMinutes(prayerTimes.Fajr, 20)
 		prayerTimes.DhuhrIqama = s.addMinutes(prayerTimes.Dhuhr, 20)
 		prayerTimes.AsrIqama = s.addMinutes(prayerTimes.Asr, 20)
@@ -1253,8 +1253,9 @@ func (s *Scraper) validatePrayerTimes(pt *models.ScrapedPrayerTimes) error {
 	return nil
 }
 
-// extractAndCalculateIqamaTimes extracts iqama configuration and calculates iqama times
-func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL string, pt *models.ScrapedPrayerTimes) error {
+// extractAndCalculateIqamaTimes extracts iqama configuration and calculates iqama times.
+// pageHTML is the main page HTML, used to read JS_PRAY_DURATION_OF_* fallback offsets.
+func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL, pageHTML string, pt *models.ScrapedPrayerTimes) error {
 	// Build iqamafixed.js URL
 	baseURLParts := strings.Split(strings.TrimSuffix(baseURL, "/"), "/")
 	baseURLWithoutPath := strings.Join(baseURLParts[:len(baseURLParts)], "/")
@@ -1317,6 +1318,41 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL str
 		}
 	}
 
+	// Parse JS_PRAY_DURATION_OF_* from the main page HTML.
+	// These are the per-prayer iqama offsets (in minutes) used by the awqat.com.au
+	// JavaScript engine as fallback when FIXED_IQAMA_TIMES[i] is empty and
+	// JS_IQAMA_TIME[i] is 0. Without reading these, our scraper defaulted to 20
+	// minutes for every prayer, which was wrong (e.g. Maghrib is typically 10 min).
+	//
+	// Variable names: JS_PRAY_DURATION_OF_FAJR, JS_PRAY_DURATION_OF_SHOROQ,
+	//   JS_PRAY_DURATION_OF_DOHR, JS_PRAY_DURATION_OF_ASR,
+	//   JS_PRAY_DURATION_OF_MAGHRIB, JS_PRAY_DURATION_OF_ISHA
+	//
+	// Array mapping (same indices as FIXED_IQAMA_TIMES):
+	//   [0]=Sunrise, [1]=Fajr, [2]=Dhuhr, [3]=Asr, [4]=Maghrib, [5]=Isha
+	durationDefaults := [6]int{5, 20, 20, 20, 20, 20} // sane fallback if vars absent
+	durationKeys := []struct {
+		key   string
+		index int
+	}{
+		{"FAJR", 1},
+		{"DOHR", 2},
+		{"ASR", 3},
+		{"MAGHRIB", 4},
+		{"ISHA", 5},
+	}
+	durationRe := regexp.MustCompile(`JS_PRAY_DURATION_OF_(\w+)\s*=\s*(\d+)`)
+	for _, m := range durationRe.FindAllStringSubmatch(pageHTML, -1) {
+		key := m[1]
+		val, _ := strconv.Atoi(m[2])
+		for _, dk := range durationKeys {
+			if dk.key == key {
+				durationDefaults[dk.index] = val
+				break
+			}
+		}
+	}
+
 	// Use the timezone from the already-computed prayer date for day-of-week calculations
 	loc := pt.Date.Location()
 	if loc == nil {
@@ -1328,7 +1364,7 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL str
 	// Array indices: [0]=Sunrise, [1]=Fajr, [2]=Dhuhr, [3]=Asr, [4]=Maghrib, [5]=Isha
 
 	// Fajr (index 1)
-	pt.FajrIqama = s.calculateIqama(pt.Fajr, fixedTimes, offsetTimes, 1)
+	pt.FajrIqama = s.calculateIqamaWithDefault(pt.Fajr, fixedTimes, offsetTimes, 1, durationDefaults[1])
 
 	// Dhuhr (index 2): check for day-of-week override in JS_ANNONCE variables before using fixed time.
 	// Some masjids (e.g. Al Taqwa) vary Dhuhr iqama by day:
@@ -1336,17 +1372,17 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL str
 	if dhuhrOverride := s.parseDhuhrDayOverride(content, now); dhuhrOverride != "" {
 		pt.DhuhrIqama = dhuhrOverride
 	} else {
-		pt.DhuhrIqama = s.calculateIqama(pt.Dhuhr, fixedTimes, offsetTimes, 2)
+		pt.DhuhrIqama = s.calculateIqamaWithDefault(pt.Dhuhr, fixedTimes, offsetTimes, 2, durationDefaults[2])
 	}
 
 	// Asr (index 3)
-	pt.AsrIqama = s.calculateIqama(pt.Asr, fixedTimes, offsetTimes, 3)
+	pt.AsrIqama = s.calculateIqamaWithDefault(pt.Asr, fixedTimes, offsetTimes, 3, durationDefaults[3])
 
 	// Maghrib (index 4)
-	pt.MaghribIqama = s.calculateIqama(pt.Maghrib, fixedTimes, offsetTimes, 4)
+	pt.MaghribIqama = s.calculateIqamaWithDefault(pt.Maghrib, fixedTimes, offsetTimes, 4, durationDefaults[4])
 
 	// Isha (index 5)
-	pt.IshaIqama = s.calculateIqama(pt.Isha, fixedTimes, offsetTimes, 5)
+	pt.IshaIqama = s.calculateIqamaWithDefault(pt.Isha, fixedTimes, offsetTimes, 5, durationDefaults[5])
 
 	return nil
 }
@@ -1445,20 +1481,28 @@ func (s *Scraper) parseDhuhrDayOverride(content string, now time.Time) string {
 	return ""
 }
 
-// calculateIqama calculates iqama time based on fixed time or offset
+// calculateIqama calculates iqama time based on fixed time or offset, using 20 min as default.
 func (s *Scraper) calculateIqama(adhanTime string, fixedTimes []string, offsetTimes []int, index int) string {
-	// Check for fixed time first
+	return s.calculateIqamaWithDefault(adhanTime, fixedTimes, offsetTimes, index, 20)
+}
+
+// calculateIqamaWithDefault calculates iqama time using:
+//  1. FIXED_IQAMA_TIMES[index] if non-empty (hardcoded clock time)
+//  2. JS_IQAMA_TIME[index] if > 0 (minutes offset from adhan)
+//  3. defaultOffset (from JS_PRAY_DURATION_OF_* in the main page HTML)
+func (s *Scraper) calculateIqamaWithDefault(adhanTime string, fixedTimes []string, offsetTimes []int, index, defaultOffset int) string {
+	// Fixed clock time takes priority
 	if len(fixedTimes) > index && fixedTimes[index] != "" {
 		return fixedTimes[index]
 	}
 
-	// Use offset time
-	offset := 20 // default
+	// JS_IQAMA_TIME offset next
 	if len(offsetTimes) > index && offsetTimes[index] > 0 {
-		offset = offsetTimes[index]
+		return s.addMinutes(adhanTime, offsetTimes[index])
 	}
 
-	return s.addMinutes(adhanTime, offset)
+	// Fall back to JS_PRAY_DURATION_OF_* from the main page
+	return s.addMinutes(adhanTime, defaultOffset)
 }
 
 // addMinutes adds minutes to a time string in HH:MM format
