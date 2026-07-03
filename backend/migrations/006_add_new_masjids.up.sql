@@ -21,5 +21,5 @@ INSERT INTO masjids (name, url, city, state, timezone, latitude, longitude) VALU
     ('Campbellfield Mosque',                 'https://masjidbox.com/prayer-times/campbellfield-mosque',                   'Campbellfield',     'VIC', 'Australia/Melbourne', -37.66660, 144.97940),
     ('Australian Bosnian Islamic Centre',    'https://masjidbox.com/prayer-times/australian-bosnian-islamic-centre',      'Albanvale',         'VIC', 'Australia/Melbourne', -37.74720, 144.76510),
     ('La Trobe Mosque',                      'https://masjidbox.com/prayer-times/la-trobe-mosque',                        'Bundoora',          'VIC', 'Australia/Melbourne', -37.72050, 145.04800),
-    ('Afghan Islamic Centre',                'https://aicom.com.au/',                                                     'Melbourne',         'VIC', 'Australia/Melbourne', -37.81360, 144.96310)
+    ('Afghan Islamic Centre',                'https://aicom.com.au/',                                                     'Doveton',           'VIC', 'Australia/Melbourne', -37.9922743, 145.2360755)
 ON CONFLICT (url) DO NOTHING;
