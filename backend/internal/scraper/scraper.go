@@ -1978,33 +1978,49 @@ func (s *Scraper) extractFromAthanPlus(ctx context.Context, masjidID, timezone s
 	}
 	html := string(body)
 
-	// Today's weekday index (0=Sunday in JS, but AthanPlus starts week on current day)
-	// The first table_div (table_div_0) is always today.
-	// Extract just the first table_div block.
-	divRe := regexp.MustCompile(`(?s)id="table_div_0"[^>]*>(.*?)</div>`)
-	divMatch := divRe.FindStringSubmatch(html)
-	if len(divMatch) < 2 {
-		return nil, fmt.Errorf("athanplus: table_div_0 not found in HTML")
+	// Use goquery to parse the HTML and find table_div_0, then iterate rows.
+	// This avoids regex fragility with nested tags (<span><img>...PrayerName</span>)
+	// and double spaces in times ("6:01  AM").
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("athanplus: failed to parse HTML: %w", err)
 	}
-	block := divMatch[1]
 
-	// Match prayer rows: <td>..PrayerName..</td><td>H:MM  AM</td><td><b>H:MM  AM</b></td>
-	rowRe := regexp.MustCompile(`(?i)<td[^>]*>[^<]*(?:<[^>]+>[^<]*</[^>]+>)*([A-Za-z]+)[^<]*</td>\s*<td[^>]*>\s*(\d{1,2}:\d{2}\s*[AP]M)\s*</td>\s*<td[^>]*>\s*(?:<b>)?\s*(\d{1,2}:\d{2}\s*[AP]M)\s*(?:</b>)?\s*</td>`)
-	matches := rowRe.FindAllStringSubmatch(block, -1)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("athanplus: no prayer rows found")
+	tableDiv := doc.Find("#table_div_0")
+	if tableDiv.Length() == 0 {
+		return nil, fmt.Errorf("athanplus: table_div_0 not found in HTML")
 	}
 
 	pt := &models.ScrapedPrayerTimes{Date: today}
-	for _, m := range matches {
-		name := strings.TrimSpace(m[1])
-		adhan, err := parseTime12or24(strings.TrimSpace(m[2]))
-		if err != nil {
-			continue
+	tableDiv.Find("tr").Each(func(_ int, row *goquery.Selection) {
+		tds := row.Find("td")
+		if tds.Length() < 3 {
+			return
 		}
-		iqama, err := parseTime12or24(strings.TrimSpace(m[3]))
+		// Column 0: prayer name (may contain img/span, get text and strip non-alpha)
+		rawName := strings.TrimSpace(tds.Eq(0).Text())
+		// rawName may be something like "\nFajr\n" or "Fajr" or "Dhuhr" — keep only alpha chars
+		name := strings.Map(func(r rune) rune {
+			if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+				return r
+			}
+			return -1
+		}, rawName)
+		if name == "" {
+			return
+		}
+		// Column 1: adhan time, column 2: iqama time
+		// Times may have double spaces ("6:01  AM") — normalize whitespace
+		adhanStr := strings.Join(strings.Fields(tds.Eq(1).Text()), " ")
+		iqamaStr := strings.Join(strings.Fields(tds.Eq(2).Text()), " ")
+
+		adhan, err := parseTime12or24(adhanStr)
 		if err != nil {
-			continue
+			return
+		}
+		iqama, err := parseTime12or24(iqamaStr)
+		if err != nil {
+			return
 		}
 		switch strings.ToLower(name) {
 		case "fajr":
@@ -2023,7 +2039,7 @@ func (s *Scraper) extractFromAthanPlus(ctx context.Context, masjidID, timezone s
 			pt.Isha = adhan
 			pt.IshaIqama = iqama
 		}
-	}
+	})
 
 	if err := s.validatePrayerTimes(pt); err != nil {
 		return nil, fmt.Errorf("athanplus: %w", err)
