@@ -477,8 +477,11 @@ func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.Scrape
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 
-	// Match: <!-- -->PrayerName</td><td ...>H:MM<span ...>AM|PM</span></td><td ...>H:MM|—<span
-	re := regexp.MustCompile(`-->(\w+)</td><td[^>]*>(\d{1,2}:\d{2})<span[^>]*>(AM|PM)</span></td><td[^>]*>(\d{1,2}:\d{2}|—)`)
+	// Match prayer rows. The page embeds SVG icons inline before the prayer name,
+	// so we can't rely on the <!-- --> comment anchor. Instead match the first
+	// Latin word inside the <td> (prayer name), followed by two time cells.
+	// Handles names with trailing Arabic text (e.g. "Fajr الفجر", "Mgrib مغرب").
+	re := regexp.MustCompile(`<td[^>]*>\s*(?:<[^>]+>)*\s*(?:<!--\s*-->)?\s*([A-Za-z]+)[^<]*</td><td[^>]*>(\d{1,2}:\d{2})<span[^>]*>(AM|PM)</span></td><td[^>]*>(\d{1,2}:\d{2}|—)`)
 	matches := re.FindAllStringSubmatch(html, -1)
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("themasjidapp: no prayer time rows found in HTML")
@@ -519,7 +522,7 @@ func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.Scrape
 		case "asr":
 			pt.Asr = adhan
 			pt.AsrIqama = iqama
-		case "maghrib":
+		case "maghrib", "mgrib":
 			pt.Maghrib = adhan
 			pt.MaghribIqama = iqama
 		case "isha":
