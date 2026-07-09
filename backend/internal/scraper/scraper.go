@@ -1629,6 +1629,27 @@ func (s *Scraper) parseJummahFromAwqat(ctx context.Context, pageURL string) ([][
 	// to avoid crossing string boundaries while allowing the apostrophe in "JUMU'AH".
 	announcePat := regexp.MustCompile(`(?i)JS_ANNONCE_\d+\s*=\s*(?:"([^"\n]*(?:jumu|jum)[^"\n]*)"|'([^'\n]*(?:jumu|jum)[^'\n]*)')`)
 	matches := announcePat.FindAllStringSubmatch(iqamaContent, -1)
+
+	// Fallback: some sites (e.g. Virgin Mary Mosque) store bare times in JS_ANNONCE_1
+	// with no jumu/jum keyword — e.g. JS_ANNONCE_1 = "12:15pm , 1:15pm ,2:15pm"
+	// In that case, extract times from JS_ANNONCE_1 directly.
+	if len(matches) == 0 {
+		fallbackPat := regexp.MustCompile(`(?i)JS_ANNONCE_1\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')`)
+		fb := fallbackPat.FindStringSubmatch(iqamaContent)
+		if len(fb) >= 2 {
+			text := fb[1]
+			if text == "" {
+				text = fb[2]
+			}
+			// Only use this if it contains at least one time pattern and no other keyword
+			// (avoid picking up non-Jummah announcements)
+			timePat := regexp.MustCompile(`(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))`)
+			if timePat.MatchString(text) {
+				matches = [][]string{{fb[0], text, ""}}
+			}
+		}
+	}
+
 	if len(matches) == 0 {
 		return nil, nil
 	}
