@@ -78,6 +78,7 @@ func (r *Router) Setup() *gin.Engine {
 
 		// Scraping endpoints
 		admin.POST("/scrape", r.scrapeHandler.TriggerScrape)
+		admin.POST("/scrape/jummah", r.scrapeHandler.TriggerJummahScrape)
 	}
 
 	return router
