@@ -1584,6 +1584,18 @@ func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]
 	if strings.Contains(masjidURL, "icv.org.au") {
 		return s.parseJummahFromICV(ctx)
 	}
+	// ISV Preston: masjid URL is isv.org.au but prayer times come from themasjidapp.org
+	if strings.Contains(masjidURL, "isv.org.au") {
+		return s.parseJummahFromTheMasjidApp(ctx, "https://themasjidapp.org/128422/prayers")
+	}
+	// IEWAD: prayer times come from AthanPlus widget
+	if strings.Contains(masjidURL, "iewad.org.au") {
+		return s.parseJummahFromAthanPlus(ctx, "nDAg3WA0")
+	}
+	// Sunshine Mosque
+	if strings.Contains(masjidURL, "sunshinemosque.com.au") {
+		return s.parseJummahFromSunshineMosque(ctx, masjidURL)
+	}
 	return nil, nil
 }
 
@@ -1939,6 +1951,86 @@ func (s *Scraper) parseJummahFromMGM(ctx context.Context, pageURL string) ([][2]
 		results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
 	}
 	return results, nil
+}
+
+// parseJummahFromAthanPlus extracts Jumu'ah times from an AthanPlus widget.
+// The widget HTML contains a row with "Jumuah" text and a time column.
+func (s *Scraper) parseJummahFromAthanPlus(ctx context.Context, masjidID string) ([][2]string, error) {
+	widgetURL := fmt.Sprintf("https://timing.athanplus.com/masjid/widgets/embed?theme=1&masjid_id=%s", masjidID)
+	req, err := http.NewRequestWithContext(ctx, "GET", widgetURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+	if err != nil {
+		return nil, err
+	}
+
+	var results [][2]string
+	doc.Find("tr").Each(func(i int, row *goquery.Selection) {
+		tds := row.Find("td")
+		if tds.Length() < 2 {
+			return
+		}
+		name := strings.TrimSpace(tds.Eq(0).Text())
+		if !strings.Contains(strings.ToLower(name), "jumuah") && !strings.Contains(strings.ToLower(name), "jumu") {
+			return
+		}
+		timeStr := strings.Join(strings.Fields(tds.Eq(1).Text()), " ")
+		t24, err := parseTime12or24(timeStr)
+		if err != nil {
+			return
+		}
+		results = append(results, [2]string{fmt.Sprintf("%d", len(results)+1), t24})
+	})
+	return results, nil
+}
+
+// parseJummahFromSunshineMosque extracts Jumu'ah times from sunshinemosque.com.au.
+// The page contains text like "Friday Jummah Prayer ... 12.30 PM"
+func (s *Scraper) parseJummahFromSunshineMosque(ctx context.Context, pageURL string) ([][2]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	html := string(body)
+
+	// Match times near "Jummah" keyword: "12.30 PM" or "12:30 PM" or "12:30PM"
+	// The page uses dots as separators: "12.30 PM"
+	pat := regexp.MustCompile(`(?i)jummah[^<]{0,100}?(\d{1,2}[.:]\d{2}\s*[AP]M)`)
+	m := pat.FindStringSubmatch(html)
+	if len(m) < 2 {
+		return nil, nil
+	}
+	// Normalise dot-separated time: "12.30 PM" → "12:30 PM"
+	timeStr := strings.ReplaceAll(m[1], ".", ":")
+	timeStr = strings.Join(strings.Fields(timeStr), " ")
+	t24, err := parseTime12or24(timeStr)
+	if err != nil {
+		return nil, nil
+	}
+	return [][2]string{{"1", t24}}, nil
 }
 
 // extractFromISV fetches prayer times for ISV (Preston Mosque) by loading their
