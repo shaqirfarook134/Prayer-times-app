@@ -1588,10 +1588,6 @@ func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]
 	if strings.Contains(masjidURL, "isv.org.au") {
 		return s.parseJummahFromTheMasjidApp(ctx, "https://themasjidapp.org/128422/prayers")
 	}
-	// IEWAD: prayer times come from AthanPlus widget
-	if strings.Contains(masjidURL, "iewad.org.au") {
-		return s.parseJummahFromAthanPlus(ctx, "nDAg3WA0")
-	}
 	// Sunshine Mosque
 	if strings.Contains(masjidURL, "sunshinemosque.com.au") {
 		return s.parseJummahFromSunshineMosque(ctx, masjidURL)
@@ -1861,8 +1857,9 @@ func (s *Scraper) parseJummahFromTheMasjidApp(ctx context.Context, pageURL strin
 	}
 	html := string(body)
 
-	// Match: Jumuah</...><td...>H:MM<span...>AM|PM</span>
-	pat := regexp.MustCompile(`(?i)Jumuah</[^>]+></td><td[^>]*>(\d{1,2}:\d{2})<span[^>]*>(AM|PM)</span>`)
+	// Match: Jumaah|Jumuah</...><td...>H:MM<span...>AM|PM</span>
+	// ISV Preston uses "Jumaah" spelling; other sites use "Jumuah"
+	pat := regexp.MustCompile(`(?i)Jum[au]ah[^<]*</[^>]+></td><td[^>]*>(\d{1,2}:\d{2})<span[^>]*>(AM|PM)</span>`)
 	matches := pat.FindAllStringSubmatch(html, -1)
 
 	var results [][2]string
@@ -2016,9 +2013,10 @@ func (s *Scraper) parseJummahFromSunshineMosque(ctx context.Context, pageURL str
 	}
 	html := string(body)
 
-	// Match times near "Jummah" keyword: "12.30 PM" or "12:30 PM" or "12:30PM"
-	// The page uses dots as separators: "12.30 PM"
-	pat := regexp.MustCompile(`(?i)jummah[^<]{0,100}?(\d{1,2}[.:]\d{2}\s*[AP]M)`)
+	// The page structure is:
+	//   <h2>Friday Jummah Prayer</h2><h2...>12.30 PM</h2>
+	// The time is in the next <h2> after the "Jummah" heading, using dots: "12.30 PM"
+	pat := regexp.MustCompile(`(?i)Friday Jummah Prayer</h2>\s*<h2[^>]*>\s*(\d{1,2}[.:]\d{2}\s*[AP]M)`)
 	m := pat.FindStringSubmatch(html)
 	if len(m) < 2 {
 		return nil, nil
