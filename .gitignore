@@ -33,3 +33,9 @@ backend/*.out
 # Temporary files
 *.tmp
 tmp/
+
+# verification script secrets & outputs
+scripts/verify-prayer-times/.env
+scripts/verify-prayer-times/.venv/
+scripts/verify-prayer-times/reports/
+scripts/verify-prayer-times/verify.log
