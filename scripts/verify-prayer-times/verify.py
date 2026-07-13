@@ -178,7 +178,9 @@ Report the prayer times the page shows FOR TODAY.
 - "adhan" is the prayer start time (may be labelled adhan/azan/begins/start/starts).
 - "iqama" is the congregation time (may be labelled iqama/iqamah/jamaah/jamaat/congregation/prayer).
 - If the page shows only one time per prayer, put it in "adhan" and leave "iqama" null.
-- "jummah" is Friday prayer times if shown anywhere on the page (khutbah/jumu'ah/jumaah).
+- "jummah" is the Friday prayer if shown anywhere (khutbah/jumu'ah/jumaah). Report one time per
+  session: the iqamah/khutbah/prayer time. If a session shows both an adhan and an iqamah
+  (two times a few minutes apart), report only the iqamah (the later one).
 - Copy times as displayed (e.g. "5:15", "5:15 PM", "17:15"). Do not compute or guess times.
 - Some pages split a time across lines: "6" then "01" means 6:01. Rejoin them as h:mm.
 - If the page shows no prayer times, is an error page, or only shows times for a different day, set readable=false.
@@ -221,6 +223,10 @@ def compare_masjid(db_times, db_jummah, site):
             if a is None or b is None:
                 continue  # one side doesn't publish this field — nothing to verify
             ok = a == b
+            if not ok and kind == "adhan":
+                # tolerate 1-minute rounding on calculated adhan times
+                diff = abs((a[0] * 60 + a[1]) - (b[0] * 60 + b[1]))
+                ok = diff <= 1 or diff >= 719  # handles 11:59<->12:00 wrap
             if not ok:
                 mismatches += 1
             rows.append((f"{p.capitalize()} {kind}", db_val, site_val, ok))
@@ -315,6 +321,7 @@ def send_email(subject, html):
 
 def main():
     only = sys.argv[sys.argv.index("--only") + 1].lower() if "--only" in sys.argv else None
+    no_email = "--no-email" in sys.argv
 
     from anthropic import Anthropic
 
@@ -367,7 +374,10 @@ def main():
     report_path.write_text(html)
     log(f"Report written to {report_path}")
 
-    send_email(subject, html)
+    if no_email:
+        log("(--no-email: skipping email)")
+    else:
+        send_email(subject, html)
     log(f"Done: {counts}")
     sys.exit(1 if counts["MISMATCH"] else 0)
 
