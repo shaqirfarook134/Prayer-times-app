@@ -178,12 +178,16 @@ Report the prayer times the page shows FOR TODAY.
 - "adhan" is the prayer start time (may be labelled adhan/azan/begins/start/starts).
 - "iqama" is the congregation time (may be labelled iqama/iqamah/jamaah/jamaat/congregation/prayer).
 - If the page shows only one time per prayer, put it in "adhan" and leave "iqama" null.
-- "jummah" is the Friday prayer if shown anywhere (khutbah/jumu'ah/jumaah). Report one time per
+- "jummah" is the Friday prayer (khutbah/jumu'ah/jumaah). ALWAYS report it when the page displays
+  a jummah time, even if today is not Friday — it is a recurring weekly time. Report one time per
   session: the iqamah/khutbah/prayer time. If a session shows both an adhan and an iqamah
-  (two times a few minutes apart), report only the iqamah (the later one).
+  (two times a few minutes apart), report only the iqamah (the later one). If the page only
+  states a rule (e.g. "10 minutes after dhuhr") with no clock time, leave jummah empty.
 - Copy times as displayed (e.g. "5:15", "5:15 PM", "17:15"). Do not compute or guess times.
 - Some pages split a time across lines: "6" then "01" means 6:01. Rejoin them as h:mm.
-- If the page shows no prayer times, is an error page, or only shows times for a different day, set readable=false.
+- Daily prayer times must be for TODAY: if the page's daily times are dated a different day, is an
+  error page, or shows no times at all, set readable=false and say why in notes. A page showing
+  only jummah (no daily times) is still readable=true with the daily prayers null.
 
 PAGE TEXT:
 {page_text}"""
@@ -339,33 +343,44 @@ def main():
         masjids = [m for m in masjids if only in m["name"].lower()]
     log(f"{len(masjids)} masjids to verify")
 
+    def verify_masjid(m, text):
+        """Extract + compare one masjid. Returns a result dict."""
+        name, url = m["name"], m.get("url", "")
+        base = {"name": name, "city": m.get("city", ""), "url": url, "rows": []}
+        if not text or len(text.strip()) < 40:
+            return {**base, "status": "UNREADABLE", "detail": "Website did not load or rendered no content."}
+        try:
+            site = extract_times(client, name, text)
+        except Exception as e:
+            return {**base, "status": "UNREADABLE", "detail": f"AI extraction failed: {e}"}
+        if not site.get("readable"):
+            return {**base, "status": "UNREADABLE", "detail": f"No times visible to a visitor. {site.get('notes', '')}"}
+        status, rows = compare_masjid(m.get("db_times"), m.get("db_jummah", []), site)
+        detail = site.get("notes", "") or "Times visible but nothing comparable was extracted."
+        return {**base, "status": status, "detail": detail, "rows": rows}
+
     urls = list({m["url"] for m in masjids if m.get("url")})
     log(f"Rendering {len(urls)} unique websites...")
     page_texts = fetch_page_texts(urls)
 
     results = []
     for m in masjids:
-        name, url = m["name"], m.get("url", "")
-        text = page_texts.get(url)
-        if not text or len(text.strip()) < 40:
-            results.append({"name": name, "city": m.get("city", ""), "url": url,
-                            "status": "UNREADABLE", "detail": "Website did not load or rendered no content.", "rows": []})
-            continue
-        try:
-            site = extract_times(client, name, text)
-        except Exception as e:
-            results.append({"name": name, "city": m.get("city", ""), "url": url,
-                            "status": "UNREADABLE", "detail": f"AI extraction failed: {e}", "rows": []})
-            continue
-        if not site.get("readable"):
-            results.append({"name": name, "city": m.get("city", ""), "url": url,
-                            "status": "UNREADABLE", "detail": f"No times visible to a visitor. {site.get('notes', '')}", "rows": []})
-            continue
-        status, rows = compare_masjid(m.get("db_times"), m.get("db_jummah", []), site)
-        detail = site.get("notes", "") if status == "UNREADABLE" else ""
-        results.append({"name": name, "city": m.get("city", ""), "url": url,
-                        "status": status, "detail": detail or "Times visible but nothing comparable was extracted.", "rows": rows})
-        log(f"  {status}: {name}")
+        r = verify_masjid(m, page_texts.get(m.get("url", "")))
+        results.append(r)
+        log(f"  {r['status']}: {r['name']}")
+
+    # one retry pass: transient page/extraction failures are common enough to matter
+    retry = [i for i, r in enumerate(results) if r["status"] == "UNREADABLE"]
+    if retry:
+        log(f"Retrying {len(retry)} unreadable masjids...")
+        retry_urls = list({results[i]["url"] for i in retry if results[i]["url"]})
+        retry_texts = fetch_page_texts(retry_urls)
+        for i in retry:
+            m = masjids[i]
+            r = verify_masjid(m, retry_texts.get(m.get("url", "")))
+            if r["status"] != "UNREADABLE":
+                results[i] = r
+                log(f"  retry recovered {r['status']}: {r['name']}")
 
     subject, html, counts = build_html(results)
 
