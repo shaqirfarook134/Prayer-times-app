@@ -126,6 +126,23 @@ def fetch_page_texts(urls):
                     pass
                 page.wait_for_timeout(3000)
                 body = page.inner_text("body")
+                # Many masjids embed their times in a third-party widget iframe
+                # (AthanPlus, themasjidapp, masjidal). A visitor sees that content
+                # inline, so include each child frame's visible text too — otherwise
+                # the page looks empty and gets a false "no times" verdict.
+                for frame in page.frames:
+                    if frame is page.main_frame:
+                        continue
+                    try:
+                        frame.wait_for_load_state("networkidle", timeout=5000)
+                    except Exception:
+                        pass
+                    try:
+                        ftext = frame.inner_text("body").strip()
+                    except Exception:
+                        ftext = ""
+                    if ftext:
+                        body += f"\n\n[embedded widget: {frame.url}]\n{ftext}"
                 texts[url] = re.sub(r"\n{3,}", "\n\n", body)[:MAX_PAGE_CHARS]
                 log(f"  fetched {url} ({len(texts[url])} chars)")
             except Exception as e:
