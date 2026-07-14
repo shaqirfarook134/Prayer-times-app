@@ -39,3 +39,6 @@ scripts/verify-prayer-times/.env
 scripts/verify-prayer-times/.venv/
 scripts/verify-prayer-times/reports/
 scripts/verify-prayer-times/verify.log
+
+# One-off DB migration/inspection helpers (run locally with DATABASE_URL from Render)
+backend/apply-migration-007.js
