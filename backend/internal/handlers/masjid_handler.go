@@ -166,6 +166,41 @@ func (h *MasjidHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, masjid)
 }
 
+// PATCH /admin/masjids/:id/active — toggle a masjid's is_active flag.
+// Body: {"is_active": false}. Deactivating hides it from the app and skips it
+// during scrapes without deleting data; reversible by setting it true again.
+func (h *MasjidHandler) SetActive(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Error:   "invalid_id",
+			Message: "Masjid ID must be a number",
+		})
+		return
+	}
+
+	var body struct {
+		IsActive *bool `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.IsActive == nil {
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Error:   "invalid_request",
+			Message: "Body must include boolean field is_active",
+		})
+		return
+	}
+
+	if err := h.masjidRepo.SetActive(c.Request.Context(), id, *body.IsActive); err != nil {
+		c.JSON(http.StatusNotFound, models.APIError{
+			Error:   "not_found",
+			Message: "Masjid not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"id": id, "is_active": *body.IsActive})
+}
+
 // Delete removes a masjid (admin only)
 // DELETE /admin/masjids/:id
 func (h *MasjidHandler) Delete(c *gin.Context) {

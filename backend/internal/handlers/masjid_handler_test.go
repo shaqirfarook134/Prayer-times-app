@@ -1,25 +1,13 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"prayer-times-api/internal/models"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
-
-// Mock repository for testing
-type MockMasjidRepository struct {
-	masjids []models.Masjid
-}
-
-func (m *MockMasjidRepository) GetAll() ([]models.Masjid, error) {
-	return m.masjids, nil
-}
 
 func TestGetAllMasjids(t *testing.T) {
 	gin.SetMode(gin.TestMode)
