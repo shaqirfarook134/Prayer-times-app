@@ -340,11 +340,25 @@ def send_email(subject, html):
     msg["From"] = GMAIL_USER
     msg["To"] = REPORT_TO
     msg.attach(MIMEText(html, "html"))
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as s:
-        s.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-        s.sendmail(GMAIL_USER, [REPORT_TO], msg.as_string())
-    log(f"Report emailed to {REPORT_TO}")
-    return True
+    # The 7am launchd run is unattended; a transient DNS/SMTP blip shouldn't lose
+    # the email. Retry a few times with backoff before giving up. The report is
+    # already saved to disk regardless, so a failure here is non-fatal.
+    last_err = None
+    for attempt in range(1, 4):
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30,
+                                  context=ssl.create_default_context()) as s:
+                s.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+                s.sendmail(GMAIL_USER, [REPORT_TO], msg.as_string())
+            log(f"Report emailed to {REPORT_TO}")
+            return True
+        except Exception as e:
+            last_err = e
+            log(f"  email attempt {attempt}/3 failed: {type(e).__name__}: {e}")
+            if attempt < 3:
+                time.sleep(10 * attempt)
+    log(f"Email failed after 3 attempts ({last_err}). Report saved at reports/{TODAY}.html")
+    return False
 
 
 # ---------------------------------------------------------------- main
