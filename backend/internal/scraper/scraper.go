@@ -783,11 +783,18 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 		_, tzOffset := now.Zone()
 		tzHours := float64(tzOffset) / 3600.0
 
+		// Asr juristic method is a per-site setting: JS_GPS_ASR_TYPE = "Hanafi"
+		// uses shadow factor 2 (e.g. Leo St Musallah), otherwise Standard (factor 1).
+		asrFactor := 1.0
+		if regexp.MustCompile(`JS_GPS_ASR_TYPE\s*=\s*["']Hanafi["']`).MatchString(html) {
+			asrFactor = 2.0
+		}
+
 		prayerTimes = &models.ScrapedPrayerTimes{
 			Date: today,
 		}
 
-		if err := s.calcMWLTimes(now, lat, lng, tzHours, prayerTimes); err != nil {
+		if err := s.calcMWLTimes(now, lat, lng, tzHours, asrFactor, prayerTimes); err != nil {
 			return nil, fmt.Errorf("GPS calculation failed: %w", err)
 		}
 
@@ -813,6 +820,11 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 	prayerTimes.Maghrib = s.addMinutes(prayerTimes.Maghrib, adjustments["MAGHRIB"])
 	prayerTimes.Isha = s.addMinutes(prayerTimes.Isha, adjustments["ISHA"])
 
+	// Some masjids hand-edit the template to hardcode a displayed athan time,
+	// e.g. IISNA: document.getElementById('s5').innerHTML = '10:00'; //KonvertTimeTo12(_n5);
+	// These literals are what visitors actually see, so they win over computed times.
+	applyHardcodedAthanOverrides(html, prayerTimes)
+
 	if err := s.validatePrayerTimes(prayerTimes); err != nil {
 		return nil, err
 	}
@@ -835,10 +847,11 @@ func (s *Scraper) extractFromIniDataFile(ctx context.Context, html, baseURL, tim
 }
 
 // calcMWLTimes calculates prayer times using the PrayTimes.js MWL algorithm.
-// MWL: Fajr 18°, Isha 17°, Asr Standard (Shafi), Maghrib at sunset.
+// MWL: Fajr 18°, Isha 17°, Maghrib at sunset. asrFactor is the Asr shadow
+// factor: 1 = Standard (Shafi), 2 = Hanafi.
 // This is a faithful port of PrayTimes.js v2.3 (praytimes.org) as used by awqat.com.au.
 // Includes: iterative sun position computation, adjustHighLats (AngleBased).
-func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *models.ScrapedPrayerTimes) error {
+func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours, asrFactor float64, pt *models.ScrapedPrayerTimes) error {
 	toRad := func(d float64) float64 { return d * math.Pi / 180 }
 	toDeg := func(r float64) float64 { return r * 180 / math.Pi }
 	fixHour := func(h float64) float64 { return h - 24*math.Floor(h/24) }
@@ -916,10 +929,10 @@ func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *model
 	}
 	dhuhr = midDay(dhuhr)
 
-	// Asr Standard (factor=1): angle = -arccot(1 + tan|lat - decl|)
+	// Asr: angle = -arccot(factor + tan|lat - decl|), factor 1=Standard, 2=Hanafi
 	// Negative angle = above horizon; sunAngleTime handles via -sin(angle) = sin(|angle|)
 	asrDecl, _ := sunPos(jDate + asr)
-	asrAngle := -toDeg(math.Atan(1.0 / (1 + math.Tan(math.Abs(toRad(lat-asrDecl))))))
+	asrAngle := -toDeg(math.Atan(1.0 / (asrFactor + math.Tan(math.Abs(toRad(lat-asrDecl))))))
 	asr, err = sunAngleTime(asrAngle, asr, false)
 	if err != nil {
 		return err
@@ -982,6 +995,49 @@ func (s *Scraper) calcMWLTimes(t time.Time, lat, lng, tzHours float64, pt *model
 	pt.Isha = round(isha)
 
 	return nil
+}
+
+// applyHardcodedAthanOverrides scans the page HTML for hand-edited athan cells.
+// The awqat template normally renders each athan cell from the computed time:
+//
+//	document.getElementById('s5').innerHTML = KonvertTimeTo12(_n5);
+//
+// but some masjids replace the expression with a literal (IISNA displays Isha
+// as a fixed '10:00' PM). Cell mapping: s0=Fajr, s1=Sunrise, s2=Dhuhr, s3=Asr,
+// s4=Maghrib, s5=Isha. Times are as-displayed (12-hour, no AM/PM), so convert
+// to 24-hour using the prayer's half of the day.
+func applyHardcodedAthanOverrides(html string, pt *models.ScrapedPrayerTimes) {
+	cellPat := regexp.MustCompile(`getElementById\('s([02-5])'\)\.innerHTML\s*=\s*'(\d{1,2}):(\d{2})'`)
+	for _, line := range strings.Split(html, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+		m := cellPat.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		hour, _ := strconv.Atoi(m[2])
+		minute, _ := strconv.Atoi(m[3])
+		if hour < 1 || hour > 12 || minute > 59 {
+			continue
+		}
+		switch m[1] {
+		case "0": // Fajr — always AM
+			pt.Fajr = fmt.Sprintf("%02d:%02d", hour%12, minute)
+		case "2": // Dhuhr — 11:xx is AM, everything else is noon/afternoon
+			if hour <= 10 {
+				hour += 12
+			}
+			pt.Dhuhr = fmt.Sprintf("%02d:%02d", hour, minute)
+		case "3": // Asr — always PM
+			pt.Asr = fmt.Sprintf("%02d:%02d", hour%12+12, minute)
+		case "4": // Maghrib — always PM
+			pt.Maghrib = fmt.Sprintf("%02d:%02d", hour%12+12, minute)
+		case "5": // Isha — always PM
+			pt.Isha = fmt.Sprintf("%02d:%02d", hour%12+12, minute)
+		}
+	}
 }
 
 // extractFromJavaScript attempts to extract prayer times from embedded JavaScript
@@ -1309,6 +1365,10 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL, pa
 	}
 
 	// Extract JS_IQAMA_TIME array: [0,30,10,10,7,10]
+	// Slots may be empty ([0,,,10,7,7]) — the template leaves those prayers to
+	// FIXED_IQAMA_TIMES. Explicit values are used literally by the website JS,
+	// including 0 (iqama = adhan) and negatives (e.g. ICMG Brimbank Isha -10),
+	// so keep "empty" distinct from "zero".
 	offsetTimesRe := regexp.MustCompile(`JS_IQAMA_TIME\s*=\s*\[([^\]]+)\]`)
 	offsetMatches := offsetTimesRe.FindStringSubmatch(content)
 
@@ -1318,11 +1378,10 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL, pa
 		offsetStr := strings.ReplaceAll(offsetMatches[1], " ", "")
 		offsetParts := strings.Split(offsetStr, ",")
 		for _, part := range offsetParts {
-			if part == "" {
-				offsetTimes = append(offsetTimes, 0)
-			} else {
-				offset, _ := strconv.Atoi(part)
+			if offset, err := strconv.Atoi(part); err == nil {
 				offsetTimes = append(offsetTimes, offset)
+			} else {
+				offsetTimes = append(offsetTimes, iqamaOffsetUnset)
 			}
 		}
 	}
@@ -1503,9 +1562,15 @@ func (s *Scraper) calculateIqama(adhanTime string, fixedTimes []string, offsetTi
 	return s.calculateIqamaWithDefault(adhanTime, fixedTimes, offsetTimes, index, 20)
 }
 
+// iqamaOffsetUnset marks an empty slot in the JS_IQAMA_TIME array. The website
+// JS uses explicit values literally — including 0 and negatives — so only truly
+// empty slots may fall through to the default offset.
+const iqamaOffsetUnset = math.MinInt32
+
 // calculateIqamaWithDefault calculates iqama time using:
 //  1. FIXED_IQAMA_TIMES[index] if non-empty (hardcoded clock time)
-//  2. JS_IQAMA_TIME[index] if > 0 (minutes offset from adhan)
+//  2. JS_IQAMA_TIME[index] if the slot was explicitly set (minutes offset from
+//     adhan; 0 and negative values are valid — e.g. ICMG Brimbank uses [0,0,0,0,0,-10])
 //  3. defaultOffset (from JS_PRAY_DURATION_OF_* in the main page HTML)
 func (s *Scraper) calculateIqamaWithDefault(adhanTime string, fixedTimes []string, offsetTimes []int, index, defaultOffset int) string {
 	// Fixed clock time takes priority
@@ -1514,7 +1579,7 @@ func (s *Scraper) calculateIqamaWithDefault(adhanTime string, fixedTimes []strin
 	}
 
 	// JS_IQAMA_TIME offset next
-	if len(offsetTimes) > index && offsetTimes[index] > 0 {
+	if len(offsetTimes) > index && offsetTimes[index] != iqamaOffsetUnset {
 		return s.addMinutes(adhanTime, offsetTimes[index])
 	}
 
@@ -1539,9 +1604,9 @@ func (s *Scraper) addMinutes(timeStr string, minutes int) string {
 		return timeStr
 	}
 
-	// Add minutes
-	totalMins := hours*60 + mins + minutes
-	newHours := (totalMins / 60) % 24
+	// Add minutes; wrap within a 24-hour day (minutes may be negative)
+	totalMins := ((hours*60+mins+minutes)%1440 + 1440) % 1440
+	newHours := totalMins / 60
 	newMins := totalMins % 60
 
 	return fmt.Sprintf("%02d:%02d", newHours, newMins)
@@ -1596,94 +1661,144 @@ func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]
 }
 
 // parseJummahFromAwqat extracts Jumu'ah times from awqat.com.au sites.
-// The main HTML page and iqamafixed.js both carry a JS_ANNONCE_1 variable
-// containing text like: "JUMU'AH @ 1:30PM & 2:15PM"
-// We fetch the main page and scan all JS_ANNONCE_* variables for time patterns.
+//
+// What a visitor sees in the announcement ticker depends on the template version:
+//   - New template: the page contains `JS_ANNONCE_1 = JS_eLang.HereMosqueMessage`
+//     and displays the HereMosqueMessage string from <site>/lang-EN.ini
+//     (e.g. `HereMosqueMessage : "JUMU'AH @ 1:30PM & 2:10PM"`). Any JS_ANNONCE_*
+//     left in iqamafixed.js is legacy data the template no longer shows.
+//   - Old template: the page displays JS_ANNONCE_1 / JS_ANNONCE_2 from
+//     <site>/iqamafixed.js (e.g. Fitzroy: "First JUMU'AH 12:30 PM" +
+//     "Second Friday Prayer: 1:10 PM").
+//
+// We replicate exactly what is displayed, then extract session times from it.
 func (s *Scraper) parseJummahFromAwqat(ctx context.Context, pageURL string) ([][2]string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
-	if err != nil {
-		return nil, err
+	fetch := func(u string) (string, error) {
+		req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("User-Agent", s.config.UserAgent)
+		resp, err := s.httpClient.Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("GET %s: status %d", u, resp.StatusCode)
+		}
+		body, err := io.ReadAll(resp.Body)
+		return string(body), err
 	}
-	req.Header.Set("User-Agent", s.config.UserAgent)
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	html := string(body)
 
-	// Fetch iqamafixed.js — on awqat.com.au it is always at <pageURL>/iqamafixed.js
-	// and is loaded via document.write (no static <script src=...>), so we construct
-	// the URL directly rather than trying to parse it from the HTML.
-	iqamaContent := html
+	html, err := fetch(pageURL)
+	if err != nil {
+		return nil, err
+	}
 	base := strings.TrimSuffix(pageURL, "/")
-	jsURL := base + "/iqamafixed.js"
-	if jsReq, err := http.NewRequestWithContext(ctx, "GET", jsURL, nil); err == nil {
-		jsReq.Header.Set("User-Agent", s.config.UserAgent)
-		if jsResp, err := s.httpClient.Do(jsReq); err == nil {
-			defer jsResp.Body.Close()
-			if jsBody, err := io.ReadAll(jsResp.Body); err == nil {
-				iqamaContent = html + "\n" + string(jsBody)
-			}
+
+	var announcements []string
+	if strings.Contains(html, "JS_eLang.HereMosqueMessage") {
+		// New template: the displayed message lives in lang-EN.ini
+		langContent, err := fetch(base + "/lang-EN.ini")
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	// Find all JS_ANNONCE_* values that mention jumu'ah / jum'ah / jumuah / jummah.
-	// The value may be in double or single quotes. Use [^"\n] and [^'\n] respectively
-	// to avoid crossing string boundaries while allowing the apostrophe in "JUMU'AH".
-	announcePat := regexp.MustCompile(`(?i)JS_ANNONCE_\d+\s*=\s*(?:"([^"\n]*(?:jumu|jum)[^"\n]*)"|'([^'\n]*(?:jumu|jum)[^'\n]*)')`)
-	matches := announcePat.FindAllStringSubmatch(iqamaContent, -1)
-
-	// Fallback: some sites (e.g. Virgin Mary Mosque) store bare times in JS_ANNONCE_1
-	// with no jumu/jum keyword — e.g. JS_ANNONCE_1 = "12:15pm , 1:15pm ,2:15pm"
-	// In that case, extract times from JS_ANNONCE_1 directly.
-	if len(matches) == 0 {
-		fallbackPat := regexp.MustCompile(`(?i)JS_ANNONCE_1\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')`)
-		fb := fallbackPat.FindStringSubmatch(iqamaContent)
-		if len(fb) >= 2 {
-			text := fb[1]
+		msgPat := regexp.MustCompile(`HereMosqueMessage\s*:\s*"([^"\n]*)"`)
+		if m := msgPat.FindStringSubmatch(langContent); m != nil {
+			announcements = append(announcements, m[1])
+		}
+	} else {
+		// Old template: the displayed messages are JS_ANNONCE_* in iqamafixed.js
+		jsContent, err := fetch(base + "/iqamafixed.js")
+		if err != nil {
+			return nil, err
+		}
+		announcePat := regexp.MustCompile(`JS_ANNONCE_\d+\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')`)
+		for _, m := range announcePat.FindAllStringSubmatch(jsContent, -1) {
+			text := m[1]
 			if text == "" {
-				text = fb[2]
+				text = m[2]
 			}
-			// Only use this if it contains at least one time pattern and no other keyword
-			// (avoid picking up non-Jummah announcements)
-			timePat := regexp.MustCompile(`(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))`)
-			if timePat.MatchString(text) {
-				matches = [][]string{{fb[0], text, ""}}
+			if strings.TrimSpace(text) != "" {
+				announcements = append(announcements, text)
 			}
 		}
 	}
 
-	if len(matches) == 0 {
-		return nil, nil
+	return extractJummahFromAnnouncements(announcements), nil
+}
+
+// extractJummahFromAnnouncements pulls Jumu'ah session times out of displayed
+// announcement strings. Announcements mentioning jumu'ah/jummah/friday are
+// parsed for times; if none mention it, an announcement that is only times
+// (e.g. RCA's ticker is just "13:00") is used as a fallback. Sessions are
+// numbered in display order. Returns nil when no times are found, so callers
+// keep existing data rather than deleting it.
+func extractJummahFromAnnouncements(announcements []string) [][2]string {
+	timePat := regexp.MustCompile(`(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?`)
+
+	// toTime24 converts a match to HH:MM. Times without AM/PM are assumed to be
+	// Jumu'ah-plausible: 24h values kept as-is, small hours shifted to afternoon.
+	toTime24 := func(m []string) (string, bool) {
+		hour, _ := strconv.Atoi(m[1])
+		minute, _ := strconv.Atoi(m[2])
+		if hour > 23 || minute > 59 {
+			return "", false
+		}
+		switch strings.ToLower(m[3]) {
+		case "pm":
+			if hour < 12 {
+				hour += 12
+			}
+		case "am":
+			if hour == 12 {
+				hour = 0
+			}
+		default:
+			if hour >= 1 && hour <= 10 {
+				hour += 12
+			}
+		}
+		// Jumu'ah is always around midday — reject anything implausible
+		// (guards the bare-times fallback against picking up random numbers)
+		if hour < 11 || hour > 15 {
+			return "", false
+		}
+		return fmt.Sprintf("%02d:%02d", hour, minute), true
 	}
 
-	timePat := regexp.MustCompile(`(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))`)
+	keywordPat := regexp.MustCompile(`(?i)jum|friday`)
+	var texts []string
+	for _, a := range announcements {
+		if keywordPat.MatchString(a) {
+			texts = append(texts, a)
+		}
+	}
+	if len(texts) == 0 {
+		// Fallback: a ticker that is nothing but time(s), e.g. "13:00" or
+		// "12:15pm , 1:15pm ,2:15pm"
+		bareOnlyPat := regexp.MustCompile(`^[\s\d:.,&|APMapm-]+$`)
+		for _, a := range announcements {
+			if timePat.MatchString(a) && bareOnlyPat.MatchString(strings.TrimSpace(a)) {
+				texts = append(texts, a)
+			}
+		}
+	}
+
 	var results [][2]string
-	for _, m := range matches {
-		// m[1] = double-quoted capture, m[2] = single-quoted capture
-		text := m[1]
-		if text == "" {
-			text = m[2]
-		}
-		times := timePat.FindAllString(text, -1)
-		for i, t := range times {
-			// Normalise: ensure exactly one space before AM/PM so parseTime12or24 can parse it
-			normalised := regexp.MustCompile(`(?i)\s*(AM|PM)$`).ReplaceAllStringFunc(strings.TrimSpace(t), func(s string) string {
-				return " " + strings.ToUpper(strings.TrimSpace(s))
-			})
-			t24, err := parseTime12or24(normalised)
-			if err != nil {
+	seen := map[string]bool{}
+	for _, text := range texts {
+		for _, m := range timePat.FindAllStringSubmatch(text, -1) {
+			t24, ok := toTime24(m)
+			if !ok || seen[t24] {
 				continue
 			}
-			results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
+			seen[t24] = true
+			results = append(results, [2]string{fmt.Sprintf("%d", len(results)+1), t24})
 		}
 	}
-	return results, nil
+	return results
 }
 
 // extractIqamaJSURL finds the iqamafixed.js script URL from a page's HTML.
