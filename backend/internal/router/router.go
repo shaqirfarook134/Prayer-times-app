@@ -74,6 +74,7 @@ func (r *Router) Setup() *gin.Engine {
 		// Masjid management
 		admin.POST("/masjids", r.masjidHandler.Create)
 		admin.PUT("/masjids/:id", r.masjidHandler.Update)
+		admin.PATCH("/masjids/:id/active", r.masjidHandler.SetActive)
 		admin.DELETE("/masjids/:id", r.masjidHandler.Delete)
 
 		// Scraping endpoints
