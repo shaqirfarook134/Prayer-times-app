@@ -179,10 +179,14 @@ Report the prayer times the page shows FOR TODAY.
 - "iqama" is the congregation time (may be labelled iqama/iqamah/jamaah/jamaat/congregation/prayer).
 - If the page shows only one time per prayer, put it in "adhan" and leave "iqama" null.
 - "jummah" is the Friday prayer (khutbah/jumu'ah/jumaah). ALWAYS report it when the page displays
-  a jummah time, even if today is not Friday — it is a recurring weekly time. Report one time per
-  session: the iqamah/khutbah/prayer time. If a session shows both an adhan and an iqamah
-  (two times a few minutes apart), report only the iqamah (the later one). If the page only
-  states a rule (e.g. "10 minutes after dhuhr") with no clock time, leave jummah empty.
+  a jummah time, even if today is not Friday — it is a recurring weekly time. A masjid may run
+  several jummah SESSIONS at different times (e.g. "12:15PM, 1:15PM & 2:15PM" is three separate
+  sessions roughly an hour apart) — report EVERY session as its own entry, preserving all of them.
+  Only collapse two times into one when they are clearly an adhan+iqamah PAIR for the SAME session
+  — i.e. within about 15 minutes of each other (e.g. "12:26 / 12:30") — and in that case report
+  only the iqamah (the later one). Times spaced roughly 30+ minutes apart are always distinct
+  sessions; never drop one. If the page only states a rule (e.g. "10 minutes after dhuhr") with no
+  clock time, leave jummah empty.
 - Copy times as displayed (e.g. "5:15", "5:15 PM", "17:15"). Do not compute or guess times.
 - Some pages split a time across lines: "6" then "01" means 6:01. Rejoin them as h:mm.
 - Daily prayer times must be for TODAY: if the page's daily times are dated a different day, is an
