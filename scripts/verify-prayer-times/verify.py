@@ -179,14 +179,20 @@ Report the prayer times the page shows FOR TODAY.
 - "iqama" is the congregation time (may be labelled iqama/iqamah/jamaah/jamaat/congregation/prayer).
 - If the page shows only one time per prayer, put it in "adhan" and leave "iqama" null.
 - "jummah" is the Friday prayer (khutbah/jumu'ah/jumaah). ALWAYS report it when the page displays
-  a jummah time, even if today is not Friday — it is a recurring weekly time. A masjid may run
-  several jummah SESSIONS at different times (e.g. "12:15PM, 1:15PM & 2:15PM" is three separate
-  sessions roughly an hour apart) — report EVERY session as its own entry, preserving all of them.
-  Only collapse two times into one when they are clearly an adhan+iqamah PAIR for the SAME session
-  — i.e. within about 15 minutes of each other (e.g. "12:26 / 12:30") — and in that case report
-  only the iqamah (the later one). Times spaced roughly 30+ minutes apart are always distinct
-  sessions; never drop one. If the page only states a rule (e.g. "10 minutes after dhuhr") with no
-  clock time, leave jummah empty.
+  a jummah time, even if today is not Friday — it is a recurring weekly time. Report the IQAMAH
+  (congregation) time for each session, following these rules IN ORDER:
+    (a) A session is a labelled pair ONLY when the word IQAMAH/IQAMA/JAMA'AH/CONGREGATION actually
+        appears next to the second time (common on masjidbox: "JUMUAH 12:27 IQAMAH 12:37", or
+        "JUMUAH 12:25 IQAMAH 2:00"). In that case report ONLY the labelled IQAMAH value, no matter
+        how far apart the two times are, and do NOT report the adhan/JUMU'AH time. Two times merely
+        joined by "&", ",", "and", or "/" are NOT a labelled pair — see (b).
+    (b) A masjid may run several separate SESSIONS at different times, written as a list with no
+        iqamah label (e.g. "12:15PM, 1:15PM & 2:15PM" is three sessions; "1:30PM & 2:10PM" is two
+        sessions). Report EVERY such time as its own entry, preserving all of them.
+    (c) Only when two UNLABELLED times sit within ~15 minutes of each other (e.g. "12:26 / 12:30")
+        treat them as an adhan+iqamah pair and report only the later one.
+  If the page only states a rule (e.g. "10 minutes after dhuhr") with no clock time, leave jummah
+  empty.
 - Copy times as displayed (e.g. "5:15", "5:15 PM", "17:15"). Do not compute or guess times.
 - Some pages split a time across lines: "6" then "01" means 6:01. Rejoin them as h:mm.
 - Daily prayer times must be for TODAY: if the page's daily times are dated a different day, is an
@@ -328,7 +334,12 @@ def send_email(subject, html):
 
 
 def main():
-    only = sys.argv[sys.argv.index("--only") + 1].lower() if "--only" in sys.argv else None
+    # --only may be repeated; a masjid matches if any substring is in its name
+    only = [
+        sys.argv[i + 1].lower()
+        for i, a in enumerate(sys.argv)
+        if a == "--only" and i + 1 < len(sys.argv)
+    ]
     no_email = "--no-email" in sys.argv
 
     from anthropic import Anthropic
@@ -344,7 +355,7 @@ def main():
     log("Fetching DB state from API...")
     masjids = fetch_db_state()
     if only:
-        masjids = [m for m in masjids if only in m["name"].lower()]
+        masjids = [m for m in masjids if any(o in m["name"].lower() for o in only)]
     log(f"{len(masjids)} masjids to verify")
 
     def verify_masjid(m, text):
