@@ -27,11 +27,23 @@ Gmail app password: https://myaccount.google.com/apppasswords (needs 2FA on the 
 
 ```bash
 .venv/bin/python verify.py                 # full run, all masjids
-.venv/bin/python verify.py --only sunshine # test a single masjid by name substring
+.venv/bin/python verify.py --only sunshine # test a single masjid (repeatable)
+.venv/bin/python verify.py --push          # also SOURCE times for AI-sourced masjids
+.venv/bin/python verify.py --no-email       # skip the email (report still saved)
 ```
 
 Exit code 0 = all match, 1 = mismatches found, 2 = API unreachable.
 Reports are also saved to `reports/YYYY-MM-DD.html`.
+
+### AI-sourced masjids (`--push`)
+
+A few masjids can't be scraped reliably by the Go backend (their sites render
+times only in JS/widgets and publish stale static HTML). For those — listed in
+`AI_SOURCED_URL_SUBSTRINGS` in `verify.py`, currently just **ISV Preston** — the
+AI reader here IS the source of truth: with `--push`, the times it reads are
+written to the DB via `PUT /api/v1/admin/prayer-times/:id`, so the app serves
+exactly what a visitor sees. A partial/failed read never overwrites good data.
+The daily job runs with `--push` so these stay current automatically.
 
 ## Schedule daily at 7:00 AM
 
