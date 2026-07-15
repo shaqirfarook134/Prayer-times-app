@@ -69,6 +69,14 @@ PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
 # mechanism and the admin endpoint remain available for any future case.
 AI_SOURCED_URL_SUBSTRINGS = ()
 
+# Masjids whose website shows a fixed/stale date but whose times are still worth
+# comparing (matched by URL substring). For these we tell the reader to report
+# the displayed times regardless of the date shown. Every other masjid keeps the
+# strict "must be dated today" check, which catches genuinely stale feeds.
+IGNORE_DATE_URL_SUBSTRINGS = (
+    "pgcc.org.au",  # PGCC — page is frozen on an old date but the times are usable
+)
+
 MELBOURNE = timezone(timedelta(hours=10))  # AEST; DST only shifts date near midnight
 TODAY = datetime.now(MELBOURNE).strftime("%Y-%m-%d")
 TODAY_HUMAN = datetime.now(MELBOURNE).strftime("%A, %-d %B %Y")
@@ -118,6 +126,10 @@ def to_24h(s):
 
 def is_ai_sourced(url):
     return any(sub in (url or "") for sub in AI_SOURCED_URL_SUBSTRINGS)
+
+
+def ignores_date(url):
+    return any(sub in (url or "") for sub in IGNORE_DATE_URL_SUBSTRINGS)
 
 
 def push_times(masjid_id, site):
@@ -246,14 +258,35 @@ EXTRACTION_SCHEMA = {
 }
 
 
-def extract_times(client, masjid_name, page_text):
-    """Ask Claude to read the page like a visitor and report the times shown."""
+def extract_times(client, masjid_name, page_text, ignore_date=False):
+    """Ask Claude to read the page like a visitor and report the times shown.
+    When ignore_date is True, the page's displayed date is not checked (used for
+    masjids whose site is frozen on an old date but whose times are still usable)."""
+    if ignore_date:
+        date_rule = (
+            "- This page may show a fixed or outdated date — IGNORE the date entirely. "
+            "Report whatever daily prayer times are displayed. Only set readable=false if the "
+            "page is an error page or shows no prayer times at all. A page showing only jummah "
+            "(no daily times) is still readable=true with the daily prayers null."
+        )
+    else:
+        date_rule = (
+            "- Daily prayer times must be for TODAY: if the page's daily times are dated a "
+            "different day, is an error page, or shows no times at all, set readable=false and say "
+            "why in notes. A page showing only jummah (no daily times) is still readable=true with "
+            "the daily prayers null."
+        )
+    intro = (
+        "Report the daily prayer times the page displays, ignoring what date the page is labelled with."
+        if ignore_date
+        else "Report the prayer times the page shows FOR TODAY."
+    )
+    date_line = "" if ignore_date else f"Today's date: {TODAY_HUMAN} ({TODAY})\n"
     prompt = f"""You are reading the visible text of a mosque website, exactly as a visitor sees it.
 
 Mosque: {masjid_name}
-Today's date: {TODAY_HUMAN} ({TODAY})
-
-Report the prayer times the page shows FOR TODAY.
+{date_line}
+{intro}
 - "adhan" is the prayer start time (may be labelled adhan/azan/begins/start/starts).
 - "iqama" is the congregation time (may be labelled iqama/iqamah/jamaah/jamaat/congregation/prayer).
 - If the page shows only one time per prayer, put it in "adhan" and leave "iqama" null.
@@ -274,9 +307,7 @@ Report the prayer times the page shows FOR TODAY.
   empty.
 - Copy times as displayed (e.g. "5:15", "5:15 PM", "17:15"). Do not compute or guess times.
 - Some pages split a time across lines: "6" then "01" means 6:01. Rejoin them as h:mm.
-- Daily prayer times must be for TODAY: if the page's daily times are dated a different day, is an
-  error page, or shows no times at all, set readable=false and say why in notes. A page showing
-  only jummah (no daily times) is still readable=true with the daily prayers null.
+{date_rule}
 
 PAGE TEXT:
 {page_text}"""
@@ -461,7 +492,7 @@ def main():
         if not text or len(text.strip()) < 40:
             return {**base, "status": "UNREADABLE", "detail": "Website did not load or rendered no content."}
         try:
-            site = extract_times(client, name, text)
+            site = extract_times(client, name, text, ignore_date=ignores_date(url))
         except Exception as e:
             return {**base, "status": "UNREADABLE", "detail": f"AI extraction failed: {e}"}
         if not site.get("readable"):
