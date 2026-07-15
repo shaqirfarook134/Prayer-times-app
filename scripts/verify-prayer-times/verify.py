@@ -58,6 +58,14 @@ MAX_PAGE_CHARS = 15000
 
 PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
 
+# Masjids whose sites the Go scrapers can't read reliably, so we SOURCE their
+# daily times from the AI reader here and push them to the DB (with --push).
+# Matched by substring against the masjid's URL. Keep this list tiny — the Go
+# scrapers are cheaper and cover the other 30-odd masjids.
+AI_SOURCED_URL_SUBSTRINGS = (
+    "isv.org.au",  # ISV Preston — themasjidapp widget only publishes a stale table
+)
+
 MELBOURNE = timezone(timedelta(hours=10))  # AEST; DST only shifts date near midnight
 TODAY = datetime.now(MELBOURNE).strftime("%Y-%m-%d")
 TODAY_HUMAN = datetime.now(MELBOURNE).strftime("%A, %-d %B %Y")
@@ -73,6 +81,57 @@ def log(msg):
 def api_get(path, timeout=30):
     with urllib.request.urlopen(f"{API_BASE}{path}", timeout=timeout) as r:
         return json.loads(r.read())
+
+
+def api_put(path, payload, timeout=30):
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"{API_BASE}{path}", data=data, method="PUT",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read())
+
+
+def to_24h(s):
+    """Convert a displayed time (e.g. '6:17AM', '5:57 pm', '17:20') to 'HH:MM',
+    or None if unparseable. AM/PM is honored; a bare time is assumed 24-hour."""
+    if not s:
+        return None
+    s = s.strip()
+    m = re.match(r"(\d{1,2}):(\d{2})\s*([APap][Mm])?", s)
+    if not m:
+        return None
+    h, mn = int(m.group(1)), int(m.group(2))
+    ap = (m.group(3) or "").lower()
+    if ap == "pm" and h != 12:
+        h += 12
+    elif ap == "am" and h == 12:
+        h = 0
+    if h > 23 or mn > 59:
+        return None
+    return f"{h:02d}:{mn:02d}"
+
+
+def is_ai_sourced(url):
+    return any(sub in (url or "") for sub in AI_SOURCED_URL_SUBSTRINGS)
+
+
+def push_times(masjid_id, site):
+    """Write AI-read adhan/iqama to the DB. Raises on failure. Skips if any
+    adhan is missing (a partial read must not overwrite good data)."""
+    payload = {}
+    for p in PRAYERS:
+        pp = (site.get("prayers") or {}).get(p) or {}
+        adhan = to_24h(pp.get("adhan"))
+        if not adhan:
+            raise ValueError(f"missing/invalid adhan for {p}")
+        entry = {"adhan": adhan}
+        iqama = to_24h(pp.get("iqama"))
+        if iqama:
+            entry["iqama"] = iqama
+        payload[p] = entry
+    return api_put(f"/api/v1/admin/prayer-times/{masjid_id}", payload)
 
 
 def wake_api():
@@ -372,6 +431,7 @@ def main():
         if a == "--only" and i + 1 < len(sys.argv)
     ]
     no_email = "--no-email" in sys.argv
+    push = "--push" in sys.argv
 
     from anthropic import Anthropic
 
@@ -390,7 +450,9 @@ def main():
     log(f"{len(masjids)} masjids to verify")
 
     def verify_masjid(m, text):
-        """Extract + compare one masjid. Returns a result dict."""
+        """Extract + compare one masjid. Returns a result dict. When --push and
+        the masjid is AI-sourced, write the read times to the DB first so the
+        app serves exactly what the reader saw."""
         name, url = m["name"], m.get("url", "")
         base = {"name": name, "city": m.get("city", ""), "url": url, "rows": []}
         if not text or len(text.strip()) < 40:
@@ -401,6 +463,16 @@ def main():
             return {**base, "status": "UNREADABLE", "detail": f"AI extraction failed: {e}"}
         if not site.get("readable"):
             return {**base, "status": "UNREADABLE", "detail": f"No times visible to a visitor. {site.get('notes', '')}"}
+
+        if push and is_ai_sourced(url):
+            try:
+                push_times(m["id"], site)
+                log(f"  pushed AI-sourced times to DB: {name}")
+                # Re-fetch so the comparison reflects what we just wrote.
+                m["db_times"] = api_get(f"/api/v1/prayer-times/{m['id']}")
+            except Exception as e:
+                log(f"  push FAILED for {name}: {e}")
+
         status, rows = compare_masjid(m.get("db_times"), m.get("db_jummah", []), site)
         detail = site.get("notes", "") or "Times visible but nothing comparable was extracted."
         return {**base, "status": status, "detail": detail, "rows": rows}
