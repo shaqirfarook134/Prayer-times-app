@@ -400,3 +400,72 @@ func TestAthanPlusMasjidID(t *testing.T) {
 		}
 	}
 }
+
+// themasjidapp embeds a day-of-year JSON timetable. Structure mirrors the real
+// ISV Preston page captured 2026-07-15: an "imported" object of adhan times and
+// a sibling "iqamas" object that is NOT forward-dated (so iqama comes back blank).
+func TestExtractTheMasjidAppFromJSON(t *testing.T) {
+	cfg := &config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3}
+	s := NewScraper(cfg)
+
+	html := `<html><script>window.__DATA__={` +
+		`"iqamas":{"1":{"fajr":"4:34 am","dhuhr":"1:33 pm","asr":"5:27 pm","maghrib":"8:50 pm","isha":"10:25 pm"}},` +
+		`"imported":{` +
+		`"195":{"fajr":"5:58 AM","sunrise":"7:32 AM","zuhr":"12:26 PM","asr":"3:00 PM","maghrib":"5:19 PM","isha":"6:49 PM"},` +
+		`"196":{"fajr":"5:57 AM","sunrise":"7:32 AM","zuhr":"12:26 PM","asr":"3:01 PM","maghrib":"5:20 PM","isha":"6:50 PM"},` +
+		`"197":{"fajr":"5:57 AM","sunrise":"7:32 AM","zuhr":"12:26 PM","asr":"3:02 PM","maghrib":"5:20 PM","isha":"6:50 PM"}` +
+		`}}</script></html>`
+
+	loc, _ := time.LoadLocation("Australia/Melbourne")
+	today := time.Date(2026, 7, 15, 0, 0, 0, 0, loc) // day-of-year 196
+
+	pt, err := s.extractTheMasjidAppFromJSON(html, today, 196)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := map[string]string{
+		"Fajr": "05:57", "Dhuhr": "12:26", "Asr": "15:01", "Maghrib": "17:20", "Isha": "18:50",
+	}
+	got := map[string]string{
+		"Fajr": pt.Fajr, "Dhuhr": pt.Dhuhr, "Asr": pt.Asr, "Maghrib": pt.Maghrib, "Isha": pt.Isha,
+	}
+	for k, w := range want {
+		if got[k] != w {
+			t.Errorf("%s adhan = %q; want %q", k, got[k], w)
+		}
+	}
+	// iqamas has no day-196 entry, so all iqama must be blank (don't invent data).
+	for name, iq := range map[string]string{
+		"Fajr": pt.FajrIqama, "Dhuhr": pt.DhuhrIqama, "Asr": pt.AsrIqama,
+		"Maghrib": pt.MaghribIqama, "Isha": pt.IshaIqama,
+	} {
+		if iq != "" {
+			t.Errorf("%s iqama = %q; want empty (no forward iqama published)", name, iq)
+		}
+	}
+
+	// A missing day falls back (error) so the caller uses the static table.
+	if _, err := s.extractTheMasjidAppFromJSON(html, today, 300); err == nil {
+		t.Error("expected error for a day not in the imported array")
+	}
+}
+
+func TestExtractJSONObject(t *testing.T) {
+	s := `{"a":1,"imported":{"196":{"fajr":"5:57 AM"},"nested":{"x":{"y":1}}},"b":2}`
+	obj, ok := extractJSONObject(s, "imported")
+	if !ok {
+		t.Fatal("expected to find imported object")
+	}
+	if obj != `{"196":{"fajr":"5:57 AM"},"nested":{"x":{"y":1}}}` {
+		t.Errorf("balanced object mismatch: %s", obj)
+	}
+	if _, ok := extractJSONObject(s, "missing"); ok {
+		t.Error("expected missing key to return ok=false")
+	}
+	// A brace inside a string literal must not confuse the depth counter.
+	s2 := `"k":{"note":"has } brace","v":1}`
+	obj2, ok := extractJSONObject(s2, "k")
+	if !ok || obj2 != `{"note":"has } brace","v":1}` {
+		t.Errorf("string-literal brace handling failed: %q ok=%v", obj2, ok)
+	}
+}

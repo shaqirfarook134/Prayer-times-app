@@ -471,16 +471,14 @@ func (s *Scraper) extractFromMasjidbox(ctx context.Context, masjidboxURL, timezo
 }
 
 // extractFromTheMasjidApp extracts prayer times from themasjidapp.org embedded pages.
-// The page renders a React table where each row follows the pattern:
 //
-//	<!-- -->PrayerName</td><td>H:MM<span>AM|PM</span></td><td>H:MM<span>AM|PM</span>
-//
-// The first time column is Adhan, the second is Iqama (may be "—" if not set).
-//
-// NOTE: themasjidapp server-renders this table with a STALE placeholder that the
-// browser replaces via JS, so this path can drift a few days behind. For ISV
-// Preston we instead source times via the AI reader (see verify.py --push); this
-// remains as a best-effort fallback.
+// The page's static <table> is server-rendered with a STALE placeholder (often
+// several days old) that the browser replaces via JS — so parsing the table alone
+// drifts behind. The real per-day schedule is embedded in the page as JSON: an
+// "imported" object of day-of-year → adhan times, and a sibling "iqamas" object
+// of day-of-year → congregation times (may be absent / not forward-dated). We
+// prefer that JSON, indexed by today's day-of-year, and fall back to the static
+// table only if the JSON is absent (e.g. the page structure changes).
 func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.ScrapedPrayerTimes, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -489,6 +487,11 @@ func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.Scrape
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 
+	if pt, err := s.extractTheMasjidAppFromJSON(html, today, now.YearDay()); err == nil {
+		return pt, nil
+	}
+
+	// Fallback: parse the (possibly stale) static table.
 	// Match prayer rows. The page embeds SVG icons inline before the prayer name,
 	// so we can't rely on the <!-- --> comment anchor. Instead match the first
 	// Latin word inside the <td> (prayer name), followed by two time cells.
@@ -548,6 +551,120 @@ func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.Scrape
 	}
 
 	return pt, nil
+}
+
+// themasjidAppDay is one day's entry in the embedded "imported"/"iqamas" arrays.
+type themasjidAppDay struct {
+	Fajr    string `json:"fajr"`
+	Sunrise string `json:"sunrise"`
+	Zuhr    string `json:"zuhr"`
+	Asr     string `json:"asr"`
+	Maghrib string `json:"maghrib"`
+	Isha    string `json:"isha"`
+}
+
+// extractTheMasjidAppFromJSON reads today's prayer times from the day-of-year
+// JSON embedded in a themasjidapp page. adhan times come from the "imported"
+// object; iqama times from the sibling "iqamas" object (often not forward-dated,
+// so iqama may be blank). yearDay is 1..366. Returns an error if the JSON or
+// today's entry can't be found, so the caller can fall back to the static table.
+func (s *Scraper) extractTheMasjidAppFromJSON(html string, today time.Time, yearDay int) (*models.ScrapedPrayerTimes, error) {
+	dayKey := strconv.Itoa(yearDay)
+
+	lookup := func(objName string) (themasjidAppDay, bool) {
+		var zero themasjidAppDay
+		obj, ok := extractJSONObject(html, objName)
+		if !ok {
+			return zero, false
+		}
+		var days map[string]themasjidAppDay
+		if err := json.Unmarshal([]byte(obj), &days); err != nil {
+			return zero, false
+		}
+		d, ok := days[dayKey]
+		return d, ok
+	}
+
+	adhan, ok := lookup("imported")
+	if !ok || adhan.Fajr == "" {
+		return nil, fmt.Errorf("themasjidapp: no 'imported' entry for day %d", yearDay)
+	}
+	iqama, hasIqama := lookup("iqamas")
+
+	pt := &models.ScrapedPrayerTimes{Date: today}
+	set := func(dst, dstIq *string, aStr, iStr string) {
+		if a, err := parseTime12or24(strings.TrimSpace(aStr)); err == nil {
+			*dst = a
+		}
+		if iStr != "" {
+			if iq, err := parseTime12or24(strings.TrimSpace(iStr)); err == nil {
+				*dstIq = iq
+			}
+		}
+	}
+	iqOr := func(v string) string {
+		if !hasIqama {
+			return ""
+		}
+		return v
+	}
+	set(&pt.Fajr, &pt.FajrIqama, adhan.Fajr, iqOr(iqama.Fajr))
+	set(&pt.Dhuhr, &pt.DhuhrIqama, adhan.Zuhr, iqOr(iqama.Zuhr))
+	set(&pt.Asr, &pt.AsrIqama, adhan.Asr, iqOr(iqama.Asr))
+	set(&pt.Maghrib, &pt.MaghribIqama, adhan.Maghrib, iqOr(iqama.Maghrib))
+	set(&pt.Isha, &pt.IshaIqama, adhan.Isha, iqOr(iqama.Isha))
+
+	if err := s.validatePrayerTimes(pt); err != nil {
+		return nil, fmt.Errorf("themasjidapp JSON: %w", err)
+	}
+	return pt, nil
+}
+
+// extractJSONObject returns the balanced-brace object value of "key":{...} from
+// s, without unescaping. It tracks brace depth (respecting string literals) so
+// nested objects are captured correctly. ok is false if the key or a balanced
+// object isn't found.
+func extractJSONObject(s, key string) (string, bool) {
+	marker := `"` + key + `":`
+	i := strings.Index(s, marker)
+	if i < 0 {
+		return "", false
+	}
+	i += len(marker)
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') {
+		i++
+	}
+	if i >= len(s) || s[i] != '{' {
+		return "", false
+	}
+	depth, start := 0, i
+	inStr, esc := false, false
+	for ; i < len(s); i++ {
+		c := s[i]
+		if inStr {
+			switch {
+			case esc:
+				esc = false
+			case c == '\\':
+				esc = true
+			case c == '"':
+				inStr = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inStr = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return s[start : i+1], true
+			}
+		}
+	}
+	return "", false
 }
 
 // extractFromEmirSultan fetches prayer times from the Emir Sultan Mosque (Dandenong, VIC)

@@ -9,7 +9,6 @@
     <array>
         <string>/Users/shaqirfarook/prayer-times-app/scripts/verify-prayer-times/.venv/bin/python</string>
         <string>/Users/shaqirfarook/prayer-times-app/scripts/verify-prayer-times/verify.py</string>
-        <string>--push</string>
     </array>
 
     <key>StartCalendarInterval</key>
