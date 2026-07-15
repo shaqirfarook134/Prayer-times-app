@@ -61,10 +61,13 @@ PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
 # Masjids whose sites the Go scrapers can't read reliably, so we SOURCE their
 # daily times from the AI reader here and push them to the DB (with --push).
 # Matched by substring against the masjid's URL. Keep this list tiny — the Go
-# scrapers are cheaper and cover the other 30-odd masjids.
-AI_SOURCED_URL_SUBSTRINGS = (
-    "isv.org.au",  # ISV Preston — themasjidapp widget only publishes a stale table
-)
+# scrapers are always-on (Render) and free; the AI push depends on this machine
+# running, so only use it when there's genuinely no server-side source.
+#
+# Currently empty: ISV Preston moved back to the Go scraper, which reads
+# themasjidapp's embedded day-of-year JSON server-side (always-on). The --push
+# mechanism and the admin endpoint remain available for any future case.
+AI_SOURCED_URL_SUBSTRINGS = ()
 
 MELBOURNE = timezone(timedelta(hours=10))  # AEST; DST only shifts date near midnight
 TODAY = datetime.now(MELBOURNE).strftime("%Y-%m-%d")
