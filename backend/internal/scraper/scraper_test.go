@@ -384,3 +384,19 @@ func TestAddMinutesNegative(t *testing.T) {
 		t.Errorf("addMinutes(23:55, 10) = %s; want 00:05", got)
 	}
 }
+
+// athanPlusMasjidID routes AthanPlus-widget sites to their widget id. Lysterfield
+// (isomer.org.au) moved here off the AlAdhan GPS calculation on 2026-07-15.
+func TestAthanPlusMasjidID(t *testing.T) {
+	cases := map[string]string{
+		"https://iewad.org.au/prayer-times": "nDAg3WA0",
+		"https://isomer.org.au/":            "wLVO5pAJ",
+		"https://awqat.com.au/altaqwamasjid/": "",
+		"https://umis.com.au/prayertimes.html": "",
+	}
+	for url, want := range cases {
+		if got := athanPlusMasjidID(url); got != want {
+			t.Errorf("athanPlusMasjidID(%q) = %q; want %q", url, got, want)
+		}
+	}
+}

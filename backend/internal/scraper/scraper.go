@@ -125,9 +125,14 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		return prayerTimes, nil
 	}
 
-	// Method 0f: AthanPlus widget (iewad.org.au)
-	if strings.Contains(url, "iewad.org.au") {
-		prayerTimes, err := s.extractFromAthanPlus(ctx, "nDAg3WA0", timezone)
+	// Method 0f: AthanPlus widget.
+	//   iewad.org.au    → masjid_id nDAg3WA0
+	//   isomer.org.au   → masjid_id wLVO5pAJ (Lysterfield). Previously scraped via
+	//                     AlAdhan (a GPS *calculation* that never matched the
+	//                     mosque's published times); its site embeds a real
+	//                     AthanPlus widget, so read that instead.
+	if athanPlusID := athanPlusMasjidID(url); athanPlusID != "" {
+		prayerTimes, err := s.extractFromAthanPlus(ctx, athanPlusID, timezone)
 		if err != nil {
 			return nil, fmt.Errorf("athanplus scraper failed: %w", err)
 		}
@@ -143,9 +148,11 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		return prayerTimes, nil
 	}
 
-	// Method 0h: AlAdhan API — for sites that load prayer times dynamically via JS
-	// (umis.com.au, isomer.org.au, sunshinemosque.com.au)
-	if strings.Contains(url, "umis.com.au") || strings.Contains(url, "isomer.org.au") || strings.Contains(url, "sunshinemosque.com.au") {
+	// Method 0h: AlAdhan API — GPS-calculated fallback for sites that load times
+	// dynamically via JS and expose no readable per-day schedule (umis.com.au).
+	// NOTE: this is an astronomical approximation, not a masjid's published times;
+	// only use it when there is no real source to read.
+	if strings.Contains(url, "umis.com.au") {
 		prayerTimes, err := s.extractFromAlAdhan(ctx, url, timezone)
 		if err != nil {
 			return nil, fmt.Errorf("aladhan scraper failed: %w", err)
@@ -469,6 +476,11 @@ func (s *Scraper) extractFromMasjidbox(ctx context.Context, masjidboxURL, timezo
 //	<!-- -->PrayerName</td><td>H:MM<span>AM|PM</span></td><td>H:MM<span>AM|PM</span>
 //
 // The first time column is Adhan, the second is Iqama (may be "—" if not set).
+//
+// NOTE: themasjidapp server-renders this table with a STALE placeholder that the
+// browser replaces via JS, so this path can drift a few days behind. For ISV
+// Preston we instead source times via the AI reader (see verify.py --push); this
+// remains as a best-effort fallback.
 func (s *Scraper) extractFromTheMasjidApp(html, timezone string) (*models.ScrapedPrayerTimes, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -1646,6 +1658,10 @@ func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]
 	if strings.Contains(masjidURL, "themasjidapp.org") {
 		return s.parseJummahFromTheMasjidApp(ctx, masjidURL)
 	}
+	// AthanPlus-widget sites (iewad.org.au, isomer.org.au/Lysterfield)
+	if id := athanPlusMasjidID(masjidURL); id != "" {
+		return s.parseJummahFromAthanPlus(ctx, id)
+	}
 	if strings.Contains(masjidURL, "icv.org.au") {
 		return s.parseJummahFromICV(ctx)
 	}
@@ -2170,6 +2186,18 @@ func (s *Scraper) extractFromISV(ctx context.Context, timezone string) (*models.
 	return s.extractFromTheMasjidApp(string(body), timezone)
 }
 
+// athanPlusMasjidID maps a masjid site URL to its AthanPlus widget masjid_id,
+// or "" if the site is not served by an AthanPlus widget.
+func athanPlusMasjidID(url string) string {
+	switch {
+	case strings.Contains(url, "iewad.org.au"):
+		return "nDAg3WA0"
+	case strings.Contains(url, "isomer.org.au"): // Lysterfield Mosque
+		return "wLVO5pAJ"
+	}
+	return ""
+}
+
 // extractFromAthanPlus fetches prayer times from the AthanPlus widget API.
 // The widget embeds a weekly timetable in HTML; today's table is in #table_div_0
 // (or whichever div is not display:none). Each prayer row:
@@ -2356,10 +2384,11 @@ func (s *Scraper) extractFromMasjidal(html, timezone string) (*models.ScrapedPra
 }
 
 // alAdhanCoords maps masjid URL substrings to their GPS coordinates for AlAdhan lookups.
+// AlAdhan is a GPS calculation of last resort — only for sites with no readable
+// published schedule. isomer.org.au (Lysterfield) moved to its real AthanPlus
+// widget; sunshinemosque.com.au was deactivated (see masjids.is_active).
 var alAdhanCoords = map[string][2]float64{
-	"umis.com.au":            {-37.8136, 144.9631}, // Melbourne CBD
-	"isomer.org.au":          {-37.9073, 145.2815}, // Lysterfield
-	"sunshinemosque.com.au":  {-37.7890, 144.8300}, // Ardeer / Sunshine
+	"umis.com.au": {-37.8136, 144.9631}, // Melbourne CBD
 }
 
 // extractFromAlAdhan fetches prayer times from the AlAdhan public API using GPS

@@ -2,10 +2,19 @@ package utils
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+// valid24Hour matches a strict two-digit 24-hour "HH:MM" (00:00–23:59).
+var valid24Hour = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+
+// IsValid24Hour reports whether s is a valid 24-hour "HH:MM" time.
+func IsValid24Hour(s string) bool {
+	return valid24Hour.MatchString(s)
+}
 
 // AddMinutesToTime adds minutes to a time string in format "HH:MM"
 // Returns the new time in format "HH:MM"
