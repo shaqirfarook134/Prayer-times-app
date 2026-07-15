@@ -134,3 +134,102 @@ func (h *PrayerTimesHandler) GetByMasjidAndDate(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+// Upsert writes today's prayer times for a masjid from an external source
+// (the AI reader in verify.py). Used for masjids whose sites can't be scraped
+// reliably by the Go parsers. Admin only.
+// PUT /admin/prayer-times/:masjidId
+//
+// Body: per-prayer 24-hour "HH:MM"; iqama optional (empty string = none).
+//
+//	{"fajr":{"adhan":"05:57","iqama":"06:17"}, "dhuhr":{"adhan":"12:26"}, ...}
+func (h *PrayerTimesHandler) Upsert(c *gin.Context) {
+	masjidID, err := strconv.Atoi(c.Param("masjidId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Error:   "invalid_id",
+			Message: "Masjid ID must be a number",
+		})
+		return
+	}
+
+	masjid, err := h.masjidRepo.GetByID(c.Request.Context(), masjidID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.APIError{
+			Error:   "not_found",
+			Message: "Masjid not found",
+		})
+		return
+	}
+
+	var body models.UpsertPrayerTimesRequest
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, models.APIError{
+			Error:   "invalid_request",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Validate all adhan times are present and well-formed 24h "HH:MM".
+	pairs := []struct {
+		name string
+		p    models.PrayerTimeInput
+	}{
+		{"fajr", body.Fajr}, {"dhuhr", body.Dhuhr}, {"asr", body.Asr},
+		{"maghrib", body.Maghrib}, {"isha", body.Isha},
+	}
+	for _, pr := range pairs {
+		if !utils.IsValid24Hour(pr.p.Adhan) {
+			c.JSON(http.StatusBadRequest, models.APIError{
+				Error:   "validation_error",
+				Message: pr.name + " adhan must be 24-hour HH:MM",
+			})
+			return
+		}
+		if pr.p.Iqama != "" && !utils.IsValid24Hour(pr.p.Iqama) {
+			c.JSON(http.StatusBadRequest, models.APIError{
+				Error:   "validation_error",
+				Message: pr.name + " iqama must be 24-hour HH:MM or empty",
+			})
+			return
+		}
+	}
+
+	// Date is today in the masjid's own timezone.
+	loc, err := time.LoadLocation(masjid.Timezone)
+	if err != nil {
+		loc = time.UTC
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	pt := &models.PrayerTimes{
+		MasjidID:     masjidID,
+		Date:         today,
+		Fajr:         body.Fajr.Adhan,
+		Dhuhr:        body.Dhuhr.Adhan,
+		Asr:          body.Asr.Adhan,
+		Maghrib:      body.Maghrib.Adhan,
+		Isha:         body.Isha.Adhan,
+		FajrIqama:    body.Fajr.Iqama,
+		DhuhrIqama:   body.Dhuhr.Iqama,
+		AsrIqama:     body.Asr.Iqama,
+		MaghribIqama: body.Maghrib.Iqama,
+		IshaIqama:    body.Isha.Iqama,
+	}
+
+	if err := h.prayerTimesRepo.Upsert(c.Request.Context(), pt); err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIError{
+			Error:   "database_error",
+			Message: "Failed to save prayer times",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"masjid_id": masjidID,
+		"date":      today.Format("2006-01-02"),
+		"status":    "updated",
+	})
+}

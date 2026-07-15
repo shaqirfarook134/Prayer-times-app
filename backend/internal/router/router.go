@@ -77,6 +77,9 @@ func (r *Router) Setup() *gin.Engine {
 		admin.PATCH("/masjids/:id/active", r.masjidHandler.SetActive)
 		admin.DELETE("/masjids/:id", r.masjidHandler.Delete)
 
+		// Write prayer times from an external source (the AI reader in verify.py)
+		admin.PUT("/prayer-times/:masjidId", r.prayerTimesHandler.Upsert)
+
 		// Scraping endpoints
 		admin.POST("/scrape", r.scrapeHandler.TriggerScrape)
 		admin.POST("/scrape/jummah", r.scrapeHandler.TriggerJummahScrape)

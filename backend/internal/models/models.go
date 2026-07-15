@@ -44,6 +44,22 @@ type PrayerTime struct {
 	Iqama12 string `json:"iqama12"` // 12-hour format: "5:50 AM"
 }
 
+// PrayerTimeInput is one prayer's times in an upsert request (24-hour "HH:MM").
+type PrayerTimeInput struct {
+	Adhan string `json:"adhan"`
+	Iqama string `json:"iqama"` // optional; "" means no iqama
+}
+
+// UpsertPrayerTimesRequest is the body for PUT /admin/prayer-times/:masjidId,
+// used by the AI reader to write times for hard-to-scrape masjids.
+type UpsertPrayerTimesRequest struct {
+	Fajr    PrayerTimeInput `json:"fajr"`
+	Dhuhr   PrayerTimeInput `json:"dhuhr"`
+	Asr     PrayerTimeInput `json:"asr"`
+	Maghrib PrayerTimeInput `json:"maghrib"`
+	Isha    PrayerTimeInput `json:"isha"`
+}
+
 // PrayerTimesResponse is the API response format
 type PrayerTimesResponse struct {
 	MasjidID int        `json:"masjid_id"`
