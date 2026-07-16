@@ -399,6 +399,9 @@ func TestResolveMasjidalID(t *testing.T) {
 		"https://www.emirsultanmosque.com/":    "0AWqYBKj",
 		"https://awqat.com.au/altaqwamasjid/":  "",
 		"https://umis.com.au/prayertimes.html": "",
+		// Directory-added masjids: the DB url IS the widget URL.
+		"https://masjidal.com/widget/monthly/?masjid_id=wdqDq6Ab": "wdqDq6Ab",
+		"https://example.com/?masjid_id=zzzzzzzz":                 "",
 	}
 	for url, want := range cases {
 		if got := resolveMasjidalID(url, ""); got != want {

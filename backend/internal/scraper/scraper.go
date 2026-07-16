@@ -2364,6 +2364,14 @@ func resolveMasjidalID(url, html string) string {
 	case strings.Contains(url, "emirsultanmosque.com"): // ICMG Dandenong
 		return "0AWqYBKj"
 	}
+	// Masjids added straight from the Masjidal directory have no scrapeable
+	// website of their own; their DB url is the widget URL itself
+	// (masjidal.com/widget/monthly/?masjid_id=XXX), which carries the ID.
+	if strings.Contains(url, "masjidal.com") || strings.Contains(url, "athanplus.com") {
+		if m := masjidalIDPattern.FindStringSubmatch(url); m != nil {
+			return m[1]
+		}
+	}
 	if strings.Contains(html, "athanplus.com") || strings.Contains(html, "masjidal.com") {
 		if m := masjidalIDPattern.FindStringSubmatch(html); m != nil {
 			return m[1]
