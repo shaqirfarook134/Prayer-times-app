@@ -1,7 +1,10 @@
 package scraper
 
 import (
+	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"prayer-times-api/internal/config"
 	"prayer-times-api/internal/models"
 	"testing"
@@ -387,16 +390,40 @@ func TestAddMinutesNegative(t *testing.T) {
 
 // athanPlusMasjidID routes AthanPlus-widget sites to their widget id. Lysterfield
 // (isomer.org.au) moved here off the AlAdhan GPS calculation on 2026-07-15.
-func TestAthanPlusMasjidID(t *testing.T) {
+func TestResolveMasjidalID(t *testing.T) {
 	cases := map[string]string{
-		"https://iewad.org.au/prayer-times": "nDAg3WA0",
-		"https://isomer.org.au/":            "wLVO5pAJ",
-		"https://awqat.com.au/altaqwamasjid/": "",
+		"https://iewad.org.au/prayer-times":    "nDAg3WA0",
+		"https://isomer.org.au/":               "wLVO5pAJ",
+		"https://aicom.com.au/":                "nzKzVnKO",
+		"https://pgcc.org.au/":                 "VKpDyyKP",
+		"https://www.emirsultanmosque.com/":    "0AWqYBKj",
+		"https://awqat.com.au/altaqwamasjid/":  "",
 		"https://umis.com.au/prayertimes.html": "",
 	}
 	for url, want := range cases {
-		if got := athanPlusMasjidID(url); got != want {
-			t.Errorf("athanPlusMasjidID(%q) = %q; want %q", url, got, want)
+		if got := resolveMasjidalID(url, ""); got != want {
+			t.Errorf("resolveMasjidalID(%q, \"\") = %q; want %q", url, got, want)
+		}
+	}
+}
+
+// A future Masjidal adopter is detected from its page HTML alone. The two
+// snippets mirror real embed styles: iewad's Next.js chunk inlines the iframe
+// URL in a JS string; aicom's WordPress plugin links the monthly widget.
+func TestResolveMasjidalIDFromHTML(t *testing.T) {
+	cases := []struct {
+		name string
+		html string
+		want string
+	}{
+		{"nextjs js-chunk iframe", `self.__next_f.push("<iframe src=\"https://timing.athanplus.com/masjid/widgets/embed?theme=1&masjid_id=nDAg3WA0\" />")`, "nDAg3WA0"},
+		{"wordpress plugin link", `<a href="https://masjidal.com/widget/monthly/?masjid_id=nzKzVnKO">Monthly</a>`, "nzKzVnKO"},
+		{"masjid_id without masjidal context", `<a href="https://example.com/?masjid_id=zzzzzzzz">x</a>`, ""},
+		{"no embed", `<p>Prayer times</p>`, ""},
+	}
+	for _, tt := range cases {
+		if got := resolveMasjidalID("https://some-masjid.org.au/", tt.html); got != tt.want {
+			t.Errorf("%s: resolveMasjidalID = %q; want %q", tt.name, got, tt.want)
 		}
 	}
 }
@@ -468,4 +495,133 @@ func TestExtractJSONObject(t *testing.T) {
 	if !ok || obj2 != `{"note":"has } brace","v":1}` {
 		t.Errorf("string-literal brace handling failed: %q ok=%v", obj2, ok)
 	}
+}
+
+// masjidalTestServer points the Masjidal API base at a httptest server for the
+// duration of one test and disables the retry pause.
+func masjidalTestServer(t *testing.T, handler http.HandlerFunc) {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	oldBase, oldDelay := masjidalAPIBase, masjidalRetryDelay
+	masjidalAPIBase, masjidalRetryDelay = srv.URL, 0
+	t.Cleanup(func() {
+		masjidalAPIBase, masjidalRetryDelay = oldBase, oldDelay
+		srv.Close()
+	})
+}
+
+// Payload captured live from masjidal.com/api/v1/time?masjid_id=nDAg3WA0 (IEWAD).
+const masjidalSuccessJSON = `{"status":"success","data":{"date":"2026-07-16","hijri":"1448-Safar-1","salah":{"fajr":"5:59 AM","sunrise":"7:32 AM","zuhr":"12:30 PM","asr":"3:39 PM","maghrib":"5:20 PM","sunset":"5:20 PM","isha":"6:52 PM"},"iqama":{"fajr":"6:30 AM","zuhr":"1:00 PM","asr":"3:45 PM","maghrib":"5:22 PM","isha":"7:00 PM","jummah1":"1:00 PM","jummah2":"-"}},"message":[]}`
+
+func TestExtractFromMasjidalAPI(t *testing.T) {
+	masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("masjid_id"); got != "nDAg3WA0" {
+			t.Errorf("masjid_id = %q; want nDAg3WA0", got)
+		}
+		fmt.Fprint(w, masjidalSuccessJSON)
+	})
+	s := NewScraper(&config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3})
+
+	pt, err := s.extractFromMasjidalAPI(context.Background(), "nDAg3WA0", "Australia/Melbourne")
+	if err != nil {
+		t.Fatalf("extractFromMasjidalAPI: %v", err)
+	}
+	want := &models.ScrapedPrayerTimes{
+		Fajr: "05:59", Dhuhr: "12:30", Asr: "15:39", Maghrib: "17:20", Isha: "18:52",
+		FajrIqama: "06:30", DhuhrIqama: "13:00", AsrIqama: "15:45", MaghribIqama: "17:22", IshaIqama: "19:00",
+	}
+	got := [][2]string{
+		{pt.Fajr, want.Fajr}, {pt.Dhuhr, want.Dhuhr}, {pt.Asr, want.Asr},
+		{pt.Maghrib, want.Maghrib}, {pt.Isha, want.Isha},
+		{pt.FajrIqama, want.FajrIqama}, {pt.DhuhrIqama, want.DhuhrIqama}, {pt.AsrIqama, want.AsrIqama},
+		{pt.MaghribIqama, want.MaghribIqama}, {pt.IshaIqama, want.IshaIqama},
+	}
+	for i, pair := range got {
+		if pair[0] != pair[1] {
+			t.Errorf("field %d = %q; want %q", i, pair[0], pair[1])
+		}
+	}
+}
+
+func TestExtractFromMasjidalAPIErrorStatus(t *testing.T) {
+	masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		// Real behavior: unknown IDs return HTTP 200 with status "error".
+		fmt.Fprint(w, `{"status":"error","data":[],"message":["No masjid with masjid_id = zzz exists"]}`)
+	})
+	s := NewScraper(&config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3})
+
+	if _, err := s.extractFromMasjidalAPI(context.Background(), "zzz", "Australia/Melbourne"); err == nil {
+		t.Fatal("expected error for status \"error\" payload, got nil")
+	}
+}
+
+func TestFetchMasjidalTimeRetriesOn5xx(t *testing.T) {
+	calls := 0
+	masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			// Transient 502s were observed live from their nginx front.
+			http.Error(w, "502 Bad Gateway", http.StatusBadGateway)
+			return
+		}
+		fmt.Fprint(w, masjidalSuccessJSON)
+	})
+	s := NewScraper(&config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3})
+
+	payload, err := s.fetchMasjidalTime(context.Background(), "nDAg3WA0")
+	if err != nil {
+		t.Fatalf("fetchMasjidalTime after retry: %v", err)
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d; want 2 (one retry)", calls)
+	}
+	if payload.Data.Salah.Fajr != "5:59 AM" {
+		t.Errorf("fajr = %q; want 5:59 AM", payload.Data.Salah.Fajr)
+	}
+}
+
+func TestParseJummahFromMasjidalAPI(t *testing.T) {
+	t.Run("one session, jummah2 dash skipped", func(t *testing.T) {
+		masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, masjidalSuccessJSON)
+		})
+		s := NewScraper(&config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3})
+		sessions, err := s.parseJummahFromMasjidalAPI(context.Background(), "nDAg3WA0")
+		if err != nil {
+			t.Fatalf("parseJummahFromMasjidalAPI: %v", err)
+		}
+		if len(sessions) != 1 || sessions[0] != [2]string{"1", "13:00"} {
+			t.Errorf("sessions = %v; want [[1 13:00]]", sessions)
+		}
+	})
+
+	t.Run("duplicate sessions collapsed", func(t *testing.T) {
+		masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			// Emir Sultan fills both Jummah slots with the same time.
+			fmt.Fprint(w, `{"status":"success","data":{"date":"2026-07-16","salah":{"fajr":"5:59 AM","zuhr":"12:30 PM","asr":"3:04 PM","maghrib":"5:26 PM","isha":"6:47 PM"},"iqama":{"fajr":"6:45 AM","zuhr":"12:38 PM","asr":"3:12 PM","maghrib":"5:26 PM","isha":"6:55 PM","jummah1":"12:30 PM","jummah2":"12:30 PM"}},"message":[]}`)
+		})
+		s := NewScraper(&config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3})
+		sessions, err := s.parseJummahFromMasjidalAPI(context.Background(), "0AWqYBKj")
+		if err != nil {
+			t.Fatalf("parseJummahFromMasjidalAPI: %v", err)
+		}
+		if len(sessions) != 1 || sessions[0] != [2]string{"1", "12:30"} {
+			t.Errorf("sessions = %v; want [[1 12:30]]", sessions)
+		}
+	})
+
+	t.Run("two sessions", func(t *testing.T) {
+		masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			// AICOM-style payload: two Jumu'ah sessions.
+			fmt.Fprint(w, `{"status":"success","data":{"date":"2026-07-16","salah":{"fajr":"5:59 AM","zuhr":"12:25 PM","asr":"3:39 PM","maghrib":"5:19 PM","isha":"6:47 PM"},"iqama":{"fajr":"6:45 AM","zuhr":"1:00 PM","asr":"3:45 PM","maghrib":"5:24 PM","isha":"7:00 PM","jummah1":"1:00 PM","jummah2":"2:00 PM"}},"message":[]}`)
+		})
+		s := NewScraper(&config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3})
+		sessions, err := s.parseJummahFromMasjidalAPI(context.Background(), "nzKzVnKO")
+		if err != nil {
+			t.Fatalf("parseJummahFromMasjidalAPI: %v", err)
+		}
+		if len(sessions) != 2 || sessions[0] != [2]string{"1", "13:00"} || sessions[1] != [2]string{"2", "14:00"} {
+			t.Errorf("sessions = %v; want [[1 13:00] [2 14:00]]", sessions)
+		}
+	})
 }

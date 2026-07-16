@@ -1,0 +1,4596 @@
+{
+ "_source": "https://masjidal.com/api/v2/masjids?country=AU (public directory)",
+ "_fetched": "2026-07-16",
+ "_note": "masjid id is the masjid_id for masjidal.com/api/v1/time?masjid_id=<id>",
+ "count": 124,
+ "masjids": [
+  {
+   "id": "8K9O3MAp",
+   "uuid": "9a61a2ca-7963-4603-a3a2-a244a5b009a5",
+   "name": "Surau Sydney Australia",
+   "address": "1 Gartmore Ave",
+   "city": "Bankstown",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0366",
+   "latitude": "-33.9280",
+   "zipcode": "2200",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "nL1Zv6Aa",
+   "uuid": "4b388b32-5410-4a5d-8256-c0925cfcdef2",
+   "name": "Ghausia Masjid Blacktown",
+   "address": "4A Bessemer St",
+   "city": "Blacktown",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.9099",
+   "latitude": "-33.7567",
+   "zipcode": "2148",
+   "phone": "0422 891 922",
+   "meta": "-",
+   "email": "Hafizraza@hotmail.com",
+   "website_url": "https://sites.google.com/view/ghausiamasjidblacktown/home",
+   "event_url": "-",
+   "donation_url": "https://sites.google.com/view/ghausiamasjidblacktown/home",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "EdoeeOL7",
+   "uuid": "61a72f89-07e4-43a7-b600-f64dbbba3568",
+   "name": "Carlingford Musallah",
+   "address": "1A Jenkins Rd",
+   "city": "Carlingford",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0460",
+   "latitude": "-33.7827",
+   "zipcode": "2118",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "JAm9lOAR",
+   "uuid": "10e9356e-33ea-43ab-864b-fcfa66f307db",
+   "name": "Daar Abdullah Ibn Masud",
+   "address": "7 Mobbs Ln",
+   "city": "Carlingford",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0624",
+   "latitude": "-33.7862",
+   "zipcode": "2118",
+   "phone": "0417414288",
+   "meta": "-",
+   "email": "daaribnmasud@gmail.com",
+   "website_url": "https://www.daaribnmasud.com.au",
+   "event_url": "-",
+   "donation_url": "https://donorbox.org/daar-abdullah-ibn-masud",
+   "audio_url": "-",
+   "prayer_timing_url": "https://masjidal.com/widget/monthly/?masjid_id=JAm9lOAR",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "jKZNnRKX",
+   "uuid": "a9d3da46-6441-4dd3-a533-f0f73d6cb138",
+   "name": "Carramar Masjid",
+   "address": "31 Carramar Ave",
+   "city": "Carramar",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.9613",
+   "latitude": "-33.8844",
+   "zipcode": "2163",
+   "phone": "61449000778",
+   "meta": "-",
+   "email": "tmechraoui@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "yLjO0oAQ",
+   "uuid": "95a5c1e9-47de-4597-a605-1582b8acc714",
+   "name": "Al Barakah Center",
+   "address": "19 Dobell Rd",
+   "city": "Claymore",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8109",
+   "latitude": "-34.0442",
+   "zipcode": "2559",
+   "phone": "-",
+   "meta": "-",
+   "email": "admin@claymoreislamicsociety.org.au",
+   "website_url": "https://albarakahcentre.org.au/centre-donation",
+   "event_url": "-",
+   "donation_url": "https://albarakahcentre.org.au/centre-donation",
+   "audio_url": "-",
+   "prayer_timing_url": "https://albarakahcentre.org.au/prayer-times",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "YAD4N0AN",
+   "uuid": "802d1c82-8625-49a9-b6f3-a73ac83266cf",
+   "name": "Bilal Mosque",
+   "address": "1-3 Bethlehem St",
+   "city": "Cringila",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8748",
+   "latitude": "-34.4693",
+   "zipcode": "2502",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "lJAmpGLR",
+   "uuid": "f07ade67-c78f-4c79-b69f-76d43679de71",
+   "name": "Dubbo Mosque",
+   "address": "Fitzroy St",
+   "city": "Dubbo",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "148.6107",
+   "latitude": "-32.2611",
+   "zipcode": "2830",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "http://nswcwma.com.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "4nL1e8La",
+   "uuid": "129baad6-48e7-4c42-9f70-9ecf01438497",
+   "name": "The Australian Islamic House Masjid",
+   "address": "2094 Camden Valley Way",
+   "city": "Edmondson Park",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8668",
+   "latitude": "-33.9587",
+   "zipcode": "2174",
+   "phone": "0451 508 244",
+   "meta": "-",
+   "email": "-",
+   "website_url": "https://taih.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0dYBDaK6",
+   "uuid": "316e05e4-1928-4568-b89c-f04df78f7837",
+   "name": "The Ave Masjid - Granville Youth Association",
+   "address": "20 The Avenue",
+   "city": "Granville",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0069",
+   "latitude": "-33.8320",
+   "zipcode": "2142",
+   "phone": "-",
+   "meta": "-",
+   "email": "systems@gya.org.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "9L2MZ7KZ",
+   "uuid": "0c1c770b-d01f-4098-b883-e042f6e1fe53",
+   "name": "Greenacre Musalla",
+   "address": "146 Waterloo Rd",
+   "city": "Greenacre",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0568",
+   "latitude": "-33.9077",
+   "zipcode": "2190",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "11"
+    }
+   }
+  },
+  {
+   "id": "8L7k2BL5",
+   "uuid": "ceb3d594-f560-445f-bdd7-36b0507fb071",
+   "name": "ICMG Guildford Mosque",
+   "address": "64 Mountford Ave",
+   "city": "Guildford",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.9887",
+   "latitude": "-33.8528",
+   "zipcode": "2161",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "https://www.facebook.com/GuildfordMosque/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "9L2MnZKZ",
+   "uuid": "98c97546-473b-432d-98d8-dbafec556deb",
+   "name": "Homebush Masjid",
+   "address": "114 Burlington Rd",
+   "city": "Homebush",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0783",
+   "latitude": "-33.8661",
+   "zipcode": "2140",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "https://www.strathfieldmasjid.com.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "rdRvkZdG",
+   "uuid": "9ecc5629-be27-4c66-8c53-3f9c1f068399",
+   "name": "Masjid Ali Bin Abi Talib",
+   "address": "84 Wangee Rd",
+   "city": "Lakemba",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0737",
+   "latitude": "-33.9131",
+   "zipcode": "2195",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "kAk25aLq",
+   "uuid": "9985e2d8-9b2c-490b-8eb4-be73534f37c4",
+   "name": "Al-Tawhid Center",
+   "address": "1640 Camden Valley Wy",
+   "city": "Leppington",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8352",
+   "latitude": "-33.9535",
+   "zipcode": "2179",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "MA58aVLr",
+   "uuid": "137f5fe6-8294-4b51-bd2a-34fc7eea2c91",
+   "name": "Lethbridge Park Masjid",
+   "address": "9 Apia Pl",
+   "city": "Lethbridge Park",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.7989",
+   "latitude": "-33.7375",
+   "zipcode": "2770",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "rdRGVvKG",
+   "uuid": "32b07a97-f0d4-4da2-a69a-8e53d4704216",
+   "name": "MASJID AL-QASAS",
+   "address": "21 Leicester St",
+   "city": "Leumeah",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8422",
+   "latitude": "-34.0465",
+   "zipcode": "2560",
+   "phone": "-",
+   "meta": "-",
+   "email": "kasasnahida@gmail.com",
+   "website_url": "https://kasaskausar.my.canva.site/maq",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "5"
+    }
+   }
+  },
+  {
+   "id": "3wdqVPKb",
+   "uuid": "9a2992e6-e008-47a3-be20-44c103dadf2d",
+   "name": "MIA Liverpool Islamic Center",
+   "address": "226 Macquarie St",
+   "city": "Liverpool",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.9240",
+   "latitude": "-33.9228",
+   "zipcode": "2170",
+   "phone": "02 87129219",
+   "meta": "liverpool,islamic,center,markaz,imam",
+   "email": "aali@mialiverpool.com.au",
+   "website_url": "http://www.mialiverpool.com.au",
+   "event_url": "-",
+   "donation_url": "https://mialiverpool.com.au/donation/",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "XEdovoA7",
+   "uuid": "bb8f61e1-ba04-45f9-bd18-a39b9a62a46d",
+   "name": "AMWC Islamic Centre",
+   "address": "13-17 Eagleview Rd",
+   "city": "Minto",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8674",
+   "latitude": "-34.0196",
+   "zipcode": "2566",
+   "phone": "0433825718",
+   "meta": "-",
+   "email": "rafiqaust@yahoo.com.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "nL1JyjAa",
+   "uuid": "1a78eeef-7f47-488a-a06c-03cc54892c31",
+   "name": "Campbelltown Youth Centre ASWJ",
+   "address": "167 Airds Rd",
+   "city": "Minto",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8312",
+   "latitude": "-34.0448",
+   "zipcode": "2566",
+   "phone": "0406 008 080",
+   "meta": "-",
+   "email": "-",
+   "website_url": "https://www.cycaswj.com.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "VdwqP0Le",
+   "uuid": "949f950b-bea4-4cf5-a716-56bca48c953b",
+   "name": "Minto – Masjidul Rahman Al-jaami",
+   "address": "44 Westmoreland Rd",
+   "city": "Minto",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8484",
+   "latitude": "-34.0434",
+   "zipcode": "2566",
+   "phone": "0466483396",
+   "meta": "-",
+   "email": "imraanbergman@hotmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "15",
+     "zuhr_offset": "10",
+     "asr_offset": "10",
+     "maghrib_offset": "0",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "4nL1y6La",
+   "uuid": "6670db25-70f5-4eed-b342-1fda69eb061b",
+   "name": "Mount Druitt Mosque",
+   "address": "52 Hythe St",
+   "city": "Mount Druitt",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8260",
+   "latitude": "-33.7646",
+   "zipcode": "2770",
+   "phone": "(02) 9832 2546",
+   "meta": "-",
+   "email": "mtdruittmosque@outlook.com",
+   "website_url": "https://www.mtdruittmosque.org.au",
+   "event_url": "-",
+   "donation_url": "https://donate.mtdruittmosque.org.au",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "wLVzzMLJ",
+   "uuid": "34dde34b-053a-4fb3-8598-dea85081764a",
+   "name": "Parramatta  Mosque",
+   "address": "150 Marsden St",
+   "city": "Parramatta",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0016",
+   "latitude": "-33.8139",
+   "zipcode": "2150",
+   "phone": "+61406041586",
+   "meta": "-",
+   "email": "suhailbhi@gmail.com",
+   "website_url": "https://parramattamosque.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0kAkvELq",
+   "uuid": "d3ffa965-db5c-41df-bdcc-c23dd620e74b",
+   "name": "Baitul Manshourin",
+   "address": "1 Catherine Street",
+   "city": "Punchbowl",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0530",
+   "latitude": "-33.9229",
+   "zipcode": "2196",
+   "phone": "+61406021487",
+   "meta": "-",
+   "email": "s.nabawi@aidainc.net.au",
+   "website_url": "http://www.aidainc.net.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "zKz84oAO",
+   "uuid": "afb34e69-0cd5-473e-8cc1-ef37180b61c9",
+   "name": "Quakers Hill Masjid",
+   "address": "37 Douglas Rd",
+   "city": "Quakers Hill",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.8820",
+   "latitude": "-33.7289",
+   "zipcode": "2763",
+   "phone": "-",
+   "meta": "-",
+   "email": "info@quakershillmasjid.org",
+   "website_url": "https://quakershillmasjid.org/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VL4WJpKx",
+   "uuid": "8e8cb7af-2908-41b9-82cd-198815b04fd3",
+   "name": "Rydalmere Masjid",
+   "address": "2 Primrose Ave",
+   "city": "Rydalmere",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0510",
+   "latitude": "-33.8139",
+   "zipcode": "2116",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "E5Avj0AX",
+   "uuid": "ba54fa63-b779-4954-9bd7-250f0acd7ab6",
+   "name": "Gregory Hills Youth Centre",
+   "address": "5 Blackmore Rd",
+   "city": "Smeaton Grange",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "150.7513",
+   "latitude": "-34.0384",
+   "zipcode": "2567",
+   "phone": "0402762463",
+   "meta": "GHYC",
+   "email": "GHYCInc.au@gmail.com",
+   "website_url": "https://ghyc.com.au/",
+   "event_url": "https://calendar.google.com/calendar/embed?src=ghycinc.au%40gmail.com&ctz=Australia%2FSydney",
+   "donation_url": "https://donate.stripe.com/6oEeY0d6Ie1q9nW8ww",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "4KBqE7d5",
+   "uuid": "33ceb30b-1711-4082-a721-ddee439a6d45",
+   "name": "Clyde Musalla - Granville Youth Association",
+   "address": "288 Clyde St",
+   "city": "South Granville",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.0103",
+   "latitude": "-33.8582",
+   "zipcode": "2142",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "wdqDpPAb",
+   "uuid": "4b4c7f77-8564-4d72-8432-31ad79152ce2",
+   "name": "Newcastle Masjid",
+   "address": "6 Metcalfe Street",
+   "city": "Wallsend",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "151.6923",
+   "latitude": "-32.9024",
+   "zipcode": "2287",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0xdyXzAX",
+   "uuid": "65f01d96-d725-41be-be80-79c7638e0f50",
+   "name": "Young Mosque",
+   "address": "3524 Moppity Rd",
+   "city": "Young",
+   "state": "NSW",
+   "country": "AU",
+   "longitude": "148.3123",
+   "latitude": "-34.3259",
+   "zipcode": "2594",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "https://m.facebook.com/youngmosquelma/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "wLVgJkAJ",
+   "uuid": "967b16ab-787b-4375-b27e-3c25d3b5ce3b",
+   "name": "Auburn Islamic Community Centre",
+   "address": "12 Harrow Rd",
+   "city": "Auburn",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0314",
+   "latitude": "-33.8529",
+   "zipcode": "2144",
+   "phone": "-",
+   "meta": "-",
+   "email": "mkhalidf@hotmail.com",
+   "website_url": "https://www.aiccauburn.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "JAm9G4AR",
+   "uuid": "55598f84-c495-423e-8fd8-8ad3682211b4",
+   "name": "Park Road Musalla",
+   "address": "192 Park Rd",
+   "city": "Auburn",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0277",
+   "latitude": "-33.8646",
+   "zipcode": "2144",
+   "phone": "-",
+   "meta": "-",
+   "email": "info@tamsonline.org.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "kAkj21Lq",
+   "uuid": "13274f5d-c459-4f61-8c35-65df57dcd384",
+   "name": "western community Islamic centre",
+   "address": "60a  Auburn Rd",
+   "city": "Auburn",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0326",
+   "latitude": "-33.8534",
+   "zipcode": "2144",
+   "phone": "0432070463",
+   "meta": "-",
+   "email": "westernislamiccentre@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0dYpNlA6",
+   "uuid": "08b14c4d-65ee-4a4d-90c7-0c09e7c4e9eb",
+   "name": "Irfan College",
+   "address": "2089-2109 Elizabeth Dr",
+   "city": "Cecil Park",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "150.8256",
+   "latitude": "-33.8767",
+   "zipcode": "2178",
+   "phone": "-",
+   "meta": "-",
+   "email": "it@irfancollege.nsw.edu.au",
+   "website_url": "https://www.irfancollege.nsw.edu.au",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "rdR8ZqLG",
+   "uuid": "7197b3d2-ef32-4f39-acc2-6baca752cbbb",
+   "name": "Corrimal Mosque",
+   "address": "120 Railway St",
+   "city": "Corrimal",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "150.8957",
+   "latitude": "-34.3727",
+   "zipcode": "2518",
+   "phone": "-",
+   "meta": "-",
+   "email": "niice2518@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "eLQOxjdM",
+   "uuid": "03a67677-0fe3-407f-85ab-28165ab4fd51",
+   "name": "Sadiq masjid",
+   "address": " ",
+   "city": "Girilambone",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "146.9224",
+   "latitude": "-31.2532",
+   "zipcode": "2831",
+   "phone": "-",
+   "meta": "-",
+   "email": "praveenb54@consistth.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "JAm72GKR",
+   "uuid": "b80eec1b-f559-4a2e-bdb4-80172a5dcdb9",
+   "name": "Brotherhood Masjid",
+   "address": "344 Waterloo Rd",
+   "city": "Greenacre",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0590",
+   "latitude": "-33.8954",
+   "zipcode": "2190",
+   "phone": "-",
+   "meta": "-",
+   "email": "Brotherhoodmasjid@yahoo.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0Lb7wVAo",
+   "uuid": "f88fbfd3-c62f-4b3b-a786-d24a9e6d3ee6",
+   "name": "Hornsby Dawaa",
+   "address": "75 Hunter St",
+   "city": "Hornsby",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.1008",
+   "latitude": "-33.7008",
+   "zipcode": "2077",
+   "phone": "-",
+   "meta": "-",
+   "email": "Jarhad@hotmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "wdqrq4Kb",
+   "uuid": "b8ae04c3-2c45-4cc6-9c79-0104420a8c9f",
+   "name": "Darul Tarbiyah",
+   "address": "1021 Canterbury Rd",
+   "city": "Lakemba",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0785",
+   "latitude": "-33.9277",
+   "zipcode": "2195",
+   "phone": "-",
+   "meta": "-",
+   "email": "shiekheshfaq@darultarbiyah.org.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "20",
+     "zuhr_offset": "10",
+     "asr_offset": "5",
+     "maghrib_offset": "15",
+     "isha_offset": "5"
+    }
+   }
+  },
+  {
+   "id": "xdyDMnAX",
+   "uuid": "007ff011-affb-4491-8318-6524f00484bc",
+   "name": "Faizan e madina Islamic Centre",
+   "address": "1/74 Haldon St",
+   "city": "Lakemba",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0771",
+   "latitude": "-33.9207",
+   "zipcode": "2195",
+   "phone": "-",
+   "meta": "-",
+   "email": "Mohammedkhan3152@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "OA8mRXdp",
+   "uuid": "4bb269c3-3f91-4e16-a9b0-e000b26405ad",
+   "name": "Islamic Society of Albury Wodonga",
+   "address": "494 Wagga Rd",
+   "city": "Lavington",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "146.9553",
+   "latitude": "-36.0419",
+   "zipcode": "2641",
+   "phone": "0469709855",
+   "meta": "-",
+   "email": "isaw786@gmail.com",
+   "website_url": "https://isawmasjid.com",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "https://masjidal.com/widget/monthly/?masjid_id=OA8mRXdp",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VL4o3DKx",
+   "uuid": "4e677776-e31d-4110-ba23-3f767904f61d",
+   "name": "Sydney Miller Centre",
+   "address": "30 Woodward Cres",
+   "city": "Miller",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "150.8836",
+   "latitude": "-33.9204",
+   "zipcode": "2168",
+   "phone": "-",
+   "meta": "-",
+   "email": "elsayexibby@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "rdR8G3LG",
+   "uuid": "5e97d5aa-d475-4df5-b1bc-820f0e7e4d1b",
+   "name": "UTHMAN MOSQUE",
+   "address": "59 Parkes St",
+   "city": "Oak Flats",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "150.8175",
+   "latitude": "-34.5613",
+   "zipcode": "2529",
+   "phone": "-",
+   "meta": "-",
+   "email": "uthmanmosque2529@gmail.com",
+   "website_url": "https://www.facebook.com/UthmanMosque/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "9L2nxBLZ",
+   "uuid": "afdcee41-58bb-4557-8e28-1e19aab52fd9",
+   "name": "UMA Padstow",
+   "address": "19 Enterprise Ave",
+   "city": "Padstow",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0328",
+   "latitude": "-33.9439",
+   "zipcode": "2211",
+   "phone": "-",
+   "meta": "-",
+   "email": "nazim@uma.org.au",
+   "website_url": "https://www.uma.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VKpbjPAP",
+   "uuid": "4c6c762a-80d1-4ede-80bb-fa41ca47717a",
+   "name": "United Muslims of Australia",
+   "address": "19 Enterprise Ave",
+   "city": "Padstow",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.0328",
+   "latitude": "-33.9439",
+   "zipcode": "2211",
+   "phone": "-",
+   "meta": "-",
+   "email": "tempAUUMA@masjidal.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "GA66QeAe",
+   "uuid": "a6e90466-27a1-4b4e-9f1c-31b5667c97bc",
+   "name": "Maktab Ibn Masoud ",
+   "address": "7 Shropshire St",
+   "city": "Queanbeyan East",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "149.2420",
+   "latitude": "-35.3398",
+   "zipcode": "2620",
+   "phone": "-",
+   "meta": "-",
+   "email": "maktabofmarkazibnmasoud@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VdwgGOde",
+   "uuid": "17b0dbaa-b621-4343-8509-8789ca706ce1",
+   "name": "Ryde Community Centre ",
+   "address": "3 Blaxland Rd",
+   "city": "Ryde",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "151.1100",
+   "latitude": "-33.8161",
+   "zipcode": "2112",
+   "phone": "-",
+   "meta": "-",
+   "email": "rydecommunitycentre@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "MA5Z7Vdr",
+   "uuid": "07c56c7c-436d-48af-b1bc-ff4b0b4ccc39",
+   "name": "Yass Mosque",
+   "address": "349 Cooks Hill Rd",
+   "city": "Yass",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "148.9348",
+   "latitude": "-34.7983",
+   "zipcode": "2582",
+   "phone": "-",
+   "meta": "-",
+   "email": "yassmosque@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "MA5qPDAr",
+   "uuid": "fa70e476-c67a-4bd5-a37b-6169c34a60a9",
+   "name": "Young Muslim Association Musallah",
+   "address": "28 Lachlan St",
+   "city": "Young",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "148.3036",
+   "latitude": "-34.3181",
+   "zipcode": "2594",
+   "phone": "0450335229",
+   "meta": "-",
+   "email": "abdul_albaf@yahoo.com.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "Edol4oK7",
+   "uuid": "1cfca611-d06b-45e4-b7a9-a9bb3d9e06a1",
+   "name": "Othman Bin Affan Mosque",
+   "address": "22 Water St",
+   "city": "cabramatta west",
+   "state": "New South Wales",
+   "country": "AU",
+   "longitude": "150.9160",
+   "latitude": "-33.8891",
+   "zipcode": "2166",
+   "phone": "0482053349",
+   "meta": "-",
+   "email": "obamosque@lma.org.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "adJmqWAk",
+   "uuid": "d7a616a8-8308-4b61-bcbd-d46939338e9f",
+   "name": "The Islamic Society of Algester",
+   "address": "48 Learoyd Rd",
+   "city": "Algester",
+   "state": "QLD",
+   "country": "AU",
+   "longitude": "153.0360",
+   "latitude": "-27.5989",
+   "zipcode": "4115",
+   "phone": "61477869266",
+   "meta": "-",
+   "email": "info@isoa.com.au",
+   "website_url": "https://www.isoa.com.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "10",
+     "zuhr_offset": "10",
+     "asr_offset": "10",
+     "maghrib_offset": "3",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "QL0M4WAZ",
+   "uuid": "2c9c5ca8-90ba-4879-80d7-ab1b2838279f",
+   "name": "Gold Coast Masjid Arundel",
+   "address": "144 Allied Dr",
+   "city": "Arundel",
+   "state": "QLD",
+   "country": "AU",
+   "longitude": "153.3869",
+   "latitude": "-27.9391",
+   "zipcode": "4214",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "VKpDaOKP",
+   "uuid": "860c9ea6-8efd-45e0-81b7-a9c4a1687bde",
+   "name": "Bosniak Islamic Centre of Qld",
+   "address": "2674 Logan Rd",
+   "city": "Eight Mile Plains",
+   "state": "QLD",
+   "country": "AU",
+   "longitude": "153.1049",
+   "latitude": "-27.5866",
+   "zipcode": "4113",
+   "phone": "-",
+   "meta": "https://www.facebook.com/profile.php?id=100063556539252",
+   "email": "-",
+   "website_url": "https://bosniakcentre.com.au/",
+   "event_url": "-",
+   "donation_url": "https://bosniakcentre.com.au/",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "10",
+     "zuhr_offset": "15",
+     "asr_offset": "15",
+     "maghrib_offset": "0",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "y0LbaZKo",
+   "uuid": "4ae7c67f-d95c-4532-924c-a67f1367acd6",
+   "name": "Garden City mosque, Toowoomba",
+   "address": "217 West St",
+   "city": "Harristown",
+   "state": "QLD",
+   "country": "AU",
+   "longitude": "151.9410",
+   "latitude": "-27.5725",
+   "zipcode": "4350",
+   "phone": "-",
+   "meta": "Toowoomba mosque,Islamic Society of Toowoomba,Garden City Mosque",
+   "email": "-",
+   "website_url": "https://toowoombamosque.com.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "10",
+     "zuhr_offset": "10",
+     "asr_offset": "10",
+     "maghrib_offset": "10",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "0AWpl2dj",
+   "uuid": "bcc06d91-7424-43ec-b6eb-c79f9480fc6c",
+   "name": "Australian Centre for Unity Masjid Ur Rahmaan",
+   "address": "16 Queens Rd",
+   "city": "Slacks Creek",
+   "state": "QLD",
+   "country": "AU",
+   "longitude": "153.1205",
+   "latitude": "-27.6494",
+   "zipcode": "4127",
+   "phone": "0422357931",
+   "meta": "-",
+   "email": "secretary@slackscreekmosque.org.au",
+   "website_url": "https://www.slackscreekmosque.org.au",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "15",
+     "zuhr_offset": "15",
+     "asr_offset": "15",
+     "maghrib_offset": "1",
+     "isha_offset": "15"
+    }
+   }
+  },
+  {
+   "id": "vOLnYWKM",
+   "uuid": "1e5a0d92-1c35-427b-88c7-690e36f7e012",
+   "name": "Southport Masjid",
+   "address": "116 Ridgeway Ave",
+   "city": "Southport",
+   "state": "QLD",
+   "country": "AU",
+   "longitude": "153.4019",
+   "latitude": "-27.9875",
+   "zipcode": "4215",
+   "phone": "04 3232 1230",
+   "meta": "gold coast,southport,qld,masjid,mosque",
+   "email": "gc.southport.masjid@gmail.com",
+   "website_url": "https://www.southportmosque.com.au/",
+   "event_url": "-",
+   "donation_url": "https://bit.ly/GCSM2021",
+   "audio_url": "-",
+   "prayer_timing_url": "https://www.southportmosque.com.au/prayer-times",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "MA5X1nLr",
+   "uuid": "c959ef87-e316-4554-8a09-2d062d3ac9b5",
+   "name": "Baitul Izzah",
+   "address": "124-126 Newell St",
+   "city": "Bungalow",
+   "state": "Queensland",
+   "country": "AU",
+   "longitude": "145.7551",
+   "latitude": "-16.9425",
+   "zipcode": "4870",
+   "phone": "-",
+   "meta": "-",
+   "email": "aidfnq@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "3",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "OA8ml6dp",
+   "uuid": "d7dfc654-e550-4c47-9f9f-492411da6283",
+   "name": "Markaz Anas Bin Malik",
+   "address": "18 Johnson Rd",
+   "city": "Hillcrest",
+   "state": "Queensland",
+   "country": "AU",
+   "longitude": "153.0357",
+   "latitude": "-27.6605",
+   "zipcode": "4118",
+   "phone": "61451002394",
+   "meta": "-",
+   "email": "markazanasbinmalikbne@gmail.com",
+   "website_url": "https://x.com/MarkazAnas",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "5",
+     "zuhr_offset": "10",
+     "asr_offset": "10",
+     "maghrib_offset": "0",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "EdoraqA7",
+   "uuid": "1688b580-5ab4-437f-805a-56038d444bc8",
+   "name": "Worongary Masjid ",
+   "address": "2 Alkira Way",
+   "city": "Worongary",
+   "state": "Queensland",
+   "country": "AU",
+   "longitude": "153.3523",
+   "latitude": "-28.0412",
+   "zipcode": "4213",
+   "phone": "-",
+   "meta": "-",
+   "email": "imagcmarketing@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0Lbk7qAo",
+   "uuid": "d71890e6-cee0-4333-b21c-bed48b57fb45",
+   "name": "The Centre",
+   "address": "416 Churchill Rd",
+   "city": "Kilburn",
+   "state": "SA",
+   "country": "AU",
+   "longitude": "138.5829",
+   "latitude": "-34.8615",
+   "zipcode": "5084",
+   "phone": "0431568088",
+   "meta": "-",
+   "email": "info@thecentresa.org.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "adJmJVAk",
+   "uuid": "00d46a6d-8590-42ee-bba6-f0dc3f87408a",
+   "name": "Al Ansaar Community Centre",
+   "address": "240 Peachey Rd",
+   "city": "Smithfield Plains",
+   "state": "SA",
+   "country": "AU",
+   "longitude": "138.6777",
+   "latitude": "-34.6759",
+   "zipcode": "5114",
+   "phone": "0432564742",
+   "meta": "-",
+   "email": "info@alansaarcommunity.com",
+   "website_url": "https://www.amicsa.org",
+   "event_url": "-",
+   "donation_url": "https://www.amicsa.org/donate",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "5AvPe0KX",
+   "uuid": "7e706a56-a164-4f61-9ccc-0d4666f79648",
+   "name": "Maryam Masjid South Australia",
+   "address": "26 Clark St",
+   "city": "Wayville",
+   "state": "SA",
+   "country": "AU",
+   "longitude": "138.5961",
+   "latitude": "-34.9450",
+   "zipcode": "5034",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "wdqz7eKb",
+   "uuid": "5bd4a444-378b-4c19-b410-51bafb292509",
+   "name": "Masjid Othman Bin Affan",
+   "address": "141 Hogarth Rd",
+   "city": "Elizabeth Grove",
+   "state": "South Australia",
+   "country": "AU",
+   "longitude": "138.6630",
+   "latitude": "-34.7396",
+   "zipcode": "5112",
+   "phone": "-",
+   "meta": "-",
+   "email": "ElizabethMasjidalTV@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "QKMWZMAB",
+   "uuid": "0f8f041d-426b-436c-97cc-01910f480d5b",
+   "name": "Masjid Abu Bakr Assidiq",
+   "address": "52 Wandana Ave",
+   "city": "Gilles Plains",
+   "state": "South Australia",
+   "country": "AU",
+   "longitude": "138.6604",
+   "latitude": "-34.8479",
+   "zipcode": "5086",
+   "phone": "-",
+   "meta": "-",
+   "email": "WandanaMasjidalTV@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "QKMqZ0KB",
+   "uuid": "b1aab156-af7b-4c89-b332-bf1478614d4e",
+   "name": "fatima zahra mosque",
+   "address": "138 Ryans Rd",
+   "city": "Green Fields",
+   "state": "South Australia",
+   "country": "AU",
+   "longitude": "138.5988",
+   "latitude": "-34.7899",
+   "zipcode": "5107",
+   "phone": "-",
+   "meta": "-",
+   "email": "info@fatimazahramosque.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "pPAPydJz",
+   "uuid": "cc11fa03-2a86-4aea-9b2b-49f1c06b83fd",
+   "name": "Masjid Noor (D) 1",
+   "address": "658 Marion Rd",
+   "city": "Park Holme",
+   "state": "South Australia",
+   "country": "AU",
+   "longitude": "138.5563",
+   "latitude": "-34.9888",
+   "zipcode": "5043",
+   "phone": "(630) 999-4444",
+   "meta": "-",
+   "email": "salman@masjidal.com",
+   "website_url": "https://www.masjidal.com",
+   "event_url": "https://calendar.google.com/calendar/u/0/embed?src=e69f09bffc831ca524528ee49b87f1d810da14af54f4ce302c23e2d34eb30267%40group.calendar.google.com&ctz=America%2FNew_York",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "https://masjidal.com/widget/monthly/v2/?masjid_id=pPAPydJz/test",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": true
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "5",
+     "zuhr_offset": "5",
+     "asr_offset": "5",
+     "maghrib_offset": "5",
+     "isha_offset": "5"
+    }
+   }
+  },
+  {
+   "id": "YADogQLN",
+   "uuid": "e8262d5a-9552-487a-81b7-d65f557865fd",
+   "name": "Masjid Omar Bin Al-Khattab",
+   "address": "658 Marion Rd",
+   "city": "Park Holme",
+   "state": "South Australia",
+   "country": "AU",
+   "longitude": "138.5563",
+   "latitude": "-34.9888",
+   "zipcode": "5043",
+   "phone": "83742280",
+   "meta": "-",
+   "email": "info@islamicsocietysa.org.au",
+   "website_url": "https://islamicsocietysa.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "MjKZ0mAX",
+   "uuid": "de359b7b-9d70-4722-a0dc-c08b34c530ad",
+   "name": "AIDATAS",
+   "address": "10 Bowden Dr",
+   "city": "Bridgewater",
+   "state": "TAS",
+   "country": "AU",
+   "longitude": "147.2492",
+   "latitude": "-42.7422",
+   "zipcode": "7030",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "20",
+     "zuhr_offset": "20",
+     "asr_offset": "20",
+     "maghrib_offset": "20",
+     "isha_offset": "20"
+    }
+   }
+  },
+  {
+   "id": "aAepPwLj",
+   "uuid": "b7ca2fc1-9f4a-43ba-9406-18e1bd61117b",
+   "name": "Hobart Mosque",
+   "address": " 166 Warwick St",
+   "city": "West Hobart",
+   "state": "Tasmania",
+   "country": "AU",
+   "longitude": "147.3154",
+   "latitude": "-42.8818",
+   "zipcode": "7000",
+   "phone": "-",
+   "meta": "-",
+   "email": "tashobartmosque@gmail.com",
+   "website_url": "https://facebook.com/hobartmosque",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "nwAakXK1",
+   "uuid": "53072968-e8c8-4dc7-b083-7e1a915b2701",
+   "name": "AIDA Victoria",
+   "address": "43 Chambers Rd",
+   "city": "Altona North",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.8416",
+   "latitude": "-37.8390",
+   "zipcode": "3025",
+   "phone": "-",
+   "meta": "-",
+   "email": "aidavic354@gmail.com",
+   "website_url": "https://aidavictoria.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "adJmRGAk",
+   "uuid": "cef0ec2f-f4a9-4d91-abe9-3d1682a8c472",
+   "name": "Cyprus Turkish Islamic Community of Victoria",
+   "address": "618 Ballarat Rd",
+   "city": "Ardeer",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.8018",
+   "latitude": "-37.7728",
+   "zipcode": "3022",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "YADlWGAN",
+   "uuid": "b6ae3b48-085f-4053-a286-49bec39df925",
+   "name": "Aisha Masjid (MYCentre)",
+   "address": "27 Kraft Ct",
+   "city": "Broadmeadows",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.9240",
+   "latitude": "-37.6771",
+   "zipcode": "3047",
+   "phone": "0393091515",
+   "meta": "-",
+   "email": "contactus@mycentre.org.au",
+   "website_url": "https://mycentre.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "60",
+     "zuhr_offset": "10",
+     "asr_offset": "5",
+     "maghrib_offset": "5",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "rGAEPpLn",
+   "uuid": "98c49da5-e33c-480a-af15-8f32c7cc9264",
+   "name": "Campbellfield Youth Centre",
+   "address": "95 Horne St",
+   "city": "Campbellfield",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.9631",
+   "latitude": "-37.6807",
+   "zipcode": "3061",
+   "phone": "-",
+   "meta": "Campbellfield mosque",
+   "email": "-",
+   "website_url": "https://cycm.au/",
+   "event_url": "-",
+   "donation_url": "https://cycm.au/",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "30",
+     "zuhr_offset": "15",
+     "asr_offset": "15",
+     "maghrib_offset": "11",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "wAaq6nA1",
+   "uuid": "8510752d-6f99-4f9b-9db3-4ef5b820f4d9",
+   "name": "Albanian Australian Islamic Society",
+   "address": "765 Drummond St",
+   "city": "Carlton North",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.9706",
+   "latitude": "-37.7867",
+   "zipcode": "3054",
+   "phone": "(03) 9347 6505",
+   "meta": "-",
+   "email": "admin@aais.org.au",
+   "website_url": "https://www.aais.org.au",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "https://masjidal.com/widget/monthly?masjid_id=wAaq6nA1",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "QL0MJpAZ",
+   "uuid": "a0e3c1f5-8bbf-49b3-95a0-965d38b4520e",
+   "name": "Masjid IMCV Westall",
+   "address": "130 Rosebank Ave",
+   "city": "Clayton South",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.1380",
+   "latitude": "-37.9404",
+   "zipcode": "3169",
+   "phone": "-",
+   "meta": "-",
+   "email": "masjidwestall@gmail.com",
+   "website_url": "https://westall.imcv.org.au",
+   "event_url": "https://calendar.google.com/calendar/u/0?cid=bWFzamlkd2VzdGFsbEBnbWFpbC5jb20",
+   "donation_url": "https://bit.ly/westall-heroes",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "EdoevBL7",
+   "uuid": "0377b13d-4332-49a2-a453-0ce83ae79617",
+   "name": "Masjid IMCV SurauKita",
+   "address": "12/9 Dawson St",
+   "city": "Coburg North",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.9578",
+   "latitude": "-37.7314",
+   "zipcode": "3058",
+   "phone": "0479141095",
+   "meta": "-",
+   "email": "imcv.suraukita@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "30",
+     "zuhr_offset": "10",
+     "asr_offset": "10",
+     "maghrib_offset": "5",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VKpezyLP",
+   "uuid": "2a046798-46a3-41f3-aa64-ed14130bc148",
+   "name": "Quba Mosque Islamic Centre",
+   "address": "250 Hume Hwy",
+   "city": "Craigieburn",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.9487",
+   "latitude": "-37.6213",
+   "zipcode": "3064",
+   "phone": "0494043765",
+   "meta": "-",
+   "email": "info@qubamosque.org.au",
+   "website_url": "https://www.qubamosque.org.au/",
+   "event_url": "-",
+   "donation_url": "https://www.qubamosque.org.au/donate",
+   "audio_url": "-",
+   "prayer_timing_url": "https://masjidal.com/widget/monthly/?masjid_id=VKpezyLP",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VdwqzOLe",
+   "uuid": "cc7fafd5-466f-4625-ada6-7ba79f291076",
+   "name": "Albanian Sakie Islamic Society of Dandenong",
+   "address": "10 Dalgety St",
+   "city": "Dandenong",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.2087",
+   "latitude": "-37.9943",
+   "zipcode": "3175",
+   "phone": "-",
+   "meta": "-",
+   "email": "aisd@bigpond.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "jKZNrWKX",
+   "uuid": "32a81fd9-9e2e-44d9-97c4-056117e03e5b",
+   "name": "Faizan E Madina Islamic Centre",
+   "address": "5 - 11 Birch Ave",
+   "city": "Dandenong North",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.2050",
+   "latitude": "-37.9637",
+   "zipcode": "3175",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "nzKzVnKO",
+   "uuid": "75ac3aac-99d1-4766-a1a2-bfdd11afe7a0",
+   "name": "Afghan Islamic Centre and Omar Farooq  Mosque (AICOM)",
+   "address": "16 Photinia St",
+   "city": "Doveton",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.2363",
+   "latitude": "-37.9921",
+   "zipcode": "3177",
+   "phone": "(03) 9701 7300",
+   "meta": "aicom,afghan,doveton,melbourne",
+   "email": "info@aicom.com.au",
+   "website_url": "https://aicom.com.au/",
+   "event_url": "-",
+   "donation_url": "https://aicom.com.au/donations/",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VKpDyyKP",
+   "uuid": "8f14b9ec-24bc-42c6-8b60-8a573a2afb15",
+   "name": "Pillars of Guidance",
+   "address": "9-11 Green St",
+   "city": "Doveton",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.2334",
+   "latitude": "-37.9988",
+   "zipcode": "3177",
+   "phone": "1800953766",
+   "meta": "-",
+   "email": "Info@pgcc.org.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "MA58N5Lr",
+   "uuid": "d890e413-e3f4-4916-90c4-722e7c709fea",
+   "name": "Leo st Musallah",
+   "address": "19 Leo St",
+   "city": "Fawkner",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.9623",
+   "latitude": "-37.7084",
+   "zipcode": "3060",
+   "phone": "-",
+   "meta": "Leo st Musallah,Fawkner Musallah,Musallah,Leo street Masjid,Mosque",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "wLVO5pAJ",
+   "uuid": "cc763e22-f17c-498f-a7b4-8a5ed284bd95",
+   "name": "Islamic Society of Melbourne Eastern Region (ISOMER)",
+   "address": "1273 Wellington Rd",
+   "city": "Lysterfield",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.2708",
+   "latitude": "-37.9275",
+   "zipcode": "3156",
+   "phone": "-",
+   "meta": "Isomer",
+   "email": "info@isomer.org.au",
+   "website_url": "https://isomer.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "20",
+     "zuhr_offset": "10",
+     "asr_offset": "10",
+     "maghrib_offset": "5",
+     "isha_offset": "5"
+    }
+   }
+  },
+  {
+   "id": "kK3ynMAe",
+   "uuid": "cb4e7872-d28e-4c95-bba0-9a2642154860",
+   "name": "Maidstone Mosque",
+   "address": "34 Studley St",
+   "city": "Maidstone",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.8794",
+   "latitude": "-37.7877",
+   "zipcode": "3012",
+   "phone": "0423413177",
+   "meta": "-",
+   "email": "contact.maidstone@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "GA6gB6de",
+   "uuid": "e0cf61f1-0390-4b95-acc3-ad510e5710ae",
+   "name": "ICMG Meadow Heights",
+   "address": "15-17 Hudson Cct",
+   "city": "Meadow Heights",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.9209",
+   "latitude": "-37.6518",
+   "zipcode": "3048",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "https://www.icmg.org.au/branches/meadow-heights/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "adJqmJAk",
+   "uuid": "d5bcabe5-82f9-48c5-b942-336b571092d6",
+   "name": "Madina Musallah",
+   "address": "59 McKenzie St",
+   "city": "Melton",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.5789",
+   "latitude": "-37.6852",
+   "zipcode": "3337",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "oxdNmYAV",
+   "uuid": "4091922e-8305-42ef-829d-974c25cc489b",
+   "name": "Al Hidayah centre",
+   "address": "1491 Dohertys Rd",
+   "city": "Mount Cottrell",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.6403",
+   "latitude": "-37.8139",
+   "zipcode": "3024",
+   "phone": "03 70678289",
+   "meta": "-",
+   "email": "15jm00@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "nDAg3WA0",
+   "uuid": "cb5cb70d-0bd4-472f-88c2-e624a12bf188",
+   "name": "IEWAD",
+   "address": "131 Belgrave-Hallam Rd",
+   "city": "Narre Warren North",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.2786",
+   "latitude": "-37.9894",
+   "zipcode": "3804",
+   "phone": "0417 709 081",
+   "meta": "-",
+   "email": "info@iewad.org.au",
+   "website_url": "https://www.iewad.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "-1",
+     "zuhr_offset": "15",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "wdqDq6Ab",
+   "uuid": "e15cba1a-52b0-4e03-882e-258c9987e4e8",
+   "name": "Australian Islamic Centre",
+   "address": "23-27 Blenheim Rd",
+   "city": "Newport",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.8617",
+   "latitude": "-37.8460",
+   "zipcode": "3015",
+   "phone": "0390000177",
+   "meta": "-",
+   "email": "contact@australianislamiccentre.org",
+   "website_url": "https://australianislamiccentre.org/",
+   "event_url": "-",
+   "donation_url": "https://australianislamiccentre.org/donate/",
+   "audio_url": "-",
+   "prayer_timing_url": "https://masjidal.com/widget/monthly/?masjid_id=wdqDq6Ab",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "MjKZkWLX",
+   "uuid": "b2fc4fe4-f47b-4716-9567-471884d6681f",
+   "name": "Ravenhall, Masjid-Ar Rahma",
+   "address": "101 Eucumbene Dr",
+   "city": "Ravenhall",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "144.7469",
+   "latitude": "-37.7649",
+   "zipcode": "3023",
+   "phone": "-",
+   "meta": "-",
+   "email": "info@aslainc.org.au",
+   "website_url": "https://aslainc.org.au/",
+   "event_url": "-",
+   "donation_url": "https://rmcc.org.au/donate-us/",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "30",
+     "asr_offset": "30",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0LbkMqAo",
+   "uuid": "4ef8fd2a-ebc9-4e06-9403-c9937e205182",
+   "name": "Faizan E Madina Masjid",
+   "address": "43 Mahoneys Rd",
+   "city": "Reservoir",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.0045",
+   "latitude": "-37.6946",
+   "zipcode": "3073",
+   "phone": "1300004786",
+   "meta": "-",
+   "email": "Faizanemadinareservoir@gmail.com",
+   "website_url": "https://chat.whatsapp.com/GfLxuju2P7DDtuXZpgfoVT",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "XEdoW5d7",
+   "uuid": "a98b0c5a-ddf8-4dff-80f0-15c68c9d07cc",
+   "name": "Moslem Mosque - Shepparton - Albanian Islamic Society",
+   "address": "8 Acacia St",
+   "city": "Shepparton",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.4188",
+   "latitude": "-36.3652",
+   "zipcode": "3630",
+   "phone": "0423581892",
+   "meta": "-",
+   "email": "sheppalbanians@gmail.com",
+   "website_url": "https://www.sheppartonalbaniansociety.org",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "VKpeGJLP",
+   "uuid": "75a92753-a644-450d-9b9d-c9157ccd5e95",
+   "name": "Al Wahyain Islamic Centre (AWIC)",
+   "address": "38-40 Garnsworthy Street",
+   "city": "Springvale",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.1621",
+   "latitude": "-37.9416",
+   "zipcode": "3171",
+   "phone": "85248173",
+   "meta": "-",
+   "email": "Awic38@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "10",
+     "zuhr_offset": "10",
+     "asr_offset": "5",
+     "maghrib_offset": "5",
+     "isha_offset": "5"
+    }
+   }
+  },
+  {
+   "id": "xdy0QaAX",
+   "uuid": "a507507a-6d1f-4f61-bb95-fcd5ef5cc4e7",
+   "name": "OneSpace",
+   "address": "3/52 Smith Rd",
+   "city": "Springvale",
+   "state": "VIC",
+   "country": "AU",
+   "longitude": "145.1695",
+   "latitude": "-37.9404",
+   "zipcode": "3171",
+   "phone": "-",
+   "meta": "-",
+   "email": "madania.foundation@outlook.com",
+   "website_url": "https://madaniafoundation.org/onespace/",
+   "event_url": "-",
+   "donation_url": "https://madania-onespace.raisely.com/",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "yLjgmoAQ",
+   "uuid": "463cd43e-5f19-431a-bbe5-fa65eb0f327e",
+   "name": "Ararat Masjid",
+   "address": "23 Baird St",
+   "city": "Ararat",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "142.9406",
+   "latitude": "-37.2787",
+   "zipcode": "3377",
+   "phone": "0488601158",
+   "meta": "-",
+   "email": "aiwa.vic@gmail.com",
+   "website_url": "https://aiwa.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0LbnxXLo",
+   "uuid": "28e77ed4-fb2b-49fd-b043-8b624b99c063",
+   "name": "Olsen Place ALF Masjid",
+   "address": "14-16 Freda St",
+   "city": "Broadmeadows",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.9267",
+   "latitude": "-37.6903",
+   "zipcode": "3047",
+   "phone": "-",
+   "meta": "-",
+   "email": "k.moustafa@hotmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "kK3vJ1de",
+   "uuid": "e065c1e6-dfec-4fb1-af4d-c62d345713f4",
+   "name": "ICMG Brunswick",
+   "address": "660 Sydney Rd",
+   "city": "Brunswick",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.9631",
+   "latitude": "-37.7619",
+   "zipcode": "3056",
+   "phone": "-",
+   "meta": "-",
+   "email": "admin@icmgbrunswick.org.au",
+   "website_url": "https://www.icmg.org.au/branches/brunswick/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "JdGmWDLP",
+   "uuid": "a708b0cf-1d07-41fc-a1bb-7c2c90294fcb",
+   "name": "Cobram Islamic Centre",
+   "address": "11 William St",
+   "city": "Cobram",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "145.6505",
+   "latitude": "-35.9181",
+   "zipcode": "3644",
+   "phone": "-",
+   "meta": "-",
+   "email": "cobramislamicasc@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0AWqYBKj",
+   "uuid": "c1ebc45f-b435-427e-9c47-db0ab1109008",
+   "name": "Emir Sultan Mosque (ICMG Dandenong)",
+   "address": "139 Cleeland St",
+   "city": "Dandenong",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "145.2161",
+   "latitude": "-37.9748",
+   "zipcode": "3175",
+   "phone": "0402900970",
+   "meta": "-",
+   "email": "contact@emirsultanmosque.com",
+   "website_url": "https://www.emirsultanmosque.com/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": true,
+   "premium_features": {
+    "app": true,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "9L2M93KZ",
+   "uuid": "239b6db2-7bc0-4f06-80eb-093ba752784f",
+   "name": "Masjid IMCV Baitul Makmur",
+   "address": "26 Maher Rd",
+   "city": "Laverton",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.7729",
+   "latitude": "-37.8628",
+   "zipcode": "3028",
+   "phone": "-",
+   "meta": "-",
+   "email": "baitulmakmurmelb@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "wAaDVnL1",
+   "uuid": "6130bbc4-46a9-4b84-b56a-0572ed76d8ac",
+   "name": "Western Thrace Turkish Association of Australia",
+   "address": "103-109 Union Street Windsor",
+   "city": "Melbourne",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.9899",
+   "latitude": "-37.8540",
+   "zipcode": "3181",
+   "phone": "-",
+   "meta": "-",
+   "email": "oscar.huseyin@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "keLQajLM",
+   "uuid": "4af2465a-3746-4f07-8b75-5643877527ae",
+   "name": "1881 Mickleham Musalla",
+   "address": "1881 Mickleham Rd",
+   "city": "Mickleham",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.8760",
+   "latitude": "-37.5632",
+   "zipcode": "3064",
+   "phone": "0468475855",
+   "meta": "-",
+   "email": "1881micklehamrd@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "zVKp4BKP",
+   "uuid": "050e6c10-88a4-4e57-b44f-9a48809b91f4",
+   "name": "Craigieburn Masjid and Community Center",
+   "address": "456 Mt Ridley Rd",
+   "city": "Mickleham",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.8986",
+   "latitude": "-37.5640",
+   "zipcode": "3064",
+   "phone": "0416861586",
+   "meta": "-",
+   "email": "craigieburnmasjid@gmail.com",
+   "website_url": "https://craigieburnmasjid.com/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "GAEbekdn",
+   "uuid": "628f157f-2ae3-4b5e-bc78-b82f0c65ea56",
+   "name": "FARADAY MUSALLA",
+   "address": "22 Faraday St",
+   "city": "Mickleham",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.8980",
+   "latitude": "-37.5297",
+   "zipcode": "3064",
+   "phone": "0475266533",
+   "meta": "-",
+   "email": "22Faradayst@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "8KXO59dM",
+   "uuid": "036fb3cd-62ac-4d22-a09f-57884e724fcc",
+   "name": "ICMG Craigieburn",
+   "address": "1550 Mickleham Rd",
+   "city": "Mickleham",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "144.8794",
+   "latitude": "-37.5872",
+   "zipcode": "3064",
+   "phone": "-",
+   "meta": "-",
+   "email": "craigieburn@icmg.org.au",
+   "website_url": "https://www.icmg.org.au/branches/craigieburn/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "adJkpJKk",
+   "uuid": "df846de8-6bfd-493b-9fe6-7fea864054c1",
+   "name": "Light of hidayah",
+   "address": "6 Victor St",
+   "city": "Morwell",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "146.4009",
+   "latitude": "-38.2342",
+   "zipcode": "3840",
+   "phone": "-",
+   "meta": "-",
+   "email": "Ayubkhan4769@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "wLVgVyAJ",
+   "uuid": "8bbb373f-b8b7-43b7-8a1a-109e0871eae5",
+   "name": "Bosnia Herzegovina Islamic Society Noble Park",
+   "address": "4 Noble Street",
+   "city": "Noble Park",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "145.1738",
+   "latitude": "-37.9652",
+   "zipcode": "3174",
+   "phone": "-",
+   "meta": "-",
+   "email": "icnoblepark@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "aAePPlLj",
+   "uuid": "99295fd0-10ad-4506-abdc-df577ba39222",
+   "name": "Darusalam Society",
+   "address": "72-74 Chifley Dr",
+   "city": "Preston",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "145.0311",
+   "latitude": "-37.7497",
+   "zipcode": "3072",
+   "phone": "-",
+   "meta": "-",
+   "email": "admin@darusalamsociety.org.au",
+   "website_url": "https://darusalamsociety.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "0dYlNoA6",
+   "uuid": "57a2077c-431e-4f56-b8f9-6cf0a45453da",
+   "name": "Warragul Mosque",
+   "address": "72 Victoria St",
+   "city": "Warragul",
+   "state": "Victoria",
+   "country": "AU",
+   "longitude": "145.9304",
+   "latitude": "-38.1587",
+   "zipcode": "3820",
+   "phone": "-",
+   "meta": "-",
+   "email": "hello@binai.org.au",
+   "website_url": "Https://www.binai.org.au",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "10",
+     "asr_offset": "10",
+     "maghrib_offset": "10",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "0LbpgZdo",
+   "uuid": "262e4b22-5802-4e9f-90c1-f9d5bf4e187b",
+   "name": "Masjid Geraldton",
+   "address": "172 George Rd",
+   "city": "Beresford",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "114.6196",
+   "latitude": "-28.7605",
+   "zipcode": "6530",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "RKxw8OdO",
+   "uuid": "e9a8e004-cb5b-4973-a139-cb8873e4b61c",
+   "name": "Masjid Nasir",
+   "address": "239 Barrington St",
+   "city": "Bibra Lake",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.8140",
+   "latitude": "-32.1151",
+   "zipcode": "6163",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "nL1JenAa",
+   "uuid": "d67b8c34-498c-483f-8ce1-000893efa2f4",
+   "name": "IQRO Centre",
+   "address": "45 Kent St",
+   "city": "Cannington",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.9265",
+   "latitude": "-32.0163",
+   "zipcode": "6107",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "nL14X8Ka",
+   "uuid": "f9ca98fd-143d-4cdc-9ad3-38f2956d7e6f",
+   "name": "Sakinah Islamic Centre",
+   "address": "840 N Lake Road",
+   "city": "Cockburn Central",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.8488",
+   "latitude": "-32.1210",
+   "zipcode": "6164",
+   "phone": "-",
+   "meta": "-",
+   "email": "sakinahislamiccentre@devizor.com",
+   "website_url": "https://www.sakinahislamiccentre.com.au",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "XAlRWrKb",
+   "uuid": "3232d438-6f48-427c-839d-a0007882c98b",
+   "name": "UWA MSA Musallah",
+   "address": "35 Stirling Hwy",
+   "city": "Crawley",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.8181",
+   "latitude": "-31.9789",
+   "zipcode": "6009",
+   "phone": "-",
+   "meta": "-",
+   "email": "uwamsa@uwamsa.og",
+   "website_url": "https://uwamsa.org",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "1",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "nDAgNDL0",
+   "uuid": "78e1ce6f-8568-4585-b6bc-3b51950c3b22",
+   "name": "Masjid Ruby",
+   "address": "48 Ruby Ave",
+   "city": "Langford",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.9375",
+   "latitude": "-32.0334",
+   "zipcode": "6147",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "8L7k8PL5",
+   "uuid": "507d9393-a479-4b17-bf25-d593674a0360",
+   "name": "Maddington Musallah",
+   "address": "Attfield St",
+   "city": "Maddington",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.9789",
+   "latitude": "-32.0535",
+   "zipcode": "6109",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "5AvPawKX",
+   "uuid": "6dca18a5-2cad-45ae-b788-86709ec24080",
+   "name": "Mandurah Mussallah",
+   "address": "26 Scott St",
+   "city": "Mandurah",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.7370",
+   "latitude": "-32.5275",
+   "zipcode": "6210",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "yLjO4bAQ",
+   "uuid": "40b31b6c-1dff-4e4a-8282-a123a8190921",
+   "name": "Al'Majid Mosque",
+   "address": "64 Walter Padbury Blvd",
+   "city": "Padbury",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.7765",
+   "latitude": "-31.8151",
+   "zipcode": "6025",
+   "phone": "-",
+   "meta": "-",
+   "email": "-",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": 0,
+     "zuhr_offset": 0,
+     "asr_offset": 0,
+     "maghrib_offset": 0,
+     "isha_offset": 0
+    }
+   }
+  },
+  {
+   "id": "OMA5MzAr",
+   "uuid": "9f7d392f-0ba5-4422-a4ba-3f63284940a6",
+   "name": "Canning Mosque",
+   "address": "243 Welshpool Rd",
+   "city": "Queens Park",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.9475",
+   "latitude": "-31.9974",
+   "zipcode": "6107",
+   "phone": "-",
+   "meta": "243 Welshpool Rd",
+   "email": "yasinetlik2@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": true,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VL4vQxdx",
+   "uuid": "c87fa9a7-db25-4c19-b4b1-064d19097c8b",
+   "name": "Thornlie Masjid",
+   "address": "26 Clancy Way",
+   "city": "Thornlie",
+   "state": "WA",
+   "country": "AU",
+   "longitude": "115.9609",
+   "latitude": "-32.0539",
+   "zipcode": "6108",
+   "phone": "0402538292",
+   "meta": "-",
+   "email": "thornliemasjid1@gmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "DAgwPDA0",
+   "uuid": "cc78e01f-62b8-432c-bafb-f40c4501cd91",
+   "name": "Kelmscott Masjid and Youth Center",
+   "address": " 20 Church St, Kelmscott",
+   "city": "Kelmscott",
+   "state": "Western Australia",
+   "country": "AU",
+   "longitude": "116.0152",
+   "latitude": "-32.1144",
+   "zipcode": "6111",
+   "phone": "-",
+   "meta": "-",
+   "email": "contact@kelmscottmasjid.org.au",
+   "website_url": "https://kelmscottmasjid.org.au/",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "0",
+     "zuhr_offset": "1",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "VL4o7EKx",
+   "uuid": "af30775a-1517-4b52-8217-ef2a3a84251f",
+   "name": "AIC Kewdale Prayer Hall",
+   "address": "139 President St",
+   "city": "Kewdale",
+   "state": "Western Australia",
+   "country": "AU",
+   "longitude": "115.9331",
+   "latitude": "-31.9806",
+   "zipcode": "6105",
+   "phone": "-",
+   "meta": "-",
+   "email": "abdullah@aic.wa.edu.au",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": true,
+     "fajr_offset": "10",
+     "zuhr_offset": "11",
+     "asr_offset": "10",
+     "maghrib_offset": "5",
+     "isha_offset": "10"
+    }
+   }
+  },
+  {
+   "id": "zKz3azLO",
+   "uuid": "915e193d-bf07-4245-8ba6-32f036500e3d",
+   "name": "Fremantle Mosque",
+   "address": "10A Blamey Pl",
+   "city": "O'Connor",
+   "state": "Western Australia",
+   "country": "AU",
+   "longitude": "115.7889",
+   "latitude": "-32.0573",
+   "zipcode": "6163",
+   "phone": "-",
+   "meta": "-",
+   "email": "mdewan01@hotmail.com",
+   "website_url": "-",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "-",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  },
+  {
+   "id": "QL0BPGdZ",
+   "uuid": "e09a7b97-4911-4a65-927a-3e33abd1a797",
+   "name": "Masjid Al-Falah",
+   "address": "29 Lewis Rd",
+   "city": "Wattle Grove",
+   "state": "Western Australia",
+   "country": "AU",
+   "longitude": "116.0098",
+   "latitude": "-32.0013",
+   "zipcode": "6107",
+   "phone": "+61 401 686 712, +61 401 553 503",
+   "meta": "-",
+   "email": "info@masjidalfalah.org.au",
+   "website_url": "https://masjidalfalah.org.au",
+   "event_url": "-",
+   "donation_url": "-",
+   "audio_url": "-",
+   "prayer_timing_url": "https://masjidalfalah.org.au/prayer-time-2021/",
+   "app_premium_features": false,
+   "premium_features": {
+    "app": false,
+    "slideshow": false,
+    "donation_app": false
+   },
+   "is_shell_account": false,
+   "iqamah_settings": {
+    "athan": {
+     "enabled": false,
+     "fajr_offset": "0",
+     "zuhr_offset": "0",
+     "asr_offset": "0",
+     "maghrib_offset": "0",
+     "isha_offset": "0"
+    }
+   }
+  }
+ ]
+}

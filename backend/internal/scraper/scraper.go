@@ -55,6 +55,35 @@ func (s *Scraper) FetchPrayerTimes(ctx context.Context, url string, timezone str
 }
 
 func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone string) (*models.ScrapedPrayerTimes, error) {
+	// Method 0-masjidal: masjids on the Masjidal platform (masjidal.com —
+	// in-masjid screens, website widgets and the Athan+ app). Their JSON API is
+	// the source the widgets themselves read, and for URL-mapped masjids it
+	// needs no page fetch at all — which also keeps scraping alive when the
+	// masjid's own site is down or blocks us (isomer.org.au returns 406 to
+	// non-browser clients). Covers IEWAD, Lysterfield, AICOM, PGCC, Emir Sultan.
+	if masjidalID := resolveMasjidalID(url, ""); masjidalID != "" {
+		prayerTimes, err := s.extractFromMasjidalAPI(ctx, masjidalID, timezone)
+		if err == nil {
+			return prayerTimes, nil
+		}
+		switch {
+		case strings.Contains(url, "iewad.org.au"), strings.Contains(url, "isomer.org.au"):
+			// Legacy: scrape the AthanPlus widget HTML.
+			prayerTimes, err := s.extractFromAthanPlus(ctx, masjidalID, timezone)
+			if err != nil {
+				return nil, fmt.Errorf("athanplus scraper failed: %w", err)
+			}
+			return prayerTimes, nil
+		case strings.Contains(url, "emirsultanmosque.com"):
+			// Legacy: ezanvakti API (Diyanet calculated times, no iqamah).
+			if prayerTimes, err := s.extractFromEmirSultan(ctx, timezone); err == nil {
+				return prayerTimes, nil
+			}
+		}
+		// AICOM (WordPress-plugin markup) and PGCC (generic chain) fall through
+		// to the page-HTML methods below, as they did before Masjidal support.
+	}
+
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -108,38 +137,20 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		return prayerTimes, nil
 	}
 
-	// Method 0d: Emir Sultan Mosque via ezanvakti API
-	if strings.Contains(url, "emirsultanmosque.com") {
-		prayerTimes, err := s.extractFromEmirSultan(ctx, timezone)
-		if err == nil {
-			return prayerTimes, nil
+	// Method 0d: Masjidal widget auto-detected from the page HTML — a masjid
+	// that isn't in resolveMasjidalID's URL map but embeds a Masjidal/AthanPlus
+	// widget (a future adopter works without a code change). URL-mapped masjids
+	// already tried the API before the page fetch.
+	if resolveMasjidalID(url, "") == "" {
+		if masjidalID := resolveMasjidalID(url, html); masjidalID != "" {
+			if prayerTimes, err := s.extractFromMasjidalAPI(ctx, masjidalID, timezone); err == nil {
+				return prayerTimes, nil
+			}
 		}
 	}
 
-	// Method 0e: ISV Preston — TheMasjidApp iframe (fetch iframe URL directly)
-	if strings.Contains(url, "isv.org.au") {
-		prayerTimes, err := s.extractFromISV(ctx, timezone)
-		if err != nil {
-			return nil, fmt.Errorf("isv scraper failed: %w", err)
-		}
-		return prayerTimes, nil
-	}
-
-	// Method 0f: AthanPlus widget.
-	//   iewad.org.au    → masjid_id nDAg3WA0
-	//   isomer.org.au   → masjid_id wLVO5pAJ (Lysterfield). Previously scraped via
-	//                     AlAdhan (a GPS *calculation* that never matched the
-	//                     mosque's published times); its site embeds a real
-	//                     AthanPlus widget, so read that instead.
-	if athanPlusID := athanPlusMasjidID(url); athanPlusID != "" {
-		prayerTimes, err := s.extractFromAthanPlus(ctx, athanPlusID, timezone)
-		if err != nil {
-			return nil, fmt.Errorf("athanplus scraper failed: %w", err)
-		}
-		return prayerTimes, nil
-	}
-
-	// Method 0g: Masjidal plugin (aicom.com.au)
+	// Method 0e: Masjidal WordPress plugin markup (aicom.com.au) — legacy
+	// fallback for when the Masjidal API failed in the pre-fetch block.
 	if strings.Contains(url, "aicom.com.au") {
 		prayerTimes, err := s.extractFromMasjidal(html, timezone)
 		if err != nil {
@@ -148,7 +159,16 @@ func (s *Scraper) fetchWithTimeout(ctx context.Context, url string, timezone str
 		return prayerTimes, nil
 	}
 
-	// Method 0h: AlAdhan API — GPS-calculated fallback for sites that load times
+	// Method 0f: ISV Preston — TheMasjidApp iframe (fetch iframe URL directly)
+	if strings.Contains(url, "isv.org.au") {
+		prayerTimes, err := s.extractFromISV(ctx, timezone)
+		if err != nil {
+			return nil, fmt.Errorf("isv scraper failed: %w", err)
+		}
+		return prayerTimes, nil
+	}
+
+	// Method 0g: AlAdhan API — GPS-calculated fallback for sites that load times
 	// dynamically via JS and expose no readable per-day schedule (umis.com.au).
 	// NOTE: this is an astronomical approximation, not a masjid's published times;
 	// only use it when there is no real source to read.
@@ -1769,15 +1789,20 @@ func (s *Scraper) FetchJummahTimes(ctx context.Context, masjidURL string) ([][2]
 	if strings.Contains(masjidURL, "masjidbox.com") {
 		return s.parseJummahFromMasjidBox(ctx, masjidURL)
 	}
-	if strings.Contains(masjidURL, "pgcc.org.au") {
-		return s.parseJummahFromPGCC(ctx, masjidURL)
+	// Masjidal-platform masjids (IEWAD, Lysterfield, AICOM, PGCC, Emir Sultan):
+	// Jumu'ah sessions come from the same Masjidal API as the daily times.
+	if id := resolveMasjidalID(masjidURL, ""); id != "" {
+		if sessions, err := s.parseJummahFromMasjidalAPI(ctx, id); err == nil && len(sessions) > 0 {
+			return sessions, nil
+		}
+		// Legacy fallbacks if the API is down.
+		if strings.Contains(masjidURL, "pgcc.org.au") {
+			return s.parseJummahFromPGCC(ctx, masjidURL)
+		}
+		return s.parseJummahFromAthanPlus(ctx, id)
 	}
 	if strings.Contains(masjidURL, "themasjidapp.org") {
 		return s.parseJummahFromTheMasjidApp(ctx, masjidURL)
-	}
-	// AthanPlus-widget sites (iewad.org.au, isomer.org.au/Lysterfield)
-	if id := athanPlusMasjidID(masjidURL); id != "" {
-		return s.parseJummahFromAthanPlus(ctx, id)
 	}
 	if strings.Contains(masjidURL, "icv.org.au") {
 		return s.parseJummahFromICV(ctx)
@@ -2303,16 +2328,184 @@ func (s *Scraper) extractFromISV(ctx context.Context, timezone string) (*models.
 	return s.extractFromTheMasjidApp(string(body), timezone)
 }
 
-// athanPlusMasjidID maps a masjid site URL to its AthanPlus widget masjid_id,
-// or "" if the site is not served by an AthanPlus widget.
-func athanPlusMasjidID(url string) string {
+// masjidalAPIBase is the Masjidal API host and masjidalRetryDelay the pause
+// before the single 5xx retry; vars so tests can use a httptest server and
+// skip the wait.
+var (
+	masjidalAPIBase   = "https://masjidal.com"
+	masjidalRetryDelay = 5 * time.Second
+)
+
+// masjidalIDPattern matches the masjid_id in a Masjidal/AthanPlus widget embed.
+// Kept loose (no URL prefix) because e.g. iewad.org.au inlines the iframe URL
+// inside a Next.js JS-chunk string rather than a plain attribute.
+var masjidalIDPattern = regexp.MustCompile(`masjid_id=([A-Za-z0-9]{6,12})`)
+
+// resolveMasjidalID maps a masjid site to its Masjidal masjid_id, or "" if the
+// masjid is not on the Masjidal platform (masjidal.com screens/widgets, Athan+).
+//
+// Known IDs come from Masjidal's public directory —
+// masjidal.com/api/v2/masjids?country=AU, snapshot in
+// backend/data/masjidal_directory_au.json. PGCC and Emir Sultan run the
+// Masjidal WordPress plugin server-side / a separate site, so their IDs never
+// appear in their page HTML and must be pinned here. Sites that embed a
+// visible widget are also auto-detected from html, so a masjid that adopts
+// Masjidal later works without a code change.
+func resolveMasjidalID(url, html string) string {
 	switch {
 	case strings.Contains(url, "iewad.org.au"):
 		return "nDAg3WA0"
 	case strings.Contains(url, "isomer.org.au"): // Lysterfield Mosque
 		return "wLVO5pAJ"
+	case strings.Contains(url, "aicom.com.au"): // Afghan Islamic Centre
+		return "nzKzVnKO"
+	case strings.Contains(url, "pgcc.org.au"): // Pillars of Guidance
+		return "VKpDyyKP"
+	case strings.Contains(url, "emirsultanmosque.com"): // ICMG Dandenong
+		return "0AWqYBKj"
+	}
+	if strings.Contains(html, "athanplus.com") || strings.Contains(html, "masjidal.com") {
+		if m := masjidalIDPattern.FindStringSubmatch(html); m != nil {
+			return m[1]
+		}
 	}
 	return ""
+}
+
+// masjidalTimeResponse is the payload of masjidal.com/api/v1/time. Invalid
+// masjid IDs come back as HTTP 200 with status "error", so Status must be
+// checked explicitly.
+type masjidalTimeResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		Date  string `json:"date"`
+		Salah struct {
+			Fajr    string `json:"fajr"`
+			Sunrise string `json:"sunrise"`
+			Zuhr    string `json:"zuhr"`
+			Asr     string `json:"asr"`
+			Maghrib string `json:"maghrib"`
+			Isha    string `json:"isha"`
+		} `json:"salah"`
+		Iqama struct {
+			Fajr    string `json:"fajr"`
+			Zuhr    string `json:"zuhr"`
+			Asr     string `json:"asr"`
+			Maghrib string `json:"maghrib"`
+			Isha    string `json:"isha"`
+			Jummah1 string `json:"jummah1"`
+			Jummah2 string `json:"jummah2"`
+		} `json:"iqama"`
+	} `json:"data"`
+	Message json.RawMessage `json:"message"`
+}
+
+// fetchMasjidalTime fetches today's times for one masjid from the Masjidal
+// API. The endpoint occasionally throws transient 5xx errors, so one retry
+// after a short pause is built in.
+func (s *Scraper) fetchMasjidalTime(ctx context.Context, masjidID string) (*masjidalTimeResponse, error) {
+	apiURL := fmt.Sprintf("%s/api/v1/time?masjid_id=%s", masjidalAPIBase, masjidID)
+
+	fetch := func() (*masjidalTimeResponse, int, error) {
+		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		if err != nil {
+			return nil, 0, err
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+		resp, err := s.httpClient.Do(req)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, resp.StatusCode, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
+		var payload masjidalTimeResponse
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, resp.StatusCode, fmt.Errorf("failed to decode response: %w", err)
+		}
+		return &payload, resp.StatusCode, nil
+	}
+
+	payload, status, err := fetch()
+	if err != nil && status >= 500 {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(masjidalRetryDelay):
+		}
+		payload, _, err = fetch()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("masjidal api: %w", err)
+	}
+	if payload.Status != "success" {
+		return nil, fmt.Errorf("masjidal api: status %q (%s)", payload.Status, string(payload.Message))
+	}
+	return payload, nil
+}
+
+// extractFromMasjidalAPI fetches today's prayer times from the Masjidal JSON
+// API — the same source the masjid's own widgets and the Athan+ app display.
+func (s *Scraper) extractFromMasjidalAPI(ctx context.Context, masjidID, timezone string) (*models.ScrapedPrayerTimes, error) {
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	payload, err := s.fetchMasjidalTime(ctx, masjidID)
+	if err != nil {
+		return nil, err
+	}
+
+	pt := &models.ScrapedPrayerTimes{Date: today}
+	// Times come as "5:59 AM" (occasionally with irregular spacing).
+	parse := func(raw string) string {
+		t24, err := parseTime12or24(strings.Join(strings.Fields(raw), " "))
+		if err != nil {
+			return ""
+		}
+		return t24
+	}
+	pt.Fajr = parse(payload.Data.Salah.Fajr)
+	pt.Dhuhr = parse(payload.Data.Salah.Zuhr)
+	pt.Asr = parse(payload.Data.Salah.Asr)
+	pt.Maghrib = parse(payload.Data.Salah.Maghrib)
+	pt.Isha = parse(payload.Data.Salah.Isha)
+	pt.FajrIqama = parse(payload.Data.Iqama.Fajr)
+	pt.DhuhrIqama = parse(payload.Data.Iqama.Zuhr)
+	pt.AsrIqama = parse(payload.Data.Iqama.Asr)
+	pt.MaghribIqama = parse(payload.Data.Iqama.Maghrib)
+	pt.IshaIqama = parse(payload.Data.Iqama.Isha)
+
+	if err := s.validatePrayerTimes(pt); err != nil {
+		return nil, fmt.Errorf("masjidal api: %w", err)
+	}
+	return pt, nil
+}
+
+// parseJummahFromMasjidalAPI extracts Jumu'ah sessions from the Masjidal API.
+// Sessions the masjid doesn't hold are returned by the API as "-", and some
+// masjids fill both slots with the same time (Emir Sultan), so duplicates are
+// collapsed to one session.
+func (s *Scraper) parseJummahFromMasjidalAPI(ctx context.Context, masjidID string) ([][2]string, error) {
+	payload, err := s.fetchMasjidalTime(ctx, masjidID)
+	if err != nil {
+		return nil, err
+	}
+	var results [][2]string
+	seen := map[string]bool{}
+	for _, raw := range []string{payload.Data.Iqama.Jummah1, payload.Data.Iqama.Jummah2} {
+		t24, err := parseTime12or24(strings.Join(strings.Fields(raw), " "))
+		if err != nil || seen[t24] {
+			continue
+		}
+		seen[t24] = true
+		results = append(results, [2]string{fmt.Sprintf("%d", len(results)+1), t24})
+	}
+	return results, nil
 }
 
 // extractFromAthanPlus fetches prayer times from the AthanPlus widget API.
