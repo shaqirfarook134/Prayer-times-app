@@ -1591,10 +1591,18 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL, pa
 	// Fajr (index 1)
 	pt.FajrIqama = s.calculateIqamaWithDefault(pt.Fajr, fixedTimes, offsetTimes, 1, durationDefaults[1])
 
-	// Dhuhr (index 2): check for day-of-week override in JS_ANNONCE variables before using fixed time.
-	// Some masjids (e.g. Al Taqwa) vary Dhuhr iqama by day:
-	//   JS_ANNONCE_2 = "Dhuhr Iqamah: Sun to Wed 1:20pm, Thurs & Sat 1:30pm"
-	if dhuhrOverride := s.parseDhuhrDayOverride(content, now); dhuhrOverride != "" {
+	// Dhuhr (index 2): check for day-of-week overrides before using fixed time.
+	// Some masjids (e.g. Al Taqwa) vary Dhuhr iqama by day. Two sources, in
+	// order of authority:
+	//  1. An inline template script — this is what the page actually renders:
+	//       if((WeekDayToday == 4) || (WeekDayToday == 5)|| (WeekDayToday == 6))
+	//           JS_IQAMA_TIME_OF_DOHR = GimeTotalMinutes('13:30') - _thuhr;
+	//  2. The JS_ANNONCE prose, which can carry typos (Al Taqwa's says
+	//     "Thurs & Sat" while the script above renders Thu–Sat):
+	//       JS_ANNONCE_2 = "Dhuhr Iqamah: Sun to Wed 1:20pm, Thurs & Sat 1:30pm"
+	if scriptOverride := parseWeekdayIqamaScriptOverride(pageHTML, "DOHR", now); scriptOverride != "" {
+		pt.DhuhrIqama = scriptOverride
+	} else if dhuhrOverride := s.parseDhuhrDayOverride(content, now); dhuhrOverride != "" {
 		pt.DhuhrIqama = dhuhrOverride
 	} else {
 		pt.DhuhrIqama = s.calculateIqamaWithDefault(pt.Dhuhr, fixedTimes, offsetTimes, 2, durationDefaults[2])
@@ -1610,6 +1618,43 @@ func (s *Scraper) extractAndCalculateIqamaTimes(ctx context.Context, baseURL, pa
 	pt.IshaIqama = s.calculateIqamaWithDefault(pt.Isha, fixedTimes, offsetTimes, 5, durationDefaults[5])
 
 	return nil
+}
+
+// weekdayIqamaScriptPattern matches the awqat template's inline day-of-week
+// iqama override, e.g. (Al Taqwa, main page HTML):
+//
+//	if((WeekDayToday == 4) || (WeekDayToday == 5)|| (WeekDayToday == 6))
+//	    JS_IQAMA_TIME_OF_DOHR = GimeTotalMinutes('13:30') - _thuhr;
+//
+// Group 1 = the weekday conditions, group 2 = prayer name, group 3 = HH:MM.
+var weekdayIqamaScriptPattern = regexp.MustCompile(
+	`if\s*\(((?:\s*\(?\s*WeekDayToday\s*==\s*\d\s*\)?\s*(?:\|\|)?)+)\)\s*` +
+		`JS_IQAMA_TIME_OF_(FAJR|DOHR|ASR|MAGHRIB|ISHA)\s*=\s*GimeTotalMinutes\(\s*'(\d{1,2}:\d{2})'\s*\)`)
+
+var weekdayNumPattern = regexp.MustCompile(`==\s*(\d)`)
+
+// parseWeekdayIqamaScriptOverride reads the awqat template's inline weekday
+// iqama override from the main page HTML and returns the override time
+// ("HH:MM", 24h) for the given prayer if today is one of the listed weekdays
+// (JS getDay(): Sunday=0 … Saturday=6, same as Go's time.Weekday). Returns ""
+// when there is no override for the prayer or today isn't covered. This is
+// what the page actually renders, so it outranks announcement prose.
+func parseWeekdayIqamaScriptOverride(pageHTML, prayer string, now time.Time) string {
+	for _, m := range weekdayIqamaScriptPattern.FindAllStringSubmatch(pageHTML, -1) {
+		if m[2] != prayer {
+			continue
+		}
+		for _, dm := range weekdayNumPattern.FindAllStringSubmatch(m[1], -1) {
+			d, _ := strconv.Atoi(dm[1])
+			if d == int(now.Weekday()) {
+				// Time is already 24-hour ("13:30"); normalise to HH:MM.
+				parts := strings.Split(m[3], ":")
+				h, _ := strconv.Atoi(parts[0])
+				return fmt.Sprintf("%02d:%s", h, parts[1])
+			}
+		}
+	}
+	return ""
 }
 
 // parseDhuhrDayOverride checks JS_ANNONCE variables in iqamafixed.js content for a

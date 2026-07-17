@@ -628,3 +628,39 @@ func TestParseJummahFromMasjidalAPI(t *testing.T) {
 		}
 	})
 }
+
+// Snippet captured from awqat.com.au/altaqwamasjid/ on 2026-07-17: the template
+// overrides Dhuhr iqama to 13:30 on Thu(4)/Fri(5)/Sat(6). The masjid's
+// announcement prose says "Thurs & Sat" but the script (which is what renders)
+// covers Thu–Sat.
+const alTaqwaWeekdayScript = `var WeekDayToday = new Date().getDay(); if((WeekDayToday == 4) || (WeekDayToday == 5)|| (WeekDayToday == 6)) JS_IQAMA_TIME_OF_DOHR = GimeTotalMinutes('13:30') - _thuhr; var STRmonth = JS_MONTHS_NOW[mmm];`
+
+func TestParseWeekdayIqamaScriptOverride(t *testing.T) {
+	melb, _ := time.LoadLocation("Australia/Melbourne")
+	cases := []struct {
+		name string
+		day  time.Time // any date with the desired weekday
+		want string
+	}{
+		{"friday overridden", time.Date(2026, 7, 17, 12, 0, 0, 0, melb), "13:30"}, // Fri
+		{"thursday overridden", time.Date(2026, 7, 16, 12, 0, 0, 0, melb), "13:30"},
+		{"saturday overridden", time.Date(2026, 7, 18, 12, 0, 0, 0, melb), "13:30"},
+		{"sunday not overridden", time.Date(2026, 7, 19, 12, 0, 0, 0, melb), ""},
+		{"wednesday not overridden", time.Date(2026, 7, 15, 12, 0, 0, 0, melb), ""},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseWeekdayIqamaScriptOverride(alTaqwaWeekdayScript, "DOHR", tt.day); got != tt.want {
+				t.Errorf("got %q; want %q", got, tt.want)
+			}
+		})
+	}
+	// A prayer with no override in the script yields nothing.
+	if got := parseWeekdayIqamaScriptOverride(alTaqwaWeekdayScript, "ISHA", time.Date(2026, 7, 17, 12, 0, 0, 0, melb)); got != "" {
+		t.Errorf("ISHA override = %q; want empty", got)
+	}
+	// Pages without the pattern yield nothing.
+	if got := parseWeekdayIqamaScriptOverride("<html>no overrides</html>", "DOHR", time.Date(2026, 7, 17, 12, 0, 0, 0, melb)); got != "" {
+		t.Errorf("no-pattern override = %q; want empty", got)
+	}
+}
