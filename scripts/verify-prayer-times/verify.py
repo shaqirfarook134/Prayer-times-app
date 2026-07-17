@@ -77,6 +77,24 @@ IGNORE_DATE_URL_SUBSTRINGS = (
     "pgcc.org.au",  # PGCC — page is frozen on an old date but the times are usable
 )
 
+# Masjids onboarded from the Masjidal directory have the *monthly* widget as
+# their DB url. The monthly grid confuses the AI reader (it picks the wrong
+# day's row) and sometimes renders empty. The *simple* widget shows only
+# today's athan/iqamah/Jumu'ah — read that instead. Still an independent
+# check: it reads Masjidal's rendered frontend, not the API the scraper uses.
+_MASJIDAL_MONTHLY_RE = re.compile(
+    r"masjidal\.com/widget/monthly/?\?.*?masjid_id=([A-Za-z0-9]+)"
+)
+
+
+def reading_url(url):
+    """URL the verifier should actually read for a masjid (usually the DB url)."""
+    m = _MASJIDAL_MONTHLY_RE.search(url or "")
+    if m:
+        return f"https://masjidal.com/widget/simple/?masjid_id={m.group(1)}"
+    return url
+
+
 MELBOURNE = timezone(timedelta(hours=10))  # AEST; DST only shifts date near midnight
 TODAY = datetime.now(MELBOURNE).strftime("%Y-%m-%d")
 TODAY_HUMAN = datetime.now(MELBOURNE).strftime("%A, %-d %B %Y")
@@ -511,13 +529,13 @@ def main():
         detail = site.get("notes", "") or "Times visible but nothing comparable was extracted."
         return {**base, "status": status, "detail": detail, "rows": rows}
 
-    urls = list({m["url"] for m in masjids if m.get("url")})
+    urls = list({reading_url(m["url"]) for m in masjids if m.get("url")})
     log(f"Rendering {len(urls)} unique websites...")
     page_texts = fetch_page_texts(urls)
 
     results = []
     for m in masjids:
-        r = verify_masjid(m, page_texts.get(m.get("url", "")))
+        r = verify_masjid(m, page_texts.get(reading_url(m.get("url", ""))))
         results.append(r)
         log(f"  {r['status']}: {r['name']}")
 
@@ -525,11 +543,11 @@ def main():
     retry = [i for i, r in enumerate(results) if r["status"] == "UNREADABLE"]
     if retry:
         log(f"Retrying {len(retry)} unreadable masjids...")
-        retry_urls = list({results[i]["url"] for i in retry if results[i]["url"]})
+        retry_urls = list({reading_url(results[i]["url"]) for i in retry if results[i]["url"]})
         retry_texts = fetch_page_texts(retry_urls)
         for i in retry:
             m = masjids[i]
-            r = verify_masjid(m, retry_texts.get(m.get("url", "")))
+            r = verify_masjid(m, retry_texts.get(reading_url(m.get("url", ""))))
             if r["status"] != "UNREADABLE":
                 results[i] = r
                 log(f"  retry recovered {r['status']}: {r['name']}")
