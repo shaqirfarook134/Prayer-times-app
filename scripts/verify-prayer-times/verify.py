@@ -313,9 +313,12 @@ Mosque: {masjid_name}
   (congregation) time for each session, following these rules IN ORDER:
     (a) A session is a labelled pair ONLY when the word IQAMAH/IQAMA/JAMA'AH/CONGREGATION actually
         appears next to the second time (common on masjidbox: "JUMUAH 12:27 IQAMAH 12:37", or
-        "JUMUAH 12:25 IQAMAH 2:00"). In that case report ONLY the labelled IQAMAH value, no matter
-        how far apart the two times are, and do NOT report the adhan/JUMU'AH time. Two times merely
-        joined by "&", ",", "and", or "/" are NOT a labelled pair — see (b).
+        "JUMUAH 12:25 IQAMAH 2:00"). This includes timetables whose COLUMN HEADERS are
+        ATHAN/STARTS and IQAMAH: a Jumu'ah row under such headers (e.g. "Jumu'ah  1:30 PM  1:37 PM")
+        is one session — its second column is the labelled IQAMAH. In these cases report ONLY the
+        labelled IQAMAH value, no matter how far apart the two times are, and do NOT report the
+        adhan/JUMU'AH time. Two times merely joined by "&", ",", "and", or "/" are NOT a labelled
+        pair — see (b).
     (b) A masjid may run several separate SESSIONS at different times, written as a list with no
         iqamah label (e.g. "12:15PM, 1:15PM & 2:15PM" is three sessions; "1:30PM & 2:10PM" is two
         sessions). Report EVERY such time as its own entry, preserving all of them.
@@ -323,6 +326,10 @@ Mosque: {masjid_name}
         treat them as an adhan+iqamah pair and report only the later one.
   If the page only states a rule (e.g. "10 minutes after dhuhr") with no clock time, leave jummah
   empty.
+  If a live timetable/widget on the page and separate written prose disagree about jummah times
+  (e.g. the widget shows "JUMU'AH 2  2:00 PM" but an announcement paragraph says "1.45 pm –
+  Session 2"), report the TIMETABLE's values — written prose is often stale — and mention the
+  discrepancy in notes.
 - Copy times as displayed (e.g. "5:15", "5:15 PM", "17:15"). Do not compute or guess times.
 - Some pages split a time across lines: "6" then "01" means 6:01. Rejoin them as h:mm.
 {date_rule}
@@ -375,6 +382,14 @@ def compare_masjid(db_times, db_jummah, site):
 
     db_j = sorted({norm_time(s.get("time12") or s.get("time")) for s in db_jummah} - {None})
     site_j = sorted({norm_time(t) for t in (site or {}).get("jummah", [])} - {None})
+    # Deterministic version of prompt rule (c): a pair of site times ≤15 min
+    # apart is one session's athan/iqamah (Masjidal widgets render "Jumu'ah
+    # 12:31 PM 12:38 PM" columns and the AI reports both inconsistently) —
+    # keep only the later (iqamah). Real multi-session gaps are ≥30 min.
+    if len(site_j) == 2:
+        gap = (site_j[1][0] * 60 + site_j[1][1]) - (site_j[0][0] * 60 + site_j[0][1])
+        if 0 <= gap <= 15:
+            site_j = site_j[1:]
     if db_j and site_j and db_j != site_j:
         mismatches += 1
         rows.append((
