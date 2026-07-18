@@ -1640,7 +1640,22 @@ var weekdayNumPattern = regexp.MustCompile(`==\s*(\d)`)
 // when there is no override for the prayer or today isn't covered. This is
 // what the page actually renders, so it outranks announcement prose.
 func parseWeekdayIqamaScriptOverride(pageHTML, prayer string, now time.Time) string {
-	for _, m := range weekdayIqamaScriptPattern.FindAllStringSubmatch(pageHTML, -1) {
+	for _, idx := range weekdayIqamaScriptPattern.FindAllStringSubmatchIndex(pageHTML, -1) {
+		// Skip overrides that are commented out — Virgin Mary's template ships
+		// the same line as Al Taqwa's but disabled:
+		//   ...getDay(); // if((WeekDayToday == 6) || (WeekDayToday == 0)) JS_IQAMA_TIME_OF_DOHR = ...
+		// Only inspect the text after the previous statement boundary so an
+		// unrelated "//" (e.g. inside a URL) earlier on a minified line can't
+		// cause a false skip.
+		prefix := pageHTML[:idx[0]]
+		boundary := strings.LastIndexAny(prefix, ";\n{}") + 1
+		if strings.Contains(prefix[boundary:], "//") {
+			continue
+		}
+		m := make([]string, 0, 4)
+		for g := 0; g < 4; g++ {
+			m = append(m, pageHTML[idx[2*g]:idx[2*g+1]])
+		}
 		if m[2] != prayer {
 			continue
 		}

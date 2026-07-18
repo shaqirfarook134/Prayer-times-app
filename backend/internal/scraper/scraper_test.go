@@ -664,3 +664,19 @@ func TestParseWeekdayIqamaScriptOverride(t *testing.T) {
 		t.Errorf("no-pattern override = %q; want empty", got)
 	}
 }
+
+// Virgin Mary's template ships the same weekday line as Al Taqwa but commented
+// out (captured 2026-07-18) — a disabled override must not be applied.
+func TestParseWeekdayIqamaScriptOverrideIgnoresComments(t *testing.T) {
+	melb, _ := time.LoadLocation("Australia/Melbourne")
+	saturday := time.Date(2026, 7, 18, 12, 0, 0, 0, melb)
+	commented := `JS_IQAMA_TIME_OF_ISHA = GimeTotalMinutes(FIXED_IQAMA_TIMES[5]) - _isha; var WeekDayToday = new Date().getDay(); // if((WeekDayToday == 6) || (WeekDayToday == 0)) JS_IQAMA_TIME_OF_DOHR = GimeTotalMinutes('13:30') - _thuhr; var STRmonth = JS_MONTHS_NOW[mmm];`
+	if got := parseWeekdayIqamaScriptOverride(commented, "DOHR", saturday); got != "" {
+		t.Errorf("commented-out override applied: got %q; want empty", got)
+	}
+	// An unrelated // (URL) before an ACTIVE override must not suppress it.
+	activeWithURL := `var x = "https://awqat.com.au/vmm/"; if((WeekDayToday == 6)) JS_IQAMA_TIME_OF_DOHR = GimeTotalMinutes('13:30') - _thuhr;`
+	if got := parseWeekdayIqamaScriptOverride(activeWithURL, "DOHR", saturday); got != "13:30" {
+		t.Errorf("active override suppressed by unrelated //: got %q; want 13:30", got)
+	}
+}
