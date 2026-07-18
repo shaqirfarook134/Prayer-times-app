@@ -2555,23 +2555,35 @@ func (s *Scraper) extractFromMasjidalAPI(ctx context.Context, masjidID, timezone
 }
 
 // parseJummahFromMasjidalAPI extracts Jumu'ah sessions from the Masjidal API.
-// Sessions the masjid doesn't hold are returned by the API as "-", and some
-// masjids fill both slots with the same time (Emir Sultan), so duplicates are
-// collapsed to one session.
+// Sessions the masjid doesn't hold are returned by the API as "-". Some
+// masjids use jummah1/jummah2 not as two sessions but as one session's
+// athan/iqamah pair (ICMG branches: "1:30 PM"/"1:37 PM") or duplicate the same
+// time in both slots (Emir Sultan) — their widgets render these as a single
+// Jumu'ah row. Mirror that: a pair ≤15 minutes apart collapses to one session
+// at the later (iqamah) time. Real multi-session masjids (AICOM 1:00/2:00,
+// PGCC 12:30/1:45) are always further apart.
 func (s *Scraper) parseJummahFromMasjidalAPI(ctx context.Context, masjidID string) ([][2]string, error) {
 	payload, err := s.fetchMasjidalTime(ctx, masjidID)
 	if err != nil {
 		return nil, err
 	}
-	var results [][2]string
-	seen := map[string]bool{}
+	var times []string
 	for _, raw := range []string{payload.Data.Iqama.Jummah1, payload.Data.Iqama.Jummah2} {
 		t24, err := parseTime12or24(strings.Join(strings.Fields(raw), " "))
-		if err != nil || seen[t24] {
+		if err != nil {
 			continue
 		}
-		seen[t24] = true
-		results = append(results, [2]string{fmt.Sprintf("%d", len(results)+1), t24})
+		times = append(times, t24)
+	}
+	if len(times) == 2 {
+		gap := timeToMinutes(times[1]) - timeToMinutes(times[0])
+		if gap >= 0 && gap <= 15 {
+			times = times[1:] // athan/iqamah pair (or duplicate) → keep the iqamah
+		}
+	}
+	var results [][2]string
+	for i, t24 := range times {
+		results = append(results, [2]string{fmt.Sprintf("%d", i+1), t24})
 	}
 	return results, nil
 }

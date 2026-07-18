@@ -613,6 +613,22 @@ func TestParseJummahFromMasjidalAPI(t *testing.T) {
 		}
 	})
 
+	t.Run("athan/iqamah pair collapsed to iqamah", func(t *testing.T) {
+		masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			// ICMG branches use jummah1/jummah2 as one session's athan/iqamah
+			// (widget renders a single Jumu'ah row).
+			fmt.Fprint(w, `{"status":"success","data":{"date":"2026-07-18","salah":{"fajr":"5:59 AM","zuhr":"12:31 PM","asr":"3:07 PM","maghrib":"5:29 PM","isha":"6:49 PM"},"iqama":{"fajr":"6:54 AM","zuhr":"12:38 PM","asr":"3:14 PM","maghrib":"5:29 PM","isha":"6:56 PM","jummah1":"1:30 PM","jummah2":"1:37 PM"}},"message":[]}`)
+		})
+		s := NewScraper(&config.ScraperConfig{UserAgent: "test", Timeout: 10, MaxRetries: 3})
+		sessions, err := s.parseJummahFromMasjidalAPI(context.Background(), "8KXO59dM")
+		if err != nil {
+			t.Fatalf("parseJummahFromMasjidalAPI: %v", err)
+		}
+		if len(sessions) != 1 || sessions[0] != [2]string{"1", "13:37"} {
+			t.Errorf("sessions = %v; want [[1 13:37]]", sessions)
+		}
+	})
+
 	t.Run("two sessions", func(t *testing.T) {
 		masjidalTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			// AICOM-style payload: two Jumu'ah sessions.
