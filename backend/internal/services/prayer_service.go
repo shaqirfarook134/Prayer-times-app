@@ -61,6 +61,14 @@ func (s *PrayerService) FetchAndUpdateAllMasjids(ctx context.Context) error {
 		}
 	}
 
+	// Also refresh Jumu'ah times: some masjids' published Jumu'ah drifts with
+	// Dhuhr day to day (ICMG branches on Masjidal), so it must be re-read as
+	// often as the daily times — the midnight cron only calls this method.
+	if err := s.FetchAndUpdateJummahAllMasjids(ctx); err != nil {
+		_ = s.logRepo.LogWithMetadata(ctx, nil, "error",
+			fmt.Sprintf("Failed to update jummah times: %v", err), nil)
+	}
+
 	return nil
 }
 
