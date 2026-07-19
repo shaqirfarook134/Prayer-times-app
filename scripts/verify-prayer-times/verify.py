@@ -73,9 +73,17 @@ AI_SOURCED_URL_SUBSTRINGS = ()
 # comparing (matched by URL substring). For these we tell the reader to report
 # the displayed times regardless of the date shown. Every other masjid keeps the
 # strict "must be dated today" check, which catches genuinely stale feeds.
-IGNORE_DATE_URL_SUBSTRINGS = (
-    "pgcc.org.au",  # PGCC — page is frozen on an old date but the times are usable
-)
+IGNORE_DATE_URL_SUBSTRINGS = ()
+
+# Masjids whose own website is a stale or self-contradicting copy of their
+# Masjidal data — read their live Masjidal widget instead of the site:
+#   - PGCC's page is frozen on an old date (WP plugin broke)
+#   - aicom.com.au's prose announcement ("1.45 pm – Session 2") contradicts its
+#     own live widget (2:00 PM JUMU'AH 2); the widget is the managed source
+MASJIDAL_SOURCE_OVERRIDES = {
+    "pgcc.org.au": "VKpDyyKP",  # PGCC (Pillars of Guidance)
+    "aicom.com.au": "nzKzVnKO",  # Afghan Islamic Centre
+}
 
 # Masjids onboarded from the Masjidal directory have the *monthly* widget as
 # their DB url. The monthly grid confuses the AI reader (it picks the wrong
@@ -89,6 +97,9 @@ _MASJIDAL_MONTHLY_RE = re.compile(
 
 def reading_url(url):
     """URL the verifier should actually read for a masjid (usually the DB url)."""
+    for sub, masjid_id in MASJIDAL_SOURCE_OVERRIDES.items():
+        if sub in (url or ""):
+            return f"https://masjidal.com/widget/simple/?masjid_id={masjid_id}"
     m = _MASJIDAL_MONTHLY_RE.search(url or "")
     if m:
         return f"https://masjidal.com/widget/simple/?masjid_id={m.group(1)}"
