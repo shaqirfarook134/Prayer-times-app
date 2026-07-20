@@ -1,0 +1,76 @@
+name: Nightly prayer times scrape
+
+# Midnight Australia/Melbourne. GitHub cron is UTC-only and Melbourne shifts
+# between +10 (AEST) and +11 (AEDT), so both candidate UTC times are scheduled
+# and a guard step runs the job only when it's actually 12am in Melbourne.
+on:
+  schedule:
+    - cron: "5 13 * * *" # 00:05 AEDT (summer)
+    - cron: "5 14 * * *" # 00:05 AEST (winter)
+  workflow_dispatch:
+
+env:
+  API: https://prayer-times-api-uddr.onrender.com
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Guard — only at Melbourne midnight (manual runs skip)
+        id: guard
+        run: |
+          hour=$(TZ=Australia/Melbourne date +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "00" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Melbourne hour is $hour — not midnight, skipping (other cron entry covers it)"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wake the API (Render free tier sleeps)
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          for i in $(seq 1 18); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$API/health" || true)
+            echo "wake attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "API did not wake within 3 minutes" >&2
+          exit 1
+
+      - name: Trigger full scrape (times + Jummah)
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          # The endpoint is synchronous and can outlive Render's proxy timeout —
+          # a 502 here may still mean the scrape is completing server-side, so
+          # success is decided by the freshness check below, not this status.
+          code=$(curl -s -o /tmp/scrape.out -w "%{http_code}" --max-time 900 -X POST "$API/api/v1/admin/scrape" || true)
+          echo "scrape response: HTTP $code"
+          head -c 300 /tmp/scrape.out || true
+
+      - name: Confirm today's times are in the database
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          today=$(TZ=Australia/Melbourne date +%F)
+          echo "expecting date $today"
+          for i in $(seq 1 30); do
+            got=$(curl -s --max-time 30 "$API/api/v1/prayer-times/9" | python3 -c "import json,sys; print(json.load(sys.stdin).get('date',''))" 2>/dev/null || true)
+            echo "check $i: db date = $got"
+            [ "$got" = "$today" ] && exit 0
+            sleep 20
+          done
+          echo "Database never showed today's prayer times" >&2
+          exit 1
+
+      - name: Heartbeat ping (optional)
+        if: steps.guard.outputs.run == 'true'
+        env:
+          HEARTBEAT: ${{ secrets.HEALTHCHECK_SCRAPE_URL }}
+        run: |
+          if [ -n "$HEARTBEAT" ]; then
+            curl -s -o /dev/null --max-time 20 "$HEARTBEAT" && echo "heartbeat sent"
+          else
+            echo "no HEALTHCHECK_SCRAPE_URL secret set — skipping"
+          fi

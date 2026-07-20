@@ -1,0 +1,83 @@
+name: Morning prayer times verification
+
+# 7am Australia/Melbourne — same dual-cron + guard trick as nightly-scrape.yml.
+# Runs verify.py in the cloud so the report no longer depends on a laptop
+# being awake. The script itself emails the report; the workflow fails only on
+# pipeline errors (API unreachable, crash), not on mismatch findings — those
+# are what the emailed report is for.
+on:
+  schedule:
+    - cron: "35 20 * * *" # 07:35 AEDT (summer)
+    - cron: "35 21 * * *" # 07:35 AEST (winter)
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Guard — only at 7am Melbourne (manual runs skip)
+        id: guard
+        run: |
+          hour=$(TZ=Australia/Melbourne date +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "07" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Melbourne hour is $hour — skipping (other cron entry covers it)"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.run == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.guard.outputs.run == 'true'
+        working-directory: scripts/verify-prayer-times
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run verification
+        if: steps.guard.outputs.run == 'true'
+        working-directory: scripts/verify-prayer-times
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          set +e
+          python verify.py
+          code=$?
+          set -e
+          # exit 1 = report produced with mismatches (already emailed) — that is
+          # a successful pipeline run; anything else nonzero is a real failure.
+          if [ "$code" = "0" ] || [ "$code" = "1" ]; then
+            echo "verification completed (exit $code)"
+          else
+            echo "verification pipeline failed (exit $code)" >&2
+            exit "$code"
+          fi
+
+      - name: Upload report artifact
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-report
+          path: scripts/verify-prayer-times/reports/*.html
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Heartbeat ping (optional)
+        if: steps.guard.outputs.run == 'true'
+        env:
+          HEARTBEAT: ${{ secrets.HEALTHCHECK_VERIFY_URL }}
+        run: |
+          if [ -n "$HEARTBEAT" ]; then
+            curl -s -o /dev/null --max-time 20 "$HEARTBEAT" && echo "heartbeat sent"
+          else
+            echo "no HEALTHCHECK_VERIFY_URL secret set — skipping"
+          fi
